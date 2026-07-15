@@ -9,11 +9,16 @@
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     </PropertyGroup>
+    
+    <PropertyGroup>
+        <LibraryPath>$(MSBuildProjectDirectory)/../lib</LibraryPath>
+    </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../lib/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
-        <ProjectReference Include="../lib/cs-oead/src/CsOead.csproj" Version="1.0.0" />
-        <ProjectReference Include="../lib/OperationResult/OperationResult/OperationResult.csproj" />
+        <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
+        <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />
+        <ProjectReference Include="$(LibraryPath)/cs-oead/src/CsOead.csproj" />
+        <ProjectReference Include="$(LibraryPath)/OperationResult/OperationResult/OperationResult.csproj" />
         <PackageReference Include="OpenTK" Version="4.9.4" />
         <PackageReference Include="SmoothGL" Version="1.2.0" />
 
