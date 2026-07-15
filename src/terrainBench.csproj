@@ -11,27 +11,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../lib/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0"/>
-        <ProjectReference Include="../lib/cs-oead/src/CsOead.csproj" Version="1.0.0"/>
+        <ProjectReference Include="../lib/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
+        <ProjectReference Include="../lib/cs-oead/src/CsOead.csproj" Version="1.0.0" />
+        <PackageReference Include="OpenTK" Version="4.9.4" />
+        <PackageReference Include="SmoothGL" Version="1.2.0" />
 
-        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.so')"
-            Include="../lib/cs-oead/native/build/cs_oead.so"
-            Link="Lib/cs_oead.so"
-            TargetPath="cs_oead.so"
-            PackagePath=""
-            CopyToOutputDirectory="PreserveNewest" />
-        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.dll')"
-            Include="../lib/cs-oead/native/build/cs_oead.dll"
-            Link="Lib/cs_oead.dll"
-            TargetPath="cs_oead.dll"
-            PackagePath=""
-            CopyToOutputDirectory="PreserveNewest" />
-        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.dylib')"
-            Include="../lib/cs-oead/native/build/cs_oead.dylib"
-            Link="Lib/cs_oead.dylib"
-            TargetPath="cs_oead.dylib"
-            PackagePath=""
-            CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.so')" Include="../lib/cs-oead/native/build/cs_oead.so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.dll')" Include="../lib/cs-oead/native/build/cs_oead.dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.dylib')" Include="../lib/cs-oead/native/build/cs_oead.dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 
