@@ -1,0 +1,6 @@
+[submodule "lib/SarcLibrary"]
+	path = lib/SarcLibrary
+	url = https://github.com/EPD-Libraries/SarcLibrary
+[submodule "lib/cs-oead"]
+	path = lib/cs-oead
+	url = https://github.com/EPD-Libraries/cs-oead
