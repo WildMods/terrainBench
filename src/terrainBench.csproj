@@ -13,6 +13,7 @@
     <ItemGroup>
         <ProjectReference Include="../lib/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="../lib/cs-oead/src/CsOead.csproj" Version="1.0.0" />
+        <ProjectReference Include="../lib/OperationResult/OperationResult/OperationResult.csproj" />
         <PackageReference Include="OpenTK" Version="4.9.4" />
         <PackageReference Include="SmoothGL" Version="1.2.0" />
 
