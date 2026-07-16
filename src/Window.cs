@@ -24,14 +24,6 @@ public class Window : GameWindow {
     }
     ";
 
-    static string fragShader = @"#version 410 core
-    out vec4 finalColor;
-
-    void main() {
-        finalColor = vec4(1, 0, 0, 1);
-    }
-    ";
-
     // Tessellation taken mostly from https://learnopengl.com/Guest-Articles/2021/Tessellation/Tessellation
     static string tessControlShader = @"#version 410 core
     layout (vertices=4) out;
@@ -62,6 +54,7 @@ public class Window : GameWindow {
     uniform mat4 matProjection;
 
     out float heightOut; // To be used in fragment shader
+    out vec2 uv;
     
     void main() {
         // get patch coordinate
@@ -79,8 +72,18 @@ public class Window : GameWindow {
         vec4 p = (p1 - p0) * v + p0;
 
         heightOut = p.y;
+        uv = vec2(u, v);
 
         gl_Position = matProjection * matView * matModel * vec4(p);
+    }
+    ";
+
+    static string fragShader = @"#version 410 core
+    in vec2 uv;
+    out vec4 finalColor;
+
+    void main() {
+        finalColor = vec4(uv.x, uv.y, 0, 1);
     }
     ";
 
