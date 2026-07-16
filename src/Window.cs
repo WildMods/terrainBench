@@ -2,6 +2,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
+using OpenTK.Mathematics;
 using SmoothGL.Graphics.Shader;
 
 // Callbacks run by OpenTK throughout the lifetime of the program
@@ -10,9 +11,10 @@ public class Window : GameWindow {
     // Basic position-only vertex shader
     static string quadVertShader = @"#version 410 core
     // 1x1 quad vertices
+    const vec2 base = vec2(0, 0.5);
     const vec3 verts[6] = vec3[](
-        vec3(0, 0, 0), vec3(0.5, 0, 0), vec3(0, 0, 0.5),
-        vec3(0.5, 0, 0.5), vec3(0.5, 0, 0), vec3(0, 0, 0.5)
+        base.xxx, base.yxx, base.xyx,
+        base.yyx, base.yxx, base.xyx
     );
 
     void main() {
@@ -81,7 +83,7 @@ public class Window : GameWindow {
     }
     ";
 
-    ShaderProgram shader;
+    ShaderProgram tessShader;
     int vaoBlank = 0;
 
     // A simple constructor to let us set properties like window size, title, FPS, etc. on the window.
@@ -99,7 +101,12 @@ public class Window : GameWindow {
 
     protected override void OnLoad() {
         base.OnLoad();
+        VSync = VSyncMode.On;
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        tessShader = new ShaderProgram(quadVertShader, tessControlShader, tessEvalShader, fragShader);
+        vaoBlank = GL.GenVertexArray();
+        GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
+        GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
     }
 
     protected override void OnUnload() {
@@ -114,9 +121,24 @@ public class Window : GameWindow {
     protected override void OnRenderFrame(FrameEventArgs e) {
         base.OnRenderFrame(e);
         GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-        shader.Use();
+        tessShader.Use();
         GL.BindVertexArray(vaoBlank);
-        GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        GL.DrawArrays(PrimitiveType.Patches, 0, 4);
+        var modelT = tessShader.Uniform("matModel");
+        var viewT = tessShader.Uniform("matView");
+        var projT = tessShader.Uniform("matProjection");
+        if (modelT != null) {
+            var xform = Matrix4.Identity;
+            Matrix4.CreateScale(1.9f, out xform);
+            modelT.SetValue(xform);
+        }
+        if (viewT != null) {
+            viewT.SetValue(Matrix4.Identity);
+        }
+        if (projT != null) {
+            projT.SetValue(Matrix4.Identity);
+        }
+
         GL.BindVertexArray(0);
 
         SwapBuffers();
