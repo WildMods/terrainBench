@@ -4,10 +4,37 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Mathematics;
 using SmoothGL.Graphics.Shader;
+using SmoothGL.Graphics.Texturing;
 namespace terrainBench;
 
 // Callbacks run by OpenTK throughout the lifetime of the program
 public class Window : GameWindow {
+    const int HGHT_DIM = 256;
+
+    public struct TileDrawRecord {
+        public int tex;
+        public byte lod;
+        public UInt16 baseId;
+        public Int32[] ids = new Int32[4];
+
+        public TileDrawRecord(int tex, byte lod, UInt16 id) {
+            this.tex = tex;
+            this.lod = lod;
+            ids[0] = baseId = id;
+            ids[1] = ids[2] = ids[3] = -1;
+        }
+
+        public bool addID(UInt16 id) {
+            for (int i = 0; i < ids.Length; i++) {
+                if (ids[i] < 0) {
+                    ids[i] = id;
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     // These shaders should be moved to their own source files later if possible
     // Basic position-only vertex shader
     static string quadVertShader = @"#version 410 core
@@ -48,18 +75,23 @@ public class Window : GameWindow {
     ";
 
     static string tessEvalShader = @"#version 410 core
+    #extension GL_ARB_shading_language_420pack: require
     layout (quads, equal_spacing, ccw) in;
+    layout (binding = 0) uniform sampler2D tex;
     uniform mat4 matModel;
     uniform mat4 matView;
     uniform mat4 matProjection;
 
-    out float heightOut; // To be used in fragment shader
+    out float height; // To be used in fragment shader
     out vec2 uv;
     
     void main() {
         // get patch coordinate
         float u = gl_TessCoord.x;
         float v = gl_TessCoord.y;
+
+        uv = vec2(u, v);
+        height = texture(tex, uv).x;
 
         vec4 p00 = gl_in[0].gl_Position;
         vec4 p01 = gl_in[1].gl_Position;
@@ -71,25 +103,32 @@ public class Window : GameWindow {
         vec4 p1 = (p11 - p10) * u + p10;
         vec4 p = (p1 - p0) * v + p0;
 
-        heightOut = p.y;
-        uv = vec2(u, v);
+        p.z += height;
 
-        gl_Position = matProjection * matView * matModel * vec4(p);
+        // gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
+        gl_Position = vec4(p.xyz, 1);
     }
     ";
 
     static string fragShader = @"#version 410 core
+    #extension GL_ARB_shading_language_420pack: require
     in vec2 uv;
+    in float height;
     out vec4 finalColor;
+    layout (binding = 0) uniform sampler2D tex;
 
     void main() {
-        finalColor = vec4(uv.x, uv.y, 0, 1);
+        float s = texture(tex, uv).x;
+        s = height;
+        finalColor = vec4(vec3(s), 1);
     }
     ";
 
     Game game;
     ShaderProgram tessShader;
+    Texture2D dummyTexture;
     int vaoBlank = 0;
+    List<TileDrawRecord> tiles = new List<TileDrawRecord>();
 
     // A simple constructor to let us set properties like window size, title, FPS, etc. on the window.
     public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings, Game game)
@@ -110,9 +149,65 @@ public class Window : GameWindow {
         VSync = VSyncMode.On;
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         tessShader = new ShaderProgram(quadVertShader, tessControlShader, tessEvalShader, fragShader);
+        dummyTexture = new Texture2D(1, 1);
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
+
+        byte lod = 2;
+        var iter = game.GetLod(lod);
+        foreach (var (firstFile, sarc) in iter) {
+            string archName = firstFile + ".sstera";
+            Console.WriteLine("Loaded {0}", archName);
+            if (sarc.Count > 4) {
+                Console.WriteLine("Warning: {0} had {1} files, there should be at most 4", archName, sarc.Count);
+            }
+
+            var baseIdx = ZOrder.IndexFromFilename(firstFile);
+            if (baseIdx.IsErr()) {
+                Console.WriteLine("Failed to get SSTERA base index: {0}", baseIdx.GetErrorMessage());
+                continue;
+            }
+
+            const int dim = HGHT_DIM * 2;
+            int tex = 0;
+            GL.CreateTextures(TextureTarget.Texture2D, 1, out tex);
+            if (tex == 0) {
+                Console.WriteLine("Failed to create texture!");
+            }
+
+            GL.TextureStorage2D(tex, 1, SizedInternalFormat.R16, dim, dim);
+            GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            var tile = new TileDrawRecord(tex, lod, baseIdx.Ok());
+
+            foreach (var (name, dataMarshal) in sarc) {
+                ReadOnlySpan<byte> span = dataMarshal.AsSpan();
+                var idx = ZOrder.IndexFromFilename(name);
+                if (idx.IsErr()) {
+                    Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
+                    continue;
+                }
+                var localIdx = ZOrder.LocalIdx(idx.Ok());
+                byte x = 0, y = 0;
+                ZOrder.Deinterleave16To8(localIdx, out x, out y);
+
+                tile.addID(idx.Ok());
+
+                Console.WriteLine("\tFound {0} [index {1}, local index {4}, local coord ({2}, {3})", name, idx.Ok(), x, y, localIdx);
+
+                int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
+                unsafe {
+                    fixed (byte* bp = span) {
+                        nint ptr = (IntPtr)bp;
+                        GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, ptr);
+                    }
+                }
+                Console.WriteLine("\tOffset ({0}, {1})", xOffset, yOffset);
+            }
+
+            tiles.Add(tile);
+        }
     }
 
     protected override void OnUnload() {
@@ -127,24 +222,41 @@ public class Window : GameWindow {
     protected override void OnRenderFrame(FrameEventArgs e) {
         base.OnRenderFrame(e);
         GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-        tessShader.Use();
+
+        GL.BindTextureUnit(0, tiles[0].tex);
         GL.BindVertexArray(vaoBlank);
-        GL.DrawArrays(PrimitiveType.Patches, 0, 4);
+
+        // TODO: Write new shader wrapper that doesn't freak out and start
+        // ignoring uniform uploads just because this explicitly defaulted uniform isn't set by the CPU
+        // tessShader.Uniform("tex")?.SetValue(dummyTexture);
+        try {
+            tessShader.Use();
+        } catch (ShaderUniformException ex) {
+        }
+
         var modelT = tessShader.Uniform("matModel");
         var viewT = tessShader.Uniform("matView");
         var projT = tessShader.Uniform("matProjection");
+        if (viewT != null) {
+            viewT.SetValue(Matrix4.Identity);
+        } else {
+            // Console.WriteLine("Unable to find view matrix uniform!");
+        }
+        if (projT != null) {
+            projT.SetValue(Matrix4.Identity);
+        } else {
+            // Console.WriteLine("Unable to find projection matrix uniform!");
+        }
         if (modelT != null) {
             var xform = Matrix4.Identity;
             Matrix4.CreateScale(1.9f, out xform);
             modelT.SetValue(xform);
-        }
-        if (viewT != null) {
-            viewT.SetValue(Matrix4.Identity);
-        }
-        if (projT != null) {
-            projT.SetValue(Matrix4.Identity);
+        } else {
+            // Console.WriteLine("Unable to find model matrix uniform!");
         }
 
+
+        GL.DrawArrays(PrimitiveType.Patches, 0, 4);
         GL.BindVertexArray(0);
 
         SwapBuffers();
