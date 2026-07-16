@@ -4,6 +4,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Mathematics;
 using SmoothGL.Graphics.Shader;
+namespace terrainBench;
 
 // Callbacks run by OpenTK throughout the lifetime of the program
 public class Window : GameWindow {
@@ -83,12 +84,14 @@ public class Window : GameWindow {
     }
     ";
 
+    Game game;
     ShaderProgram tessShader;
     int vaoBlank = 0;
 
     // A simple constructor to let us set properties like window size, title, FPS, etc. on the window.
-    public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
+    public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings, Game game)
         : base(gameWindowSettings, nativeWindowSettings) {
+        this.game = game;
     }
 
     protected override void OnUpdateFrame(FrameEventArgs e) {
