@@ -1,7 +1,14 @@
 #!/bin/sh
-BUILD_DIR="lib/cs-oead/native/build"
+OEAD_BUILD_DIR="lib/cs-oead/native/build"
+NATIVEIO_BUILD_DIR="lib/cs-oead/lib/Native.IO/native/build"
 
-mkdir $BUILD_DIR
-cd $BUILD_DIR
+mkdir -p $OEAD_BUILD_DIR
+cd $OEAD_BUILD_DIR
 cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
+ninja
+
+cd ../../../..
+mkdir -p $NATIVEIO_BUILD_DIR
+cd $NATIVEIO_BUILD_DIR
+cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
 ninja

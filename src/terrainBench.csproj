@@ -12,6 +12,8 @@
     
     <PropertyGroup>
         <LibraryPath>$(MSBuildProjectDirectory)/../lib</LibraryPath>
+        <OeadLibFile>$(LibraryPath)/cs-oead/native/build/cs_oead</OeadLibFile>
+        <NIOLibFile>$(LibraryPath)/cs-oead/lib/Native.IO/native/build/native_io</NIOLibFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -22,9 +24,13 @@
         <PackageReference Include="OpenTK" Version="4.9.4" />
         <PackageReference Include="SmoothGL" Version="1.2.0" />
 
-        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.so')" Include="../lib/cs-oead/native/build/cs_oead.so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
-        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.dll')" Include="../lib/cs-oead/native/build/cs_oead.dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
-        <Content Condition="Exists('../lib/cs-oead/native/build/cs_oead.dylib')" Include="../lib/cs-oead/native/build/cs_oead.dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('$(NIOLibFile).so')" Include="$(NIOLibFile).so" Link="Lib/native_io.so" TargetPath="native_io.so" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Condition="Exists('$(NIOLibFile).dll')" Include="$(NIOLibFile).dll" Link="Lib/native_io.dll" TargetPath="native_io.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Condition="Exists('$(NIOLibFile).dylib')" Include="$(NIOLibFile).dylib" Link="Lib/native_io.dylib" TargetPath="native_io.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+
+        <Content Condition="Exists('$(OeadLibFile).so')" Include="$(OeadLibFile).so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
     </ItemGroup>
 
 
