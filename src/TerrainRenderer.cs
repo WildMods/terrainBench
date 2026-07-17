@@ -30,6 +30,18 @@ public class TerrainRenderer {
             }
             return false;
         }
+
+        public int numIDs() {
+            int count = 0;
+            for (int i = 0; i < ids.Length; i++) {
+                if (ids[i] >= 0) {
+                    count++;
+                } else {
+                    break;
+                }
+            }
+            return count;
+        }
     }
 
     Shader tessShader;
@@ -133,7 +145,7 @@ public class TerrainRenderer {
         }
         loadWatch.Stop();
 
-        Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles) in {3}ms.", tileCount, tileCount * TRIS_PER_TILE, sarcCount, loadWatch.ElapsedMilliseconds);
+        Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles) in {3}ms total.", tileCount, tileCount * TRIS_PER_TILE, sarcCount, loadWatch.ElapsedMilliseconds);
         Console.WriteLine("Spent {0}ms uploading OpenGL textures", glWatch.ElapsedMilliseconds);
         return true;
     }
@@ -149,17 +161,18 @@ public class TerrainRenderer {
         foreach (var tile in tiles) {
             GL.BindTextureUnit(0, tile.tex);
 
-            foreach(var id in tile.ids) {
-                if (id < 0 || id > 0xFFFF) {
-                    continue; // Tile not present
+            Int32[] indices = new Int32[4];
+            for (int i = 0; i < 4; i++) {
+                if (tile.ids[i] < 0) {
+                    indices[i] = -1;
+                } else {
+                    indices[i] = ((Int32)tile.lod << 16) | (Int32)tile.ids[i];
                 }
-
-                Int32 idx = ((Int32)tile.lod << 16) | (Int32)id;
-                tessShader.Uniform("idx")?.SetValue(idx);
-                tessShader.ApplyUniforms();
-
-                GL.DrawArrays(PrimitiveType.Patches, 0, 4);
             }
+
+            tessShader.Uniform("indices")?.SetValue(indices);
+            tessShader.ApplyUniforms();
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, tile.numIDs());
         }
 
         GL.BindVertexArray(0);
