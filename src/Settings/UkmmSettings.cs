@@ -1,6 +1,6 @@
 using static System.String;
 
-namespace BotwFlagUtil.Models;
+namespace terrainBench.Settings;
 
 public class UkmmSettings
 {

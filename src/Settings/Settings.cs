@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace BotwFlagUtil.Models
+namespace terrainBench.Settings
 {
     internal class Settings(string gameDir, string updateDir, string dlcDir, string gameDirNx, string dlcDirNx)
     {

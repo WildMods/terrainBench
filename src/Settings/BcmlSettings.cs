@@ -1,7 +1,7 @@
 using System.Text.Json;
 using static System.String;
 
-namespace BotwFlagUtil.Models;
+namespace terrainBench.Settings;
 
 public class BcmlSettings
 {
