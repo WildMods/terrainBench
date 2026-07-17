@@ -49,7 +49,6 @@ public class Game
         var YazWatch = System.Diagnostics.Stopwatch.StartNew();
         Parallel.ForEach(paths, path => {
                 DataMarshal data = Yaz0.DecompressFile(path);
-                Console.WriteLine("Decompressed {0}", path);
                 if (data.AsSpan().Length > 0) {
                     mutex.WaitOne();
                     buffers.Add(new SSTERARecord(path, data));

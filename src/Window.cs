@@ -170,7 +170,7 @@ public class Window : GameWindow {
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
             if (!firstFile.EndsWith(".hght")) {
-                Console.WriteLine("Skipping non-heightmap file '{0}'", archName);
+                // Console.WriteLine("Skipping non-heightmap file '{0}'", archName);
                 continue;
             }
             sarcCount++;
