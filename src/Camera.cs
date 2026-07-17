@@ -1,3 +1,5 @@
+// Created Jul. 16 2026, copied from RenderTron 9000 C++ class
+// @author Torphedo
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using static OpenTK.Mathematics.MathHelper;

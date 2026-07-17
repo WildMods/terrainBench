@@ -111,15 +111,11 @@ public class Window : GameWindow {
 
     static string fragShader = @"#version 410 core
     #extension GL_ARB_shading_language_420pack: require
-    in vec2 uv;
     in float height;
     out vec4 finalColor;
-    layout (binding = 0) uniform sampler2D tex;
 
     void main() {
-        float s = texture(tex, uv).x;
-        s = height;
-        finalColor = vec4(vec3(s), 1);
+        finalColor = vec4(vec3(height), 1);
     }
     ";
 
@@ -205,7 +201,6 @@ public class Window : GameWindow {
                         GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, ptr);
                     }
                 }
-                Console.WriteLine("\tOffset ({0}, {1})", xOffset, yOffset);
             }
 
             tiles.Add(tile);
@@ -257,7 +252,6 @@ public class Window : GameWindow {
         }
 
         GL.BindVertexArray(0);
-
         SwapBuffers();
     }
 }

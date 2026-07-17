@@ -1,3 +1,5 @@
+// Created Jul. 15 2026
+// @author Torphedo
 using terrainBench;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;

@@ -1,3 +1,6 @@
+// Created Jul. 15 2026, partially copied from:
+// https://github.com/Torphedo/BOTWTerrain/blob/trunk/util.h
+// @author Torphedo
 using OperationResult;
 using static OperationResult.Helpers;
 namespace terrainBench;
@@ -50,7 +53,6 @@ public static class ZOrder {
 
         filename = Path.GetFileNameWithoutExtension(filename);
         filename = filename.Remove(0, 2);
-        Console.WriteLine("Got final filename {0}", filename);
         UInt32 res = Convert.ToUInt32(filename, 16);
         if (res > 0xFFFF) {
             return Err(new ErrorStack($"Invalid filename (gave out of bounds Z-order index {res}): {filename}"));
