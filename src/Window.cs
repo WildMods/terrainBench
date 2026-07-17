@@ -86,28 +86,53 @@ public class Window : GameWindow {
 
     out float height; // To be used in fragment shader
     out vec2 uv;
+
+    const float targetTileSize = 8;
+    const int MAX_LOD = 8;
+
+    // De-interleave the low 16 bits to get an 8-bit X/Z coordinate
+    ivec2 idxToGridPos(int idx) {
+        ivec2 pos = ivec2(0);
+        for (int i = 0; i < 16; i+= 2) {
+            pos.y <<= 1;
+            pos.y |= ((idx >> 15) & 1);
+            idx <<= 1;
+
+            pos.x <<= 1;
+            pos.x |= ((idx >> 15) & 1);
+            idx <<= 1;
+        }
+        return pos;
+    }
     
     void main() {
         // get patch coordinate
         float u = gl_TessCoord.y / 2;
         float v = gl_TessCoord.x / 2;
+        // Bottom 2 bits of the Z-order index tell us where in the 2x2 tile
+        // texture to look
         u += (0.5 * float(idx & 1));
         v += (0.5 * float((idx >> 1) & 1));
 
         uv = vec2(u, v);
         height = texture(tex, uv).x;
 
-        vec4 p00 = gl_in[0].gl_Position;
-        vec4 p01 = gl_in[1].gl_Position;
-        vec4 p10 = gl_in[2].gl_Position;
-        vec4 p11 = gl_in[3].gl_Position;
+        int lod = idx >> 16;
+        float tileFactor = float(1 << MAX_LOD) / float(1 << lod);
+        ivec2 worldPos = idxToGridPos(idx);
+
+        vec4 p00 = gl_in[0].gl_Position * tileFactor;
+        vec4 p01 = gl_in[1].gl_Position * tileFactor;
+        vec4 p10 = gl_in[2].gl_Position * tileFactor;
+        vec4 p11 = gl_in[3].gl_Position * tileFactor;
         
         // Interpolate position across patch
         vec4 p0 = (p01 - p00) * gl_TessCoord.x + p00;
         vec4 p1 = (p11 - p10) * gl_TessCoord.x + p10;
         vec4 p = (p1 - p0) * gl_TessCoord.y + p0;
 
-        p.y += height * 2;
+        p.y += height * 16;
+        p.xz += worldPos * (tileFactor / 2);
 
         gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
     }
@@ -160,7 +185,7 @@ public class Window : GameWindow {
 
         int tileCount = 0;
         int sarcCount = 0;
-        byte lod = 8;
+        byte lod = 6;
         var iter = game.GetLod(lod);
         var glWatch = System.Diagnostics.Stopwatch.StartNew();
         glWatch.Stop();
@@ -259,10 +284,9 @@ public class Window : GameWindow {
 
         tessShader.Uniform("matView")?.SetValue(cam.view_matrix());
         tessShader.Uniform("matProjection")?.SetValue(cam.proj_matrix());
-        var modelT = tessShader.Uniform("matModel");
+        tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
 
         GL.BindVertexArray(vaoBlank);
-
         foreach (var tile in tiles) {
             GL.BindTextureUnit(0, tile.tex);
 
@@ -271,15 +295,8 @@ public class Window : GameWindow {
                     continue; // Tile not present
                 }
 
-                byte x, y, xLocal, yLocal;
-                ZOrder.Deinterleave16To8((UInt16)id, out x, out y);
-                ZOrder.Deinterleave16To8(ZOrder.LocalIdx((UInt16)id), out xLocal, out yLocal);
-                Vector3 worldPos = new Vector3(x, 0, y);
-                worldPos /= 2;
-
-                var xform = Matrix4.CreateTranslation(worldPos);
-                tessShader.Uniform("matModel")?.SetValue(xform);
-                tessShader.Uniform("idx")?.SetValue(id);
+                Int32 idx = ((Int32)tile.lod << 16) | (Int32)id;
+                tessShader.Uniform("idx")?.SetValue(idx);
                 tessShader.ApplyUniforms();
 
                 GL.DrawArrays(PrimitiveType.Patches, 0, 4);
