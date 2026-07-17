@@ -160,8 +160,13 @@ public class Window : GameWindow {
 
         int tileCount = 0;
         int sarcCount = 0;
-        byte lod = 5;
+        byte lod = 8;
         var iter = game.GetLod(lod);
+        var glWatch = System.Diagnostics.Stopwatch.StartNew();
+        glWatch.Stop();
+        var zWatch = System.Diagnostics.Stopwatch.StartNew();
+        zWatch.Stop();
+        var loadWatch = System.Diagnostics.Stopwatch.StartNew();
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
             if (!firstFile.EndsWith(".hght")) {
@@ -174,14 +179,18 @@ public class Window : GameWindow {
                 Console.WriteLine("Warning: {0} had {1} files, there should be at most 4", archName, sarc.Count);
             }
 
+            zWatch.Start();
             var baseIdx = ZOrder.IndexFromFilename(firstFile);
             if (baseIdx.IsErr()) {
                 Console.WriteLine("Failed to get SSTERA base index: {0}", baseIdx.GetErrorMessage());
                 continue;
             }
+            zWatch.Stop();
 
             const int dim = HGHT_DIM * 2;
             int tex = 0;
+
+            glWatch.Start();
             GL.CreateTextures(TextureTarget.Texture2D, 1, out tex);
             if (tex == 0) {
                 Console.WriteLine("Failed to create texture!");
@@ -192,10 +201,11 @@ public class Window : GameWindow {
             GL.TextureParameter(tex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
             GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            glWatch.Stop();
             var tile = new TileDrawRecord(tex, lod, baseIdx.Ok());
 
             foreach (var (name, dataMarshal) in sarc) {
-                ReadOnlySpan<byte> span = dataMarshal.AsSpan();
+                zWatch.Start();
                 var idx = ZOrder.IndexFromFilename(name);
                 if (idx.IsErr()) {
                     Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
@@ -207,22 +217,29 @@ public class Window : GameWindow {
 
                 tile.addID(idx.Ok());
                 tileCount++;
+                zWatch.Stop();
 
                 Console.WriteLine("\tFound {0} [index {1}, local index {4}, local coord ({2}, {3})", name, idx.Ok(), x, y, localIdx);
 
                 int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
+                ReadOnlySpan<byte> span = dataMarshal.AsSpan();
                 unsafe {
                     fixed (byte* bp = span) {
                         nint ptr = (IntPtr)bp;
+                        glWatch.Start();
                         GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, ptr);
+                        glWatch.Stop();
                     }
                 }
             }
 
             tiles.Add(tile);
         }
+        loadWatch.Stop();
 
-        Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles).", tileCount, tileCount * TRIS_PER_TILE, sarcCount);
+        Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles) in {3}ms.", tileCount, tileCount * TRIS_PER_TILE, sarcCount, loadWatch.ElapsedMilliseconds);
+        Console.WriteLine("Spent {0}ms uploading OpenGL textures", glWatch.ElapsedMilliseconds);
+        Console.WriteLine("Spent {0}ms on Z-order math", zWatch.ElapsedMilliseconds);
     }
 
     protected override void OnUnload() {
