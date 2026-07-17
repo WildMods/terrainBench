@@ -19,7 +19,7 @@ public class Camera {
     Vector3 pos = Vector3.Zero; // Position of the viewer
     Quaternion orbit_angles = Quaternion.Identity;
     float radius = 30.0f;
-    float move_speed = 2.0f;
+    float move_speed = 20.0f;
     float mouse_sens = 0.015f;
 
     // Projection settings

@@ -10,6 +10,7 @@ namespace terrainBench;
 // Callbacks run by OpenTK throughout the lifetime of the program
 public class Window : GameWindow {
     const int HGHT_DIM = 256;
+    const int TRIS_PER_TILE = 8192;
 
     public struct TileDrawRecord {
         public int tex;
@@ -106,7 +107,7 @@ public class Window : GameWindow {
         vec4 p1 = (p11 - p10) * gl_TessCoord.x + p10;
         vec4 p = (p1 - p0) * gl_TessCoord.y + p0;
 
-        p.y += height / 5;
+        p.y += height * 2;
 
         gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
     }
@@ -157,7 +158,9 @@ public class Window : GameWindow {
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
 
-        byte lod = 2;
+        int tileCount = 0;
+        int sarcCount = 0;
+        byte lod = 5;
         var iter = game.GetLod(lod);
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
@@ -165,6 +168,7 @@ public class Window : GameWindow {
                 Console.WriteLine("Skipping non-heightmap file '{0}'", archName);
                 continue;
             }
+            sarcCount++;
             Console.WriteLine("Loaded {0}", archName);
             if (sarc.Count > 4) {
                 Console.WriteLine("Warning: {0} had {1} files, there should be at most 4", archName, sarc.Count);
@@ -202,6 +206,7 @@ public class Window : GameWindow {
                 ZOrder.Deinterleave16To8(localIdx, out x, out y);
 
                 tile.addID(idx.Ok());
+                tileCount++;
 
                 Console.WriteLine("\tFound {0} [index {1}, local index {4}, local coord ({2}, {3})", name, idx.Ok(), x, y, localIdx);
 
@@ -216,6 +221,8 @@ public class Window : GameWindow {
 
             tiles.Add(tile);
         }
+
+        Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles).", tileCount, tileCount * TRIS_PER_TILE, sarcCount);
     }
 
     protected override void OnUnload() {
@@ -244,7 +251,6 @@ public class Window : GameWindow {
 
             foreach(var id in tile.ids) {
                 if (id < 0 || id > 0xFFFF) {
-                    Console.WriteLine("Skipping invalid tile {0}", id);
                     continue; // Tile not present
                 }
 
