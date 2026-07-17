@@ -3,7 +3,7 @@
 	url = https://github.com/EPD-Libraries/SarcLibrary
 [submodule "lib/cs-oead"]
 	path = lib/cs-oead
-	url = https://github.com/EPD-Libraries/cs-oead
+	url = https://github.com/WildMods/cs-oead
 [submodule "lib/OperationResult"]
 	path = lib/OperationResult
 	url = https://github.com/GingerAvalanche/OperationResult.git
