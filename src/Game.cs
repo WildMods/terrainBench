@@ -37,29 +37,31 @@ public class Game
             _update.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.water.extm.sstera")
         ];
 
-        var paths = new List<string>();
+        var YazWatch = System.Diagnostics.Stopwatch.StartNew();
+        YazWatch.Stop();
         foreach (var iter in iters) {
+            var paths = new List<string>();
             foreach (var (name, path) in iter) {
                 paths.Add(path);
             }
-        }
+            var mutex = new Mutex();
+            var buffers = new List<SSTERARecord>();
+            YazWatch.Start();
+            Parallel.ForEach(paths, path => {
+                    DataMarshal data = Yaz0.DecompressFile(path);
+                    if (data.AsSpan().Length > 0) {
+                        mutex.WaitOne();
+                        buffers.Add(new SSTERARecord(path, data));
+                        mutex.ReleaseMutex();
+                    }
+            });
+            YazWatch.Stop();
 
-        var mutex = new Mutex();
-        var buffers = new List<SSTERARecord>();
-        var YazWatch = System.Diagnostics.Stopwatch.StartNew();
-        Parallel.ForEach(paths, path => {
-                DataMarshal data = Yaz0.DecompressFile(path);
-                if (data.AsSpan().Length > 0) {
-                    mutex.WaitOne();
-                    buffers.Add(new SSTERARecord(path, data));
-                    mutex.ReleaseMutex();
-                }
-        });
-        YazWatch.Stop();
+            foreach (var record in buffers) {
+                string basename = Path.GetFileName(record.path);
+                yield return (basename.Replace(".sstera", ""), Sarc.FromBinary(record.buf));
+            }
 
-        foreach (var record in buffers) {
-            string basename = Path.GetFileName(record.path);
-            yield return (basename.Replace(".sstera", ""), Sarc.FromBinary(record.buf));
         }
 
         Console.WriteLine("Spent {0}ms decompressing Yaz0 from disk", YazWatch.ElapsedMilliseconds);
