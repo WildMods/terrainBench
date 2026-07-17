@@ -20,8 +20,8 @@ public class Window : GameWindow {
         public TileDrawRecord(int tex, byte lod, UInt16 id) {
             this.tex = tex;
             this.lod = lod;
-            ids[0] = baseId = id;
-            ids[1] = ids[2] = ids[3] = -1;
+            baseId = id;
+            ids[0] = ids[1] = ids[2] = ids[3] = -1;
         }
 
         public bool addID(UInt16 id) {
@@ -81,14 +81,17 @@ public class Window : GameWindow {
     uniform mat4 matModel;
     uniform mat4 matView;
     uniform mat4 matProjection;
+    uniform int idx;
 
     out float height; // To be used in fragment shader
     out vec2 uv;
     
     void main() {
         // get patch coordinate
-        float u = gl_TessCoord.x;
-        float v = gl_TessCoord.y;
+        float u = gl_TessCoord.y / 2;
+        float v = gl_TessCoord.x / 2;
+        u += (0.5 * float(idx & 1));
+        v += (0.5 * float((idx >> 1) & 1));
 
         uv = vec2(u, v);
         height = texture(tex, uv).x;
@@ -99,11 +102,11 @@ public class Window : GameWindow {
         vec4 p11 = gl_in[3].gl_Position;
         
         // Interpolate position across patch
-        vec4 p0 = (p01 - p00) * u + p00;
-        vec4 p1 = (p11 - p10) * u + p10;
-        vec4 p = (p1 - p0) * v + p0;
+        vec4 p0 = (p01 - p00) * gl_TessCoord.x + p00;
+        vec4 p1 = (p11 - p10) * gl_TessCoord.x + p10;
+        vec4 p = (p1 - p0) * gl_TessCoord.y + p0;
 
-        p.y += height;
+        p.y += height / 5;
 
         gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
     }
@@ -112,9 +115,11 @@ public class Window : GameWindow {
     static string fragShader = @"#version 410 core
     #extension GL_ARB_shading_language_420pack: require
     in float height;
+    in vec2 uv;
     out vec4 finalColor;
 
     void main() {
+        // finalColor = vec4(vec2(height) * 0.7 + vec2(uv) * 0.3, 1, 1);
         finalColor = vec4(vec3(height), 1);
     }
     ";
@@ -156,6 +161,10 @@ public class Window : GameWindow {
         var iter = game.GetLod(lod);
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
+            if (!firstFile.EndsWith(".hght")) {
+                Console.WriteLine("Skipping non-heightmap file '{0}'", archName);
+                continue;
+            }
             Console.WriteLine("Loaded {0}", archName);
             if (sarc.Count > 4) {
                 Console.WriteLine("Warning: {0} had {1} files, there should be at most 4", archName, sarc.Count);
@@ -175,6 +184,8 @@ public class Window : GameWindow {
             }
 
             GL.TextureStorage2D(tex, 1, SizedInternalFormat.R16, dim, dim);
+            GL.TextureParameter(tex, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TextureParameter(tex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
             GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
             var tile = new TileDrawRecord(tex, lod, baseIdx.Ok());
@@ -233,19 +244,20 @@ public class Window : GameWindow {
 
             foreach(var id in tile.ids) {
                 if (id < 0 || id > 0xFFFF) {
+                    Console.WriteLine("Skipping invalid tile {0}", id);
                     continue; // Tile not present
                 }
 
                 byte x, y, xLocal, yLocal;
                 ZOrder.Deinterleave16To8((UInt16)id, out x, out y);
                 ZOrder.Deinterleave16To8(ZOrder.LocalIdx((UInt16)id), out xLocal, out yLocal);
-                UInt32 xWorld = (UInt32)x;
-                UInt32 yWorld = (UInt32)y;
+                Vector3 worldPos = new Vector3(x, 0, y);
+                worldPos /= 2;
 
-                var xform = Matrix4.CreateTranslation(xWorld, 0, yWorld);
-
-                tessShader.ApplyUniforms();
+                var xform = Matrix4.CreateTranslation(worldPos);
                 tessShader.Uniform("matModel")?.SetValue(xform);
+                tessShader.Uniform("idx")?.SetValue(id);
+                tessShader.ApplyUniforms();
 
                 GL.DrawArrays(PrimitiveType.Patches, 0, 4);
             }
