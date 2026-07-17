@@ -6,4 +6,4 @@
 	url = https://github.com/WildMods/cs-oead
 [submodule "lib/OperationResult"]
 	path = lib/OperationResult
-	url = https://github.com/GingerAvalanche/OperationResult.git
+	url = https://github.com/WildMods/OperationResult.git
