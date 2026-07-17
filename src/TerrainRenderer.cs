@@ -9,38 +9,40 @@ public class TerrainRenderer {
     const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
 
     public struct TileDrawRecord {
-        public int tex;
+        public int texHGHT;
         public byte lod;
         public UInt16 baseId;
-        public Int32[] ids = new Int32[4];
+        public bool[] ids = new bool[4];
 
-        public TileDrawRecord(int tex, byte lod, UInt16 id) {
-            this.tex = tex;
+        public TileDrawRecord(int texHGHT, byte lod, UInt16 id) {
+            this.texHGHT = texHGHT;
             this.lod = lod;
             baseId = id;
-            ids[0] = ids[1] = ids[2] = ids[3] = -1;
-        }
-
-        public bool addID(UInt16 id) {
-            for (int i = 0; i < ids.Length; i++) {
-                if (ids[i] < 0) {
-                    ids[i] = id;
-                    return true;
-                }
-            }
-            return false;
         }
 
         public int numIDs() {
             int count = 0;
             for (int i = 0; i < ids.Length; i++) {
-                if (ids[i] >= 0) {
+                if (ids[i]) {
                     count++;
-                } else {
-                    break;
                 }
             }
             return count;
+        }
+
+        public void Draw(Shader shader) {
+            GL.BindTextureUnit(0, texHGHT);
+
+            Int32[] indices = new Int32[4];
+            for (int i = 0, pos = 0; i < 4; i++) {
+                if (ids[i]) {
+                    indices[pos++] = ((Int32)lod << 16) | (Int32)(baseId + i);
+                }
+            }
+
+            shader.Uniform("indices")?.SetValue(indices);
+            shader.ApplyUniforms();
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, numIDs());
         }
     }
 
@@ -70,6 +72,49 @@ public class TerrainRenderer {
         return true;
     }
 
+    private TileDrawRecord LoadSSTERAHeight(CsOead.Sarc sarc, byte lod, UInt16 baseIdx) {
+        const int dim = HGHT_DIM * 2;
+        int tex = 0;
+
+        GL.CreateTextures(TextureTarget.Texture2D, 1, out tex);
+        if (tex == 0) {
+            Console.WriteLine("Failed to create texture!");
+        }
+
+        GL.TextureStorage2D(tex, 1, SizedInternalFormat.R16, dim, dim);
+        GL.TextureParameter(tex, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TextureParameter(tex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+        GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+        GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        var tile = new TileDrawRecord(tex, lod, baseIdx);
+
+        foreach (var (name, dataMarshal) in sarc) {
+            var idx = ZOrder.IndexFromFilename(name);
+            if (idx.IsErr()) {
+                Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
+                continue;
+            }
+            var localIdx = ZOrder.LocalIdx(idx.Ok());
+            byte x = 0, y = 0;
+            ZOrder.Deinterleave16To8(localIdx, out x, out y);
+
+            tile.ids[localIdx] = true;
+
+            Console.WriteLine("\tFound {0} [index {1}, local index {4}, local coord ({2}, {3})", name, idx.Ok(), x, y, localIdx);
+
+            int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
+            ReadOnlySpan<byte> span = dataMarshal.AsSpan();
+            unsafe {
+                fixed (byte* bp = span) {
+                    nint ptr = (IntPtr)bp;
+                    GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, ptr);
+                }
+            }
+        }
+
+        return tile;
+    }
+
     public bool LoadTerrain(Game game) {
         byte lod = 6;
         int tileCount = 0;
@@ -81,12 +126,7 @@ public class TerrainRenderer {
         var iter = game.GetLod(lod);
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
-            if (!firstFile.EndsWith(".hght")) {
-                // Console.WriteLine("Skipping non-heightmap file '{0}'", archName);
-                continue;
-            }
             sarcCount++;
-            Console.WriteLine("Loaded {0}", archName);
             if (sarc.Count > 4) {
                 Console.WriteLine("Warning: {0} had {1} files, there should be at most 4", archName, sarc.Count);
             }
@@ -97,51 +137,14 @@ public class TerrainRenderer {
                 continue;
             }
 
-            const int dim = HGHT_DIM * 2;
-            int tex = 0;
-
-            glWatch.Start();
-            GL.CreateTextures(TextureTarget.Texture2D, 1, out tex);
-            if (tex == 0) {
-                Console.WriteLine("Failed to create texture!");
+            if (firstFile.EndsWith(".hght")) {
+                tiles.Add(LoadSSTERAHeight(sarc, lod, baseIdx.Ok()));
+            } else if (firstFile.EndsWith(".mate")) {
+            } else {
+                continue;
             }
 
-            GL.TextureStorage2D(tex, 1, SizedInternalFormat.R16, dim, dim);
-            GL.TextureParameter(tex, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-            GL.TextureParameter(tex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-            GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-            GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-            glWatch.Stop();
-            var tile = new TileDrawRecord(tex, lod, baseIdx.Ok());
-
-            foreach (var (name, dataMarshal) in sarc) {
-                var idx = ZOrder.IndexFromFilename(name);
-                if (idx.IsErr()) {
-                    Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
-                    continue;
-                }
-                var localIdx = ZOrder.LocalIdx(idx.Ok());
-                byte x = 0, y = 0;
-                ZOrder.Deinterleave16To8(localIdx, out x, out y);
-
-                tile.addID(idx.Ok());
-                tileCount++;
-
-                Console.WriteLine("\tFound {0} [index {1}, local index {4}, local coord ({2}, {3})", name, idx.Ok(), x, y, localIdx);
-
-                int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
-                ReadOnlySpan<byte> span = dataMarshal.AsSpan();
-                unsafe {
-                    fixed (byte* bp = span) {
-                        nint ptr = (IntPtr)bp;
-                        glWatch.Start();
-                        GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, ptr);
-                        glWatch.Stop();
-                    }
-                }
-            }
-
-            tiles.Add(tile);
+            Console.WriteLine("Loaded {0}", archName);
         }
         loadWatch.Stop();
 
@@ -152,27 +155,13 @@ public class TerrainRenderer {
 
     public void Render(Matrix4 projT, Matrix4 viewT) {
         tessShader.Use();
-
         tessShader.Uniform("matView")?.SetValue(viewT);
         tessShader.Uniform("matProjection")?.SetValue(projT);
         tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
 
         GL.BindVertexArray(vaoBlank);
         foreach (var tile in tiles) {
-            GL.BindTextureUnit(0, tile.tex);
-
-            Int32[] indices = new Int32[4];
-            for (int i = 0; i < 4; i++) {
-                if (tile.ids[i] < 0) {
-                    indices[i] = -1;
-                } else {
-                    indices[i] = ((Int32)tile.lod << 16) | (Int32)tile.ids[i];
-                }
-            }
-
-            tessShader.Uniform("indices")?.SetValue(indices);
-            tessShader.ApplyUniforms();
-            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, tile.numIDs());
+            tile.Draw(tessShader);
         }
 
         GL.BindVertexArray(0);

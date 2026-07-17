@@ -50,6 +50,9 @@ public static class ZOrder {
         if (!filename.StartsWith("5")) {
             return Err(new ErrorStack($"Invalid filename (does not start with '5'): {filename}"));
         }
+        if (filename.EndsWith(".extm")) {
+            filename = filename.Replace(".extm", "");
+        }
 
         filename = Path.GetFileNameWithoutExtension(filename);
         filename = filename.Remove(0, 2);
