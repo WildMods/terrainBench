@@ -75,16 +75,16 @@ public class Dump
         return Ok(span.ToArray());
     }
 
-    public IEnumerable<(string, string)> GlobFilesInFolder(string folder, string pattern)
+    public IEnumerable<string> GlobFilesInFolder(string folder, string pattern)
     {
         var _files = Directory.EnumerateFiles(Path.Join(_path, folder), pattern, SearchOption.AllDirectories);
         foreach (var file in _files)
         {
-            yield return (Path.GetFileName(file), file);
+            yield return file;
         }
     }
 
-    public IEnumerable<(string, string)> GetAllFilesInFolder(string folder)
+    public IEnumerable<string> GetAllFilesInFolder(string folder)
     {
         return GlobFilesInFolder(folder, "*");
     }
