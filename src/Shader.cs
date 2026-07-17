@@ -215,6 +215,17 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
         }
     }
 
+    public void ApplyUniforms() {
+        foreach (var uniform in _uniforms.Values) {
+            try {
+                uniform.Apply();
+            } catch (ShaderUniformException e) {
+                // This is non-fatal, don't bail if a uniform hasn't been set
+                // yet (because it may be safely defaulted in the shader)
+            }
+        }
+    }
+
     /// <summary>
     /// Communicates the uniform values to the GPU and uses this shader program for all
     /// subsequent drawing operations.
@@ -227,15 +238,7 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
             currentProgramId = programId;
         }
 
-        foreach (var uniform in _uniforms.Values) {
-            try {
-                uniform.Apply();
-            } catch (ShaderUniformException e) {
-                // This is non-fatal, don't bail if a uniform hasn't been set
-                // yet (because it may be safely defaulted in the shader)
-            }
-        }
-
+        ApplyUniforms();
         foreach (var uniformBlock in UniformBlocks) {
             uniformBlock.Buffer?.Bind(uniformBlock.Location);
         }

@@ -47,7 +47,7 @@ public class Window : GameWindow {
 
     void main() {
         vec3 pos = verts[gl_VertexID];
-        gl_Position = vec4(pos, 1);
+        gl_Position = vec4(pos.yzx, 1);
     }
     ";
 
@@ -103,7 +103,7 @@ public class Window : GameWindow {
         vec4 p1 = (p11 - p10) * u + p10;
         vec4 p = (p1 - p0) * v + p0;
 
-        p.z += height;
+        p.y += height;
 
         gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
     }
@@ -128,6 +128,7 @@ public class Window : GameWindow {
     Texture2D dummyTexture;
     int vaoBlank = 0;
     List<TileDrawRecord> tiles = new List<TileDrawRecord>();
+    Camera cam = new Camera();
 
     // A simple constructor to let us set properties like window size, title, FPS, etc. on the window.
     public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings, Game game)
@@ -139,19 +140,21 @@ public class Window : GameWindow {
         if (KeyboardState.IsKeyDown(Keys.Escape)) {
             Close();
         }
+        cam.update(KeyboardState, MouseState, e.Time);
 
         base.OnUpdateFrame(e);
     }
 
     protected override void OnLoad() {
         base.OnLoad();
+        GL.Enable(EnableCap.DepthTest);
         VSync = VSyncMode.On;
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         tessShader = new Shader(quadVertShader, tessControlShader, tessEvalShader, fragShader);
         dummyTexture = new Texture2D(1, 1);
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
-        GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
+        GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
 
         byte lod = 2;
         var iter = game.GetLod(lod);
@@ -222,35 +225,37 @@ public class Window : GameWindow {
         base.OnRenderFrame(e);
         GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
-        GL.BindTextureUnit(0, tiles[0].tex);
-        GL.BindVertexArray(vaoBlank);
-
-        // tessShader.Uniform("tex")?.SetValue(dummyTexture);
         tessShader.Use();
 
+        tessShader.Uniform("matView")?.SetValue(cam.view_matrix());
+        tessShader.Uniform("matProjection")?.SetValue(cam.proj_matrix());
         var modelT = tessShader.Uniform("matModel");
-        var viewT = tessShader.Uniform("matView");
-        var projT = tessShader.Uniform("matProjection");
-        if (viewT != null) {
-            viewT.SetValue(Matrix4.Identity);
-        } else {
-            // Console.WriteLine("Unable to find view matrix uniform!");
-        }
-        if (projT != null) {
-            projT.SetValue(Matrix4.Identity);
-        } else {
-            // Console.WriteLine("Unable to find projection matrix uniform!");
-        }
-        if (modelT != null) {
-            var xform = Matrix4.Identity;
-            Matrix4.CreateScale(1.9f, out xform);
-            modelT.SetValue(xform);
-        } else {
-            // Console.WriteLine("Unable to find model matrix uniform!");
+
+        GL.BindVertexArray(vaoBlank);
+
+        foreach (var tile in tiles) {
+            GL.BindTextureUnit(0, tile.tex);
+
+            foreach(var id in tile.ids) {
+                if (id < 0 || id > 0xFFFF) {
+                    continue; // Tile not present
+                }
+
+                byte x, y, xLocal, yLocal;
+                ZOrder.Deinterleave16To8((UInt16)id, out x, out y);
+                ZOrder.Deinterleave16To8(ZOrder.LocalIdx((UInt16)id), out xLocal, out yLocal);
+                UInt32 xWorld = (UInt32)x;
+                UInt32 yWorld = (UInt32)y;
+
+                var xform = Matrix4.CreateTranslation(xWorld, 0, yWorld);
+
+                tessShader.ApplyUniforms();
+                tessShader.Uniform("matModel")?.SetValue(xform);
+
+                GL.DrawArrays(PrimitiveType.Patches, 0, 4);
+            }
         }
 
-
-        GL.DrawArrays(PrimitiveType.Patches, 0, 4);
         GL.BindVertexArray(0);
 
         SwapBuffers();
