@@ -105,8 +105,7 @@ public class Window : GameWindow {
 
         p.z += height;
 
-        // gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
-        gl_Position = vec4(p.xyz, 1);
+        gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
     }
     ";
 
@@ -125,7 +124,7 @@ public class Window : GameWindow {
     ";
 
     Game game;
-    ShaderProgram tessShader;
+    Shader tessShader;
     Texture2D dummyTexture;
     int vaoBlank = 0;
     List<TileDrawRecord> tiles = new List<TileDrawRecord>();
@@ -148,7 +147,7 @@ public class Window : GameWindow {
         base.OnLoad();
         VSync = VSyncMode.On;
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        tessShader = new ShaderProgram(quadVertShader, tessControlShader, tessEvalShader, fragShader);
+        tessShader = new Shader(quadVertShader, tessControlShader, tessEvalShader, fragShader);
         dummyTexture = new Texture2D(1, 1);
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
@@ -226,13 +225,8 @@ public class Window : GameWindow {
         GL.BindTextureUnit(0, tiles[0].tex);
         GL.BindVertexArray(vaoBlank);
 
-        // TODO: Write new shader wrapper that doesn't freak out and start
-        // ignoring uniform uploads just because this explicitly defaulted uniform isn't set by the CPU
         // tessShader.Uniform("tex")?.SetValue(dummyTexture);
-        try {
-            tessShader.Use();
-        } catch (ShaderUniformException ex) {
-        }
+        tessShader.Use();
 
         var modelT = tessShader.Uniform("matModel");
         var viewT = tessShader.Uniform("matView");
