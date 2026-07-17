@@ -8,121 +8,6 @@ public class TerrainRenderer {
     const int TRIS_PER_TILE = 8192;
     const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
 
-    // These shaders should be moved to their own source files later if possible
-    // Basic position-only vertex shader
-    static string quadVertShader = @"#version 410 core
-    // 1x1 quad vertices
-    const vec2 base = vec2(0, 0.5);
-    const vec3 verts[6] = vec3[](
-        base.xxx, base.yxx, base.xyx,
-        base.yyx, base.yxx, base.xyx
-    );
-
-    void main() {
-        vec3 pos = verts[gl_VertexID];
-        gl_Position = vec4(pos.yzx, 1);
-    }
-    ";
-
-    // Tessellation taken mostly from https://learnopengl.com/Guest-Articles/2021/Tessellation/Tessellation
-    static string tessControlShader = @"#version 410 core
-    layout (vertices=4) out;
-    // Tessellate to 256 vertices square
-    const int tessLevel = 255;
-
-    void main() {
-        vec4 pos = gl_in[gl_InvocationID].gl_Position;
-        gl_out[gl_InvocationID].gl_Position = pos;
-
-        // Invocation 0 controls tessellation levels for the entire patch
-        if (gl_InvocationID == 0) {
-            gl_TessLevelOuter[0] = tessLevel;
-            gl_TessLevelOuter[1] = tessLevel;
-            gl_TessLevelOuter[2] = tessLevel;
-            gl_TessLevelOuter[3] = tessLevel;
-
-            gl_TessLevelInner[0] = tessLevel;
-            gl_TessLevelInner[1] = tessLevel;
-        }
-    }
-    ";
-
-    static string tessEvalShader = @"#version 410 core
-    #extension GL_ARB_shading_language_420pack: require
-    layout (quads, equal_spacing, ccw) in;
-    layout (binding = 0) uniform sampler2D tex;
-    uniform mat4 matModel;
-    uniform mat4 matView;
-    uniform mat4 matProjection;
-    uniform int idx;
-
-    out float height; // To be used in fragment shader
-    out vec2 uv;
-
-    const float targetTileSize = 8;
-    const int MAX_LOD = 8;
-
-    // De-interleave the low 16 bits to get an 8-bit X/Z coordinate
-    ivec2 idxToGridPos(int idx) {
-        ivec2 pos = ivec2(0);
-        for (int i = 0; i < 16; i+= 2) {
-            pos.y <<= 1;
-            pos.y |= ((idx >> 15) & 1);
-            idx <<= 1;
-
-            pos.x <<= 1;
-            pos.x |= ((idx >> 15) & 1);
-            idx <<= 1;
-        }
-        return pos;
-    }
-    
-    void main() {
-        // get patch coordinate
-        float u = gl_TessCoord.y / 2;
-        float v = gl_TessCoord.x / 2;
-        // Bottom 2 bits of the Z-order index tell us where in the 2x2 tile
-        // texture to look
-        u += (0.5 * float(idx & 1));
-        v += (0.5 * float((idx >> 1) & 1));
-
-        uv = vec2(u, v);
-        height = texture(tex, uv).x;
-
-        int lod = idx >> 16;
-        float tileFactor = float(1 << MAX_LOD) / float(1 << lod);
-        ivec2 worldPos = idxToGridPos(idx);
-
-        vec4 p00 = gl_in[0].gl_Position * tileFactor;
-        vec4 p01 = gl_in[1].gl_Position * tileFactor;
-        vec4 p10 = gl_in[2].gl_Position * tileFactor;
-        vec4 p11 = gl_in[3].gl_Position * tileFactor;
-        
-        // Interpolate position across patch
-        vec4 p0 = (p01 - p00) * gl_TessCoord.x + p00;
-        vec4 p1 = (p11 - p10) * gl_TessCoord.x + p10;
-        vec4 p = (p1 - p0) * gl_TessCoord.y + p0;
-
-        p.y += height * 16;
-        p.xz += worldPos * (tileFactor / 2);
-
-        gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
-    }
-    ";
-
-    static string fragShader = @"#version 410 core
-    #extension GL_ARB_shading_language_420pack: require
-    in float height;
-    in vec2 uv;
-    out vec4 finalColor;
-
-    void main() {
-        // finalColor = vec4(vec2(height) * 0.7 + vec2(uv) * 0.3, 1, 1);
-        finalColor = vec4(vec3(height), 1);
-    }
-    ";
-
-
     public struct TileDrawRecord {
         public int tex;
         public byte lod;
@@ -151,8 +36,22 @@ public class TerrainRenderer {
     int vaoBlank = 0;
     List<TileDrawRecord> tiles = new List<TileDrawRecord>();
 
+    private string GetEmbeddedText(string name) {
+        var asm = typeof(TerrainRenderer).Assembly;
+        Stream? vertStream = asm.GetManifestResourceStream(name);
+        if (vertStream == null) {
+            return $"#error Unable to load embedded text '{name}'";
+        }
+        return new StreamReader(vertStream).ReadToEnd();
+    }
+
     public bool GLInit() {
-        tessShader = new Shader(quadVertShader, tessControlShader, tessEvalShader, fragShader);
+        string vert = GetEmbeddedText("terrainBench.Shaders.quad.vert.glsl");
+        string tcs = GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
+        string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
+        string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
+
+        tessShader = new Shader(vert, tcs, tess, frag);
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 

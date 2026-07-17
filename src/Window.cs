@@ -2,8 +2,6 @@ using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
-using SmoothGL.Graphics.Shader;
-using SmoothGL.Graphics.Texturing;
 namespace terrainBench;
 
 // Callbacks run by OpenTK throughout the lifetime of the program

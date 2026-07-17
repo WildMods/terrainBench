@@ -17,6 +17,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <EmbeddedResource Include="Shaders/quad.vert.glsl"/>
+        <EmbeddedResource Include="Shaders/terrain.tcs.glsl"/>
+        <EmbeddedResource Include="Shaders/terrain.tess.glsl"/>
+        <EmbeddedResource Include="Shaders/terrain.frag.glsl"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/src/CsOead.csproj" />
