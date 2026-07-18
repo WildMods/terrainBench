@@ -4,6 +4,7 @@ using terrainBench;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using terrainBench.Settings;
 
 public static class Program {
     public static void printUsage() {
@@ -19,7 +20,15 @@ public static class Program {
         string basePath = args[0];
         string updatePath = (args.Length > 1) ? args[1] : "";
         string dlcPath = (args.Length > 2) ? args[2] : "";
-        var game = new Game(basePath, updatePath, dlcPath);
+        var settings = Settings.Load();
+        if (!Settings.Validate(settings))
+        {
+            settings.gameDir = basePath;
+            settings.updateDir = updatePath;
+            settings.dlcDir = dlcPath;
+            settings.Save();
+        }
+        var game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir);
 
         var nativeWindowSettings = new NativeWindowSettings() {
             ClientSize = new Vector2i(800, 600),

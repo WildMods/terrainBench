@@ -36,7 +36,7 @@ public class Game
 
     public IEnumerable<(string, Sarc)> GetLod(int level)
     {
-        IEnumerable<(string, string)>[] iters = [
+        IEnumerable<string>[] iters = [
             _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.hght.sstera"),
             _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.mate.sstera"),
             _update.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.grass.extm.sstera"),
@@ -46,14 +46,10 @@ public class Game
         var YazWatch = System.Diagnostics.Stopwatch.StartNew();
         YazWatch.Stop();
         foreach (var iter in iters) {
-            var paths = new List<string>();
-            foreach (var (name, path) in iter) {
-                paths.Add(path);
-            }
             var mutex = new Mutex();
             var buffers = new List<SSTERARecord>();
             YazWatch.Start();
-            Parallel.ForEach(paths, path => {
+            Parallel.ForEach(iter, path => {
                     DataMarshal data = Yaz0.DecompressFile(path);
                     if (data.AsSpan().Length > 0) {
                         mutex.WaitOne();

@@ -25,6 +25,7 @@
 
     <ItemGroup>
         <PackageReference Include="BfresLibrary" Version="1.6.0" />
+        <PackageReference Include="YamlDotNet" Version="18.1.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/src/CsOead.csproj" />

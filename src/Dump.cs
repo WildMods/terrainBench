@@ -24,7 +24,7 @@ public class Dump
         return data;
     }
 
-    public Result<byte[], ErrorStack> GetFile(string loose)
+    public Result<Span<byte>, ErrorStack> GetFile(string loose)
     {
         if (loose.Contains("//"))
         {
@@ -37,10 +37,10 @@ public class Dump
         }
         
         Span<byte> span = File.ReadAllBytes(path);
-        return Yaz0.TryDecompress(span, out var data) ? Ok(data!.ToArray()) : Ok(span.ToArray());
+        return Yaz0.TryDecompress(span, out var data) ? Ok(data!.AsSpan()) : Ok(span);
     }
 
-    public Result<byte[], ErrorStack> GetNestedFile(string relative)
+    public Result<Span<byte>, ErrorStack> GetNestedFile(string relative)
     {
         string[] parts = relative.Split("//");
         if (parts.Length == 1)
@@ -72,19 +72,19 @@ public class Dump
             }
         }
 
-        return Ok(span.ToArray());
+        return Ok(span);
     }
 
-    public IEnumerable<(string, string)> GlobFilesInFolder(string folder, string pattern)
+    public IEnumerable<string> GlobFilesInFolder(string folder, string pattern)
     {
         var _files = Directory.EnumerateFiles(Path.Join(_path, folder), pattern, SearchOption.AllDirectories);
         foreach (var file in _files)
         {
-            yield return (Path.GetFileName(file), file);
+            yield return file;
         }
     }
 
-    public IEnumerable<(string, string)> GetAllFilesInFolder(string folder)
+    public IEnumerable<string> GetAllFilesInFolder(string folder)
     {
         return GlobFilesInFolder(folder, "*");
     }
