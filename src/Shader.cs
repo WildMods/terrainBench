@@ -181,8 +181,12 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
             GL.GetActiveUniforms(programId, 1, ref uniformIndex, ActiveUniformParameter.UniformBlockIndex, out var uniformBlockIndex);
             var uniformType = (ShaderUniformType)uniformRawType;
             
-            if (!Enum.IsDefined(typeof(ShaderUniformType), uniformType))
-                throw new ShaderUniformException($"The uniform type {uniformRawType} specified in the shader for uniform {uniformName} is not supported.");
+            if (!Enum.IsDefined(typeof(ShaderUniformType), uniformType)) {
+                // Change from torf: stop library from freaking out about sampler array uniforms
+                // throw new ShaderUniformException($"The uniform type {uniformRawType} specified in the shader for uniform {uniformName} is not supported.");
+                continue;
+            }
+
 
             if (uniformBlockIndex == -1) {
                 if (uniformType.IsSampler()) {

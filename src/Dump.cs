@@ -14,6 +14,16 @@ public class Dump
         _path = path;
     }
 
+    public Result<Native.IO.Handles.DataMarshal, ErrorStack> GetDecompressed(string loose)
+    {
+        string path = Path.Combine(_path, loose);
+        var data = Yaz0.DecompressFile(path);
+        if (data.AsSpan().Length == 0) {
+            return Err(new ErrorStack($"Unable to map & decompress '{path}'"));
+        }
+        return data;
+    }
+
     public Result<byte[], ErrorStack> GetFile(string loose)
     {
         if (loose.Contains("//"))

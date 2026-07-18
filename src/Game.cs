@@ -1,6 +1,8 @@
 // Created Jul. 15 2026
 // @author Ginger
 using Native.IO.Handles;
+using OperationResult;
+using static OperationResult.Helpers;
 using CsOead;
 
 namespace terrainBench;
@@ -26,6 +28,10 @@ public class Game
             this.buf = buf;
         }
     };
+
+    public Result<DataMarshal, ErrorStack> BaseGameDecompressed(string relativePath) {
+        return _base.GetDecompressed(relativePath);
+    }
 
 
     public IEnumerable<(string, Sarc)> GetLod(int level)

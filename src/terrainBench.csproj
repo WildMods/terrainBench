@@ -17,13 +17,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Shaders/quad.vert.glsl"/>
-        <EmbeddedResource Include="Shaders/terrain.tcs.glsl"/>
-        <EmbeddedResource Include="Shaders/terrain.tess.glsl"/>
-        <EmbeddedResource Include="Shaders/terrain.frag.glsl"/>
+        <EmbeddedResource Include="Shaders/quad.vert.glsl" />
+        <EmbeddedResource Include="Shaders/terrain.tcs.glsl" />
+        <EmbeddedResource Include="Shaders/terrain.tess.glsl" />
+        <EmbeddedResource Include="Shaders/terrain.frag.glsl" />
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="BfresLibrary" Version="1.6.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/src/CsOead.csproj" />
@@ -31,13 +32,13 @@
         <PackageReference Include="OpenTK" Version="4.9.4" />
         <PackageReference Include="SmoothGL" Version="1.2.0" />
 
-        <Content Condition="Exists('$(NIOLibFile).so')" Include="$(NIOLibFile).so" Link="Lib/native_io.so" TargetPath="native_io.so" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
-        <Content Condition="Exists('$(NIOLibFile).dll')" Include="$(NIOLibFile).dll" Link="Lib/native_io.dll" TargetPath="native_io.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
-        <Content Condition="Exists('$(NIOLibFile).dylib')" Include="$(NIOLibFile).dylib" Link="Lib/native_io.dylib" TargetPath="native_io.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Condition="Exists('$(NIOLibFile).so')" Include="$(NIOLibFile).so" Link="Lib/native_io.so" TargetPath="native_io.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('$(NIOLibFile).dll')" Include="$(NIOLibFile).dll" Link="Lib/native_io.dll" TargetPath="native_io.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('$(NIOLibFile).dylib')" Include="$(NIOLibFile).dylib" Link="Lib/native_io.dylib" TargetPath="native_io.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
 
-        <Content Condition="Exists('$(OeadLibFile).so')" Include="$(OeadLibFile).so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
-        <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
-        <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Condition="Exists('$(OeadLibFile).so')" Include="$(OeadLibFile).so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 

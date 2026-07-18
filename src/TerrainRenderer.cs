@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using Native.IO.Handles;
 using SmoothGL.Graphics.Shader;
 using OperationResult;
+using BfresLibrary;
 using static OperationResult.Helpers;
 namespace terrainBench;
 
@@ -54,6 +56,7 @@ public class TerrainRenderer {
     Shader tessShader;
     int vaoBlank = 0;
     Dictionary<UInt16, TileDrawRecord> tiles = new Dictionary<UInt16, TileDrawRecord>();
+    int terrainTexArray = 0;
 
     private string GetEmbeddedText(string name) {
         var asm = typeof(TerrainRenderer).Assembly;
@@ -152,7 +155,6 @@ public class TerrainRenderer {
         return tex;
     }
 
-
     public bool LoadTerrain(Game game) {
         byte lod = 6;
         int tileCount = 0;
@@ -194,6 +196,51 @@ public class TerrainRenderer {
 
         Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles) in {3}ms total.", tileCount, tileCount * TRIS_PER_TILE, sarcCount, loadWatch.ElapsedMilliseconds);
         Console.WriteLine("Spent {0}ms uploading OpenGL textures", glWatch.ElapsedMilliseconds);
+
+        // Load terrain textures from the game files
+        var bfresLoad = Stopwatch.StartNew();
+        var bfresData = game.BaseGameDecompressed("Model/Terrain.Tex1.sbfres");
+        if (bfresData.IsErr()) {
+            Console.WriteLine("Unable to load terrain texture file: {0}", bfresData.GetErrorMessage());
+            return false;
+        }
+        var bfresStream = new MemoryStream(bfresData.Ok().ToArray());
+        ResFile bfres = new ResFile(bfresStream);
+        bfresLoad.Stop();
+        Console.WriteLine("Finished decompressing terrain textures in {0}ms", bfresLoad.ElapsedMilliseconds);
+
+        var bfresUpload = Stopwatch.StartNew();
+        foreach (var pair in bfres.Textures) {
+            var t = pair.Value;
+            if (t.Name != "MaterialAlb") {
+                continue;
+            }
+
+            Int32[] order = t.UserData["array_index"].GetValueInt32Array();
+            int height = (int)t.Height, width = (int)t.Width;
+            GL.CreateTextures(TextureTarget.Texture2DArray, 1, out terrainTexArray);
+            if (terrainTexArray == 0) {
+                Console.WriteLine("Failed to create texture array!");
+                break;
+            }
+            Console.WriteLine("Found terrain texture array with {0} textures @ {1}x{2}", order.Length, width, height);
+            var dxt1 = SizedInternalFormat.CompressedRgbS3tcDxt1Ext;
+            GL.TextureStorage3D(terrainTexArray, 1, dxt1, width, height, (int)order.Length);
+
+            for (Int32 i = 0, pos = 0; i < order.Length; i++) {
+                var data = t.GetDeswizzledData(order[i], 0);
+                if (data == null) {
+                    Console.WriteLine("Failed to decode texture {0}", i);
+                    continue;
+                }
+                GL.CompressedTextureSubImage3D(terrainTexArray, 0, 0, 0, pos++, width, height, 1, (PixelFormat)dxt1, data.Length, data);
+            }
+
+            break;
+        }
+        bfresUpload.Stop();
+        Console.WriteLine("Uploaded terrain textures to GPU in {0}ms", bfresUpload.ElapsedMilliseconds);
+
         return true;
     }
 
@@ -203,6 +250,7 @@ public class TerrainRenderer {
         tessShader.Uniform("matProjection")?.SetValue(projT);
         tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
 
+        GL.BindTextureUnit(2, terrainTexArray);
         GL.BindVertexArray(vaoBlank);
         foreach (var tile in tiles) {
             tile.Value.Draw(tessShader);
