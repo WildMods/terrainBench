@@ -4,6 +4,8 @@ using Native.IO.Handles;
 using OperationResult;
 using static OperationResult.Helpers;
 using CsOead;
+using OperationResult;
+using static OperationResult.Helpers;
 
 namespace terrainBench;
 
@@ -67,5 +69,31 @@ public class Game
         }
 
         Console.WriteLine("Spent {0}ms decompressing Yaz0 from disk", YazWatch.ElapsedMilliseconds);
+    }
+    
+    public IEnumerable<Result<Sarc, ErrorStack>> GetLodHght(int level)
+    {
+        var YazWatch = System.Diagnostics.Stopwatch.StartNew();
+        YazWatch.Stop();
+        var mutex = new Mutex();
+        var buffers = new List<DataMarshal>();
+        YazWatch.Start();
+        Parallel.ForEach(
+            _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.hght.sstera"),
+            path =>
+        {
+            DataMarshal data = Yaz0.DecompressFile(path);
+            if (data.AsSpan().Length > 0) {
+                mutex.WaitOne();
+                buffers.Add(data);
+                mutex.ReleaseMutex();
+            }
+        });
+        YazWatch.Stop();
+
+        foreach (var data in buffers)
+        {
+            yield return Ok(Sarc.FromBinary(data));
+        }
     }
 }
