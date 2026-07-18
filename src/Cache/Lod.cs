@@ -34,7 +34,7 @@ public class Lod
         }
     }
 
-    public Result<Span<ushort>, (ushort, ushort)> GetHght(ushort tileId)
+    public Result<ushort[], (ushort, ushort)> GetHght(ushort tileId)
     {
         if (_hghts.TryGetValue(tileId, out var result))
         {

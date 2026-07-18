@@ -15,7 +15,7 @@ public class Cache
         }
     }
 
-    public IEnumerable<Result<Span<ushort>, ErrorStack>> GetHeightmapForEntireLevel(int level)
+    public IEnumerable<Result<ushort[], ErrorStack>> GetHeightmapForEntireLevel(int level)
     {
         for (ushort i = 0; i < Math.Pow(4, level); ++i)
         {
@@ -23,17 +23,16 @@ public class Cache
         }
     }
 
-    public Result<Span<ushort>, ErrorStack> GetHeightmapTile(int level, ushort tileId)
+    public Result<ushort[], ErrorStack> GetHeightmapTile(int level, ushort tileId)
     {
         var result = _lods[level].GetHght(tileId);
-        Span<ushort> subdivided = null;
+        ushort[]? subdivided = null;
         if (result.TryGetValue(ref subdivided, out var lower))
         {
             return subdivided;
         }
         return GenerateHeightmapSection(level - 1, lower.Item1, lower.Item2)
             .Inspect(tile => _lods[level].InsertHghtData(tileId, tile))
-            .Map(tile => tile.AsSpan())
             .Context("Could not load or generate tile. Warn me if this happens!");
     }
 
