@@ -46,10 +46,10 @@ public class Cache
         if (res.IsErr()) return Err(new ErrorStack("Lower LOD is also missing tile!"));
         var lowDetailTile = res.Unwrap();
         
-        var minX = (section & 0b01) << 8;
-        var maxX = (minX << 1) - 1;
-        var minY = (section & 0b10) << 8;
-        var maxY = (minY << 1) - 1;
+        var minX = (section & 0b01) << 7;
+        var maxX = minX + 0b10000000;
+        var minY = (section & 0b10) << 6;
+        var maxY = minY + 0b10000000;
         var subdivided = new ushort[65536];
         var destX = -2;
         var destY = -2;
