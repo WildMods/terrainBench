@@ -209,6 +209,9 @@ public class TerrainRenderer {
         bfresLoad.Stop();
         Console.WriteLine("Finished decompressing terrain textures in {0}ms", bfresLoad.ElapsedMilliseconds);
 
+        var deswizzleTime = Stopwatch.StartNew();
+        deswizzleTime.Stop();
+
         var bfresUpload = Stopwatch.StartNew();
         foreach (var pair in bfres.Textures) {
             var t = pair.Value;
@@ -228,7 +231,9 @@ public class TerrainRenderer {
             GL.TextureStorage3D(terrainTexArray, 1, dxt1, width, height, (int)order.Length);
 
             for (Int32 i = 0, pos = 0; i < order.Length; i++) {
+                deswizzleTime.Start();
                 var data = t.GetDeswizzledData(order[i], 0);
+                deswizzleTime.Stop();
                 if (data == null) {
                     Console.WriteLine("Failed to decode texture {0}", i);
                     continue;
@@ -239,7 +244,7 @@ public class TerrainRenderer {
             break;
         }
         bfresUpload.Stop();
-        Console.WriteLine("Uploaded terrain textures to GPU in {0}ms", bfresUpload.ElapsedMilliseconds);
+        Console.WriteLine("Uploaded terrain textures to GPU in {0}ms ({1}ms spent deswizzling textures)", bfresUpload.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
 
         return true;
     }
