@@ -8,7 +8,7 @@ using BfresLibrary;
 using static OperationResult.Helpers;
 namespace terrainBench;
 
-public class TerrainRenderer {
+public struct TerrainRenderer {
     const int HGHT_DIM = 256;
     const int TRIS_PER_TILE = 8192;
     const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
@@ -17,6 +17,7 @@ public class TerrainRenderer {
         public int texHGHT;
         public int texMATE = 0;
         public byte lod;
+        public byte numIDs;
         public UInt16 baseId;
         public bool[] ids = new bool[4];
 
@@ -26,17 +27,17 @@ public class TerrainRenderer {
             baseId = id;
         }
 
-        public int numIDs() {
-            int count = 0;
+        public void UpdateNumIDs() {
+            byte count = 0;
             for (int i = 0; i < ids.Length; i++) {
                 if (ids[i]) {
                     count++;
                 }
             }
-            return count;
+            numIDs = count;
         }
 
-        public void Draw(Shader shader) {
+        public void Draw(int indicesLocation) {
             GL.BindTextureUnit(0, texHGHT);
             GL.BindTextureUnit(1, texMATE);
 
@@ -47,9 +48,8 @@ public class TerrainRenderer {
                 }
             }
 
-            shader.Uniform("indices")?.SetValue(indices);
-            shader.ApplyUniforms();
-            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, numIDs());
+            GL.Uniform1(indicesLocation, 4, indices);
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, numIDs);
         }
     }
 
@@ -57,6 +57,8 @@ public class TerrainRenderer {
     int vaoBlank = 0;
     Dictionary<UInt16, TileDrawRecord> tiles = new Dictionary<UInt16, TileDrawRecord>();
     int terrainTexArray = 0;
+
+    public TerrainRenderer() { }
 
     private string GetEmbeddedText(string name) {
         var asm = typeof(TerrainRenderer).Assembly;
@@ -128,6 +130,7 @@ public class TerrainRenderer {
 
             UpdateTileTexture(tex, PixelFormat.Red, PixelType.UnsignedShort, dataMarshal, idx.Ok());
         }
+        tile.UpdateNumIDs();
 
         return tile;
     }
@@ -254,11 +257,13 @@ public class TerrainRenderer {
         tessShader.Uniform("matView")?.SetValue(viewT);
         tessShader.Uniform("matProjection")?.SetValue(projT);
         tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
+        int indicesLocation = GL.GetUniformLocation(tessShader.programId, "indices");
 
         GL.BindTextureUnit(2, terrainTexArray);
         GL.BindVertexArray(vaoBlank);
+
         foreach (var tile in tiles) {
-            tile.Value.Draw(tessShader);
+            tile.Value.Draw(indicesLocation);
         }
 
         GL.BindVertexArray(0);
