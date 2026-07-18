@@ -11,10 +11,11 @@ void main() {
     int idx1 = int(material.x * 255);
     int idx2 = int(material.y * 255);
     float blend = material.z;
+    float unknown = material.w;
 
     vec3 color1 = texture(colorTextures, vec3(uv, idx1)).rgb;
     vec3 color2 = texture(colorTextures, vec3(uv, idx2)).rgb;
-    vec3 matColor = color1 * blend + color2 * (1 - blend);
+    vec3 matColor = color1 * (1.0 - blend) + color2 * (blend);
     float heightMult = (height / 2) + 0.5;
     finalColor = vec4(heightMult * matColor, 1);
 }
