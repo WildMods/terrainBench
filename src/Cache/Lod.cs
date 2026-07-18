@@ -9,13 +9,13 @@ public class Lod
     private static readonly short[] TILE_COUNTS = [1, 4, 16, 36, 144, 320, 1154, 3616, 3742];
     private readonly int _level;
     private readonly Dictionary<ushort, ushort[]> _hghts;
-    private readonly List<ushort> _dirtyHghts;
+    private readonly Dictionary<ushort, ushort[]> _dirtyHghts;
     private readonly Dictionary<ushort, ushort[]> _mates;
-    private readonly List<ushort> _dirtyMates;
+    private readonly Dictionary<ushort, ushort[]> _dirtyMates;
     private readonly Dictionary<ushort, ushort[]> _grass;
-    private readonly List<ushort> _dirtyGrass;
+    private readonly Dictionary<ushort, ushort[]> _dirtyGrass;
     private readonly Dictionary<ushort, ushort[]> _water;
-    private readonly List<ushort> _dirtyWater;
+    private readonly Dictionary<ushort, ushort[]> _dirtyWater;
 
     public Lod(int level, Game game)
     {
@@ -36,7 +36,7 @@ public class Lod
 
     public Result<ushort[], (ushort, ushort)> GetHght(ushort tileId)
     {
-        if (_hghts.TryGetValue(tileId, out var result))
+        if (_dirtyHghts.TryGetValue(tileId, out var result) || _hghts.TryGetValue(tileId, out result))
         {
             return result;
         }
@@ -48,7 +48,6 @@ public class Lod
 
     public void InsertHghtData(ushort tileId, ushort[] hghtData)
     {
-        _dirtyHghts.Add(tileId);
-        _hghts[tileId] = hghtData;
+        _dirtyHghts.Add(tileId, hghtData);
     }
 }
