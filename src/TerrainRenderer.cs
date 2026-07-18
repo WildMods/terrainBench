@@ -1,6 +1,9 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using Native.IO.Handles;
 using SmoothGL.Graphics.Shader;
+using OperationResult;
+using static OperationResult.Helpers;
 namespace terrainBench;
 
 public class TerrainRenderer {
@@ -10,6 +13,7 @@ public class TerrainRenderer {
 
     public struct TileDrawRecord {
         public int texHGHT;
+        public int texMATE = 0;
         public byte lod;
         public UInt16 baseId;
         public bool[] ids = new bool[4];
@@ -32,6 +36,7 @@ public class TerrainRenderer {
 
         public void Draw(Shader shader) {
             GL.BindTextureUnit(0, texHGHT);
+            GL.BindTextureUnit(1, texMATE);
 
             Int32[] indices = new Int32[4];
             for (int i = 0, pos = 0; i < 4; i++) {
@@ -48,7 +53,7 @@ public class TerrainRenderer {
 
     Shader tessShader;
     int vaoBlank = 0;
-    List<TileDrawRecord> tiles = new List<TileDrawRecord>();
+    Dictionary<UInt16, TileDrawRecord> tiles = new Dictionary<UInt16, TileDrawRecord>();
 
     private string GetEmbeddedText(string name) {
         var asm = typeof(TerrainRenderer).Assembly;
@@ -72,20 +77,39 @@ public class TerrainRenderer {
         return true;
     }
 
-    private TileDrawRecord LoadSSTERAHeight(CsOead.Sarc sarc, byte lod, UInt16 baseIdx) {
-        const int dim = HGHT_DIM * 2;
+    private int CreateTileTexture(SizedInternalFormat inFormat, int squareSize) {
         int tex = 0;
-
         GL.CreateTextures(TextureTarget.Texture2D, 1, out tex);
         if (tex == 0) {
             Console.WriteLine("Failed to create texture!");
+            return 0;
         }
 
-        GL.TextureStorage2D(tex, 1, SizedInternalFormat.R16, dim, dim);
+        GL.TextureStorage2D(tex, 1, inFormat, squareSize, squareSize);
         GL.TextureParameter(tex, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
         GL.TextureParameter(tex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
         GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
         GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        return tex;
+    }
+
+    private void UpdateTileTexture(int tex, PixelFormat fmt, PixelType type, DataMarshal data, UInt16 idx) {
+            byte x = 0, y = 0;
+            ZOrder.Deinterleave16To8(ZOrder.LocalIdx(idx), out x, out y);
+
+            int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
+            ReadOnlySpan<byte> span = data.AsSpan();
+            unsafe {
+                fixed (byte* bp = span) {
+                    nint ptr = (IntPtr)bp;
+                    GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, fmt, type, ptr);
+                }
+            }
+    }
+
+    private TileDrawRecord LoadSSTERAHeight(CsOead.Sarc sarc, byte lod, UInt16 baseIdx, ref int tileCount) {
+        const int dim = HGHT_DIM * 2;
+        int tex = CreateTileTexture(SizedInternalFormat.R16, dim);
         var tile = new TileDrawRecord(tex, lod, baseIdx);
 
         foreach (var (name, dataMarshal) in sarc) {
@@ -95,25 +119,39 @@ public class TerrainRenderer {
                 continue;
             }
             var localIdx = ZOrder.LocalIdx(idx.Ok());
-            byte x = 0, y = 0;
-            ZOrder.Deinterleave16To8(localIdx, out x, out y);
-
             tile.ids[localIdx] = true;
+            Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
+            tileCount++;
 
-            Console.WriteLine("\tFound {0} [index {1}, local index {4}, local coord ({2}, {3})", name, idx.Ok(), x, y, localIdx);
-
-            int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
-            ReadOnlySpan<byte> span = dataMarshal.AsSpan();
-            unsafe {
-                fixed (byte* bp = span) {
-                    nint ptr = (IntPtr)bp;
-                    GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, ptr);
-                }
-            }
+            UpdateTileTexture(tex, PixelFormat.Red, PixelType.UnsignedShort, dataMarshal, idx.Ok());
         }
 
         return tile;
     }
+
+    private int LoadSSTERAMaterial(CsOead.Sarc sarc, byte lod, UInt16 baseIdx) {
+        const int dim = HGHT_DIM * 2;
+        int tex = CreateTileTexture(SizedInternalFormat.Rgba8, dim);
+        if (tex == 0) {
+            return 0;
+        }
+
+        foreach (var (name, dataMarshal) in sarc) {
+            var idx = ZOrder.IndexFromFilename(name);
+            if (idx.IsErr()) {
+                Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
+                continue;
+            }
+            var localIdx = ZOrder.LocalIdx(idx.Ok());
+            // tile.ids[localIdx] = true;
+            Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
+
+            UpdateTileTexture(tex, PixelFormat.Rgba, PixelType.UnsignedByte, dataMarshal, idx.Ok());
+        }
+
+        return tex;
+    }
+
 
     public bool LoadTerrain(Game game) {
         byte lod = 6;
@@ -138,8 +176,14 @@ public class TerrainRenderer {
             }
 
             if (firstFile.EndsWith(".hght")) {
-                tiles.Add(LoadSSTERAHeight(sarc, lod, baseIdx.Ok()));
+                tiles[baseIdx.Ok()] = LoadSSTERAHeight(sarc, lod, baseIdx.Ok(), ref tileCount);
             } else if (firstFile.EndsWith(".mate")) {
+                if (tiles.ContainsKey(baseIdx.Ok())) {
+                    // This is dumb, seems like C# does not have a key-value collection which returns references
+                    var tile = tiles[baseIdx.Ok()];
+                    tile.texMATE = LoadSSTERAMaterial(sarc, lod, baseIdx.Ok());
+                    tiles[baseIdx.Ok()] = tile;
+                }
             } else {
                 continue;
             }
@@ -161,7 +205,7 @@ public class TerrainRenderer {
 
         GL.BindVertexArray(vaoBlank);
         foreach (var tile in tiles) {
-            tile.Draw(tessShader);
+            tile.Value.Draw(tessShader);
         }
 
         GL.BindVertexArray(0);

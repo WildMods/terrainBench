@@ -1,7 +1,7 @@
-#version 410 core
+#version 420 core
 #extension GL_ARB_shading_language_420pack: require
 layout (quads, equal_spacing, ccw) in;
-layout (binding = 0) uniform sampler2D tex;
+layout (binding = 0) uniform sampler2D heightTex;
 uniform mat4 matModel;
 uniform mat4 matView;
 uniform mat4 matProjection;
@@ -20,7 +20,7 @@ void main() {
     v += uvOffset[0].y;
 
     uv = vec2(u, v);
-    height = texture(tex, uv).x;
+    height = texture(heightTex, uv).x;
 
     vec4 p00 = gl_in[0].gl_Position;
     vec4 p01 = gl_in[1].gl_Position;
