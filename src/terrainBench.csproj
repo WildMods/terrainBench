@@ -9,7 +9,7 @@
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     </PropertyGroup>
-    
+
     <PropertyGroup>
         <LibraryPath>$(MSBuildProjectDirectory)/../lib</LibraryPath>
         <OeadLibFile>$(LibraryPath)/cs-oead/native/build/cs_oead</OeadLibFile>
@@ -24,7 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="BfresLibrary" Version="1.6.0" />
+	    <ProjectReference Include="$(LibraryPath)/BfresLibrary/BfresLibrary/BfresLibrary.csproj" />
         <PackageReference Include="YamlDotNet" Version="18.1.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />

@@ -7,3 +7,6 @@
 [submodule "lib/OperationResult"]
 	path = lib/OperationResult
 	url = https://github.com/WildMods/OperationResult.git
+[submodule "lib/BfresLibrary"]
+	path = lib/BfresLibrary
+	url = https://github.com/WildMods/BfresLibrary
