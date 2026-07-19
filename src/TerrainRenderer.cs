@@ -170,6 +170,7 @@ public struct TerrainRenderer {
         int sarcCount = 0;
         int tileCount = 0;
         var tiles = new Dictionary<UInt16, TileDrawRecord>();
+        var loadWatch = Stopwatch.StartNew();
         var iter = game.GetLod(lod);
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
@@ -195,21 +196,19 @@ public struct TerrainRenderer {
                 }
             }
         }
+        loadWatch.Stop();
 
+        Console.WriteLine("Loaded {0} level {3} tiles from {1} files in {2}ms.", tileCount, sarcCount, loadWatch.ElapsedMilliseconds, lod);
         return tiles;
     }
 
     public bool LoadTerrain(Game game) {
-        int tileCount = 0;
-        int sarcCount = 0;
         var loadWatch = Stopwatch.StartNew();
-
         for (byte i = 0; i < 9; i++) {
             levels[i] = LoadTerrainLevel(game, i);
         }
         loadWatch.Stop();
-
-        Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles) in {3}ms total.", tileCount, tileCount * TRIS_PER_TILE, sarcCount, loadWatch.ElapsedMilliseconds);
+        Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
 
         Console.WriteLine("Building tile coverage texture...");
         for (sbyte lvl = 8; lvl >= 0; lvl--) {
@@ -279,7 +278,7 @@ public struct TerrainRenderer {
                 deswizzleTime.Start();
                 var data = t.GetDeswizzledData(order[i], 0);
                 deswizzleTime.Stop();
-                if (data == null) {
+                if (data.Length == 0) {
                     Console.WriteLine("Failed to decode texture {0}", i);
                     continue;
                 }
