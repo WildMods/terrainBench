@@ -283,7 +283,12 @@ public struct TerrainRenderer {
                     Console.WriteLine("Failed to decode texture {0}", i);
                     continue;
                 }
-                GL.CompressedTextureSubImage3D(terrainTexArray, 0, 0, 0, pos++, width, height, 1, (PixelFormat)dxt1, data.Length, data);
+                unsafe {
+                    fixed (byte* bp = data) {
+                        nint ptr = (IntPtr)bp;
+                        GL.CompressedTextureSubImage3D(terrainTexArray, 0, 0, 0, pos++, width, height, 1, (PixelFormat)dxt1, data.Length, ptr);
+                    }
+                }
             }
 
             break;
