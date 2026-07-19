@@ -224,13 +224,11 @@ public struct TerrainRenderer {
                     // Find the index of this tile's starting point on the level 8 grid
                     UInt16 lvl8Idx = (UInt16)(idx << (2 * lvlDiff));
                     for (int i = 0; i < drawSize; i++) {
-                        int mult = 16;
                         int targetPos = lvl8Idx + i;
-                        byte value = (byte)(lvl * mult);
                         ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
                         int linearIdx = HGHT_DIM * y + x;
-                        if ((bestLevels[linearIdx] * mult) < value) {
-                            bestLevels[linearIdx] = value;
+                        if (bestLevels[linearIdx] < lvl) {
+                            bestLevels[linearIdx] = (byte)lvl;
                         }
                     }
                 }
