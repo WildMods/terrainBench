@@ -230,6 +230,10 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
         }
     }
 
+    public int GetUniformLocation(string name) {
+        return GL.GetUniformLocation(programId, name);
+    }
+
     /// <summary>
     /// Communicates the uniform values to the GPU and uses this shader program for all
     /// subsequent drawing operations.

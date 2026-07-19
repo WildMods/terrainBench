@@ -5,12 +5,15 @@ layout (vertices=4) out;
 // Tessellate to 256 vertices square
 const int tessLevel = 255;
 in vec2 vertUVOffset[];
+in int tileIdx[];
 out vec2 uvOffset[];
+out int tileIndex[];
 
 void main() {
     vec4 pos = gl_in[gl_InvocationID].gl_Position;
     gl_out[gl_InvocationID].gl_Position = pos;
     uvOffset[gl_InvocationID] = vertUVOffset[gl_InvocationID];
+    tileIndex[gl_InvocationID] = tileIdx[gl_InvocationID];
 
     // Invocation 0 controls tessellation levels for the entire patch
     if (gl_InvocationID == 0) {

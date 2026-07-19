@@ -11,6 +11,7 @@ namespace terrainBench;
 public struct TerrainRenderer {
     const int HGHT_DIM = 256;
     const int TRIS_PER_TILE = 8192;
+    const int MAX_LOD = 8;
     const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
 
     public struct TileDrawRecord {
@@ -55,10 +56,17 @@ public struct TerrainRenderer {
 
     Shader tessShader;
     int vaoBlank = 0;
-    Dictionary<UInt16, TileDrawRecord> tiles = new Dictionary<UInt16, TileDrawRecord>();
     int terrainTexArray = 0;
+    int coverageTex = 0;
+    List<Dictionary<UInt16, TileDrawRecord>> levels = new List<Dictionary<UInt16, TileDrawRecord>>();
+    byte[] bestLevels = new byte[HGHT_DIM * HGHT_DIM];
+    byte[] drawn = new byte[HGHT_DIM * HGHT_DIM];
 
-    public TerrainRenderer() { }
+    public TerrainRenderer() {
+        for (int i = 0; i < 9; i++) {
+            levels.Add(new Dictionary<UInt16, TileDrawRecord>());
+        }
+    }
 
     private string GetEmbeddedText(string name) {
         var asm = typeof(TerrainRenderer).Assembly;
@@ -125,7 +133,7 @@ public struct TerrainRenderer {
             }
             var localIdx = ZOrder.LocalIdx(idx.Ok());
             tile.ids[localIdx] = true;
-            Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
+            // Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
             tileCount++;
 
             UpdateTileTexture(tex, PixelFormat.Red, PixelType.UnsignedShort, dataMarshal, idx.Ok());
@@ -150,7 +158,7 @@ public struct TerrainRenderer {
             }
             var localIdx = ZOrder.LocalIdx(idx.Ok());
             // tile.ids[localIdx] = true;
-            Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
+            // Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
 
             UpdateTileTexture(tex, PixelFormat.Rgba, PixelType.UnsignedByte, dataMarshal, idx.Ok());
         }
@@ -158,14 +166,10 @@ public struct TerrainRenderer {
         return tex;
     }
 
-    public bool LoadTerrain(Game game) {
-        byte lod = 6;
-        int tileCount = 0;
+    public Dictionary<UInt16, TileDrawRecord> LoadTerrainLevel(Game game, byte lod) {
         int sarcCount = 0;
-        var loadWatch = System.Diagnostics.Stopwatch.StartNew();
-        var glWatch = System.Diagnostics.Stopwatch.StartNew();
-        glWatch.Stop();
-
+        int tileCount = 0;
+        var tiles = new Dictionary<UInt16, TileDrawRecord>();
         var iter = game.GetLod(lod);
         foreach (var (firstFile, sarc) in iter) {
             string archName = firstFile + ".sstera";
@@ -189,16 +193,56 @@ public struct TerrainRenderer {
                     tile.texMATE = LoadSSTERAMaterial(sarc, lod, baseIdx.Ok());
                     tiles[baseIdx.Ok()] = tile;
                 }
-            } else {
-                continue;
             }
+        }
 
-            Console.WriteLine("Loaded {0}", archName);
+        return tiles;
+    }
+
+    public bool LoadTerrain(Game game) {
+        int tileCount = 0;
+        int sarcCount = 0;
+        var loadWatch = Stopwatch.StartNew();
+
+        for (byte i = 0; i < 9; i++) {
+            levels[i] = LoadTerrainLevel(game, i);
         }
         loadWatch.Stop();
 
         Console.WriteLine("Loaded {0} tiles from {2} files ({1} triangles) in {3}ms total.", tileCount, tileCount * TRIS_PER_TILE, sarcCount, loadWatch.ElapsedMilliseconds);
-        Console.WriteLine("Spent {0}ms uploading OpenGL textures", glWatch.ElapsedMilliseconds);
+
+        Console.WriteLine("Building tile coverage texture...");
+        for (sbyte lvl = 8; lvl >= 0; lvl--) {
+            byte lvlDiff = (byte)(MAX_LOD - lvl);
+            UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
+            foreach (TileDrawRecord tile in levels[lvl].Values) {
+                for (int pos = 0; pos < tile.ids.Length; pos++) {
+                    if (!tile.ids[pos]) {
+                        continue;
+                    }
+                    UInt16 idx = (UInt16)(tile.baseId + pos);
+                    // Find the index of this tile's starting point on the level 8 grid
+                    UInt16 lvl8Idx = (UInt16)(idx << (2 * lvlDiff));
+                    for (int i = 0; i < drawSize; i++) {
+                        int mult = 16;
+                        int targetPos = lvl8Idx + i;
+                        byte value = (byte)(lvl * mult);
+                        ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
+                        int linearIdx = HGHT_DIM * y + x;
+                        if ((bestLevels[linearIdx] * mult) < value) {
+                            bestLevels[linearIdx] = value;
+                        }
+                    }
+                }
+            }
+        }
+        GL.CreateTextures(TextureTarget.Texture2D, 1, out coverageTex);
+        GL.TextureStorage2D(coverageTex, 1, SizedInternalFormat.R8, HGHT_DIM, HGHT_DIM);
+        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
+        GL.TextureParameter(coverageTex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+        GL.TextureParameter(coverageTex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        GL.TextureParameter(coverageTex, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TextureParameter(coverageTex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 
         // Load terrain textures from the game files
         var bfresLoad = Stopwatch.StartNew();
@@ -257,13 +301,24 @@ public struct TerrainRenderer {
         tessShader.Uniform("matView")?.SetValue(viewT);
         tessShader.Uniform("matProjection")?.SetValue(projT);
         tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
-        int indicesLocation = GL.GetUniformLocation(tessShader.programId, "indices");
+        int indicesLocation = tessShader.GetUniformLocation("indices");
+        int hghtLoc = tessShader.GetUniformLocation("heightTex");
+        int matLoc = tessShader.GetUniformLocation("matTex");
+        int arrayLoc = tessShader.GetUniformLocation("colorTextures");
+        int coverageLoc = tessShader.GetUniformLocation("coverageTex");
+        GL.Uniform1(hghtLoc, 0);
+        GL.Uniform1(matLoc, 1);
+        GL.Uniform1(arrayLoc, 2);
+        GL.Uniform1(coverageLoc, 3);
 
         GL.BindTextureUnit(2, terrainTexArray);
+        GL.BindTextureUnit(3, coverageTex);
         GL.BindVertexArray(vaoBlank);
 
-        foreach (var tile in tiles) {
-            tile.Value.Draw(indicesLocation);
+        foreach (var l in levels) {
+            foreach (var tile in l) {
+                tile.Value.Draw(indicesLocation);
+            }
         }
 
         GL.BindVertexArray(0);
