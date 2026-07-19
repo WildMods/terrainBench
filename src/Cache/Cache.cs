@@ -25,14 +25,14 @@ public class Cache
 
     public Result<ushort[], ErrorStack> GetHeightmapTile(int level, ushort tileId)
     {
-        var result = _lods[level].GetHght(tileId);
+        var result = _lods[level].GetComponentTile(LodComponent.hght, tileId);
         ushort[]? subdivided = null;
         if (result.TryGetValue(ref subdivided, out var lower))
         {
             return subdivided;
         }
         return GenerateHeightmapSection(level - 1, lower.Item1, lower.Item2)
-            .Inspect(tile => _lods[level].InsertHghtData(tileId, tile))
+            .Inspect(tile => _lods[level].InsertComponentData(LodComponent.hght, tileId, tile))
             .Context("Could not load or generate tile. Warn me if this happens!");
     }
 
@@ -41,7 +41,7 @@ public class Cache
         ushort tileId,
         ushort section
     ) {
-        var res = _lods[level].GetHght(tileId);
+        var res = _lods[level].GetComponentTile(LodComponent.hght, tileId);
         if (res.IsErr()) return Err(new ErrorStack("Lower LOD is also missing tile!"));
         var lowDetailTile = res.Unwrap();
         
