@@ -5,6 +5,7 @@ using Native.IO.Handles;
 using OperationResult;
 using static OperationResult.Helpers;
 using CsOead;
+using System.Diagnostics;
 
 namespace terrainBench;
 
@@ -82,24 +83,19 @@ public class Game
     
     public IEnumerable<Result<Sarc, ErrorStack>> IterLodComponent(int level, LodComponent component)
     {
-        ConcurrentBag<Result<Sarc, ErrorStack>> bag = [];
-        Parallel.ForEach(
-            _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera"),
-            path => {
+        var iter = _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera");
+        ConcurrentBag<DataMarshal> buffers = [];
+        var YazWatch = Stopwatch.StartNew();
+        Parallel.ForEach(iter, path => {
                 DataMarshal data = Yaz0.DecompressFile(path);
                 if (data.AsSpan().Length > 0) {
-                    bag.Add(Ok(Sarc.FromBinary(data)));
+                    buffers.Add(data);
                 }
-                else
-                {
-                    bag.Add(Err(new ErrorStack($"Failed to decompress {Path.GetFileName(path)}")));
-                }
-            }
-        );
+        });
+        YazWatch.Stop();
 
-        foreach (var result in bag)
-        {
-            yield return result;
+        foreach (var data in buffers) {
+            yield return Ok(Sarc.FromBinary(data));
         }
     }
 }

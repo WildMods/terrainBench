@@ -7,10 +7,10 @@ namespace terrainBench.Cache;
 public class Cache
 {
     private readonly Lod[] _lods = new Lod[9];
-    
+
     public Cache(Game game)
     {
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 9; ++i)
         {
             _lods[i] = new(i, game);
         }
