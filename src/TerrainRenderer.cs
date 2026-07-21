@@ -22,25 +22,45 @@ public struct TerrainRenderer {
         public UInt16 baseId;
         public bool[] ids = new bool[4];
 
+        public TileDrawRecord(byte lod, UInt16 id) {
+            this.lod = lod;
+            baseId = id;
+            ids = new bool[4];
+        }
+        
         public TileDrawRecord(int texHGHT, byte lod, UInt16 id) {
             this.texHGHT = texHGHT;
             this.lod = lod;
             baseId = id;
+            ids = new bool[4];
         }
 
-        public void UpdateNumIDs() {
+        public void UpdateNumIDs()
+        {
             byte count = 0;
-            for (int i = 0; i < ids.Length; i++) {
-                if (ids[i]) {
+            for (int i = 0; i < ids.Length; i++)
+            {
+                if (ids[i])
+                {
                     count++;
                 }
             }
             numIDs = count;
         }
 
+        public void checkTextures() {
+            if (texHGHT == 0) {
+                Console.WriteLine("HGHT texture is missing for tile base {0}!", baseId);
+            }
+            if (texMATE == 0) {
+                Console.WriteLine("MATE texture is missing for tile base {0}!", baseId);
+            }
+        }
+
         public void Draw(int indicesLocation) {
             GL.BindTextureUnit(0, texHGHT);
             GL.BindTextureUnit(1, texMATE);
+            checkTextures();
 
             Int32[] indices = new Int32[4];
             for (int i = 0, pos = 0; i < 4; i++) {
@@ -91,8 +111,7 @@ public struct TerrainRenderer {
     }
 
     private int CreateTileTexture(SizedInternalFormat inFormat, int squareSize) {
-        int tex = 0;
-        GL.CreateTextures(TextureTarget.Texture2D, 1, out tex);
+        GL.CreateTextures(TextureTarget.Texture2D, 1, out int tex);
         if (tex == 0) {
             Console.WriteLine("Failed to create texture!");
             return 0;
@@ -106,106 +125,63 @@ public struct TerrainRenderer {
         return tex;
     }
 
-    private void UpdateTileTexture(int tex, PixelFormat fmt, PixelType type, DataMarshal data, UInt16 idx) {
-            byte x = 0, y = 0;
-            ZOrder.Deinterleave16To8(ZOrder.LocalIdx(idx), out x, out y);
-
-            int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
-            ReadOnlySpan<byte> span = data.AsSpan();
-            unsafe {
-                fixed (byte* bp = span) {
-                    nint ptr = (IntPtr)bp;
-                    GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, fmt, type, ptr);
-                }
-            }
-    }
-
-    private TileDrawRecord LoadSSTERAHeight(CsOead.Sarc sarc, byte lod, UInt16 baseIdx, ref int tileCount) {
-        const int dim = HGHT_DIM * 2;
-        int tex = CreateTileTexture(SizedInternalFormat.R16, dim);
-        var tile = new TileDrawRecord(tex, lod, baseIdx);
-
-        foreach (var (name, dataMarshal) in sarc) {
-            var idx = ZOrder.IndexFromFilename(name);
-            if (idx.IsErr()) {
-                Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
-                continue;
-            }
-            var localIdx = ZOrder.LocalIdx(idx.Ok());
-            tile.ids[localIdx] = true;
-            // Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
-            tileCount++;
-
-            UpdateTileTexture(tex, PixelFormat.Red, PixelType.UnsignedShort, dataMarshal, idx.Ok());
-        }
-        tile.UpdateNumIDs();
-
-        return tile;
-    }
-
-    private int LoadSSTERAMaterial(CsOead.Sarc sarc, byte lod, UInt16 baseIdx) {
-        const int dim = HGHT_DIM * 2;
-        int tex = CreateTileTexture(SizedInternalFormat.Rgba8, dim);
+    private void UpdateTileTexture<T>(int tex, PixelFormat fmt, PixelType type, ReadOnlySpan<T> data, UInt16 idx) {
         if (tex == 0) {
-            return 0;
+            Console.WriteLine("The given texture is 0!");
+            return;
         }
+        ZOrder.Deinterleave16To8(ZOrder.LocalIdx(idx), out byte x, out byte y);
 
-        foreach (var (name, dataMarshal) in sarc) {
-            var idx = ZOrder.IndexFromFilename(name);
-            if (idx.IsErr()) {
-                Console.WriteLine("Failed to get tile index: {0}", idx.GetErrorMessage());
-                continue;
+        int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
+        unsafe {
+            fixed (void* bp = data) {
+                nint ptr = (IntPtr)bp;
+                GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, fmt, type, ptr);
             }
-            var localIdx = ZOrder.LocalIdx(idx.Ok());
-            // tile.ids[localIdx] = true;
-            // Console.WriteLine("\tFound {0} [index {1}]", name, idx.Ok());
-
-            UpdateTileTexture(tex, PixelFormat.Rgba, PixelType.UnsignedByte, dataMarshal, idx.Ok());
         }
-
-        return tex;
     }
 
-    public Dictionary<UInt16, TileDrawRecord> LoadTerrainLevel(Game game, byte lod) {
+    public Dictionary<UInt16, TileDrawRecord> LoadTerrainLevel(Cache.Cache cache, Game game, byte lod) {
         int sarcCount = 0;
         int tileCount = 0;
         var tiles = new Dictionary<UInt16, TileDrawRecord>();
         var loadWatch = Stopwatch.StartNew();
-        var iter = game.GetLod(lod);
-        foreach (var (firstFile, sarc) in iter) {
-            string archName = firstFile + ".sstera";
-            sarcCount++;
-            if (sarc.Count > 4) {
-                Console.WriteLine("Warning: {0} had {1} files, there should be at most 4", archName, sarc.Count);
-            }
+        int maxIdx = ((1 << lod) * (1 << lod));
 
-            var baseIdx = ZOrder.IndexFromFilename(firstFile);
-            if (baseIdx.IsErr()) {
-                Console.WriteLine("Failed to get SSTERA base index: {0}", baseIdx.GetErrorMessage());
+        TileDrawRecord tile = new TileDrawRecord(lod, 0);
+        for (UInt16 idx = 0; idx < maxIdx; idx++) {
+            UInt16 localIdx = (UInt16)(idx & 0b11);
+            if (localIdx == 0) {
+                tile.UpdateNumIDs();
+                tile.checkTextures();
+                tiles[tile.baseId] = tile;
+                tiles[tile.baseId].checkTextures();
+
+                tile = new(lod, idx);
+                tile.texHGHT = CreateTileTexture(SizedInternalFormat.R16, HGHT_DIM * 2);
+                tile.texMATE = CreateTileTexture(SizedInternalFormat.Rgba8, HGHT_DIM * 2);
+                tile.checkTextures();
+            }
+            var resHGHT = cache.GetHeightmapTile(lod, idx, false);
+            var resMATE = cache.GetMaterialTile(lod, idx, false);
+            if (resHGHT.IsErr() || resMATE.IsErr()) {
                 continue;
             }
-
-            if (firstFile.EndsWith(".hght")) {
-                tiles[baseIdx.Ok()] = LoadSSTERAHeight(sarc, lod, baseIdx.Ok(), ref tileCount);
-            } else if (firstFile.EndsWith(".mate")) {
-                if (tiles.ContainsKey(baseIdx.Ok())) {
-                    // This is dumb, seems like C# does not have a key-value collection which returns references
-                    var tile = tiles[baseIdx.Ok()];
-                    tile.texMATE = LoadSSTERAMaterial(sarc, lod, baseIdx.Ok());
-                    tiles[baseIdx.Ok()] = tile;
-                }
-            }
+            tile.ids[localIdx] = true;
+            UpdateTileTexture(tile.texHGHT, PixelFormat.Red, PixelType.UnsignedShort, resHGHT.Ok().AsSpan(), localIdx);
+            UpdateTileTexture(tile.texMATE, PixelFormat.Rgba, PixelType.UnsignedByte, resMATE.Ok().AsSpan(), localIdx);
         }
+
         loadWatch.Stop();
 
         Console.WriteLine("Loaded {0} level {3} tiles from {1} files in {2}ms.", tileCount, sarcCount, loadWatch.ElapsedMilliseconds, lod);
         return tiles;
     }
 
-    public bool LoadTerrain(Game game) {
+    public bool LoadTerrain(Cache.Cache cache, Game game) {
         var loadWatch = Stopwatch.StartNew();
-        for (byte i = 0; i < 9; i++) {
-            levels[i] = LoadTerrainLevel(game, i);
+        for (byte i = 0; i < 8; i++) {
+            levels[i] = LoadTerrainLevel(cache, game, i);
         }
         loadWatch.Stop();
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
@@ -215,6 +191,10 @@ public struct TerrainRenderer {
             byte lvlDiff = (byte)(MAX_LOD - lvl);
             UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
             foreach (TileDrawRecord tile in levels[lvl].Values) {
+                if (tile.ids == null) {
+                    Console.WriteLine("Skipping coverage for a tile in level {0} since ID array is null.", lvl);
+                    continue;
+                }
                 for (int pos = 0; pos < tile.ids.Length; pos++) {
                     if (!tile.ids[pos]) {
                         continue;

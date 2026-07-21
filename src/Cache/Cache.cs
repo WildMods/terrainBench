@@ -24,13 +24,15 @@ public class Cache
         }
     }
 
-    public Result<ushort[], ErrorStack> GetHeightmapTile(int level, ushort tileId)
+    public Result<ushort[], ErrorStack> GetHeightmapTile(int level, ushort tileId, bool upscale = true)
     {
         var result = _lods[level].GetHeightmapTile(tileId);
         ushort[]? subdivided = null;
         if (result.TryGetValue(ref subdivided, out var lower))
         {
             return subdivided;
+        } else if (!upscale) {
+            return Err(new ErrorStack("Unable to find heightmap tile and upscaling was disabled."));
         }
         return GenerateHeightmapSection(level - 1, lower.Item1, lower.Item2)
             .Inspect(tile => _lods[level].InsertTile(tileId, tile))
@@ -120,13 +122,15 @@ public class Cache
         return subdivided;
     }
 
-    public Result<Material[], ErrorStack> GetMaterialTile(int level, ushort tileId)
+    public Result<Material[], ErrorStack> GetMaterialTile(int level, ushort tileId, bool upscale = true)
     {
         var result = _lods[level].GetMaterialTile(tileId);
         Material[]? subdivided = null;
         if (result.TryGetValue(ref subdivided, out var lower))
         {
             return subdivided;
+        } else if (!upscale) {
+            return Err(new ErrorStack("Unable to find material tile and upscaling was disabled."));
         }
         return GenerateMaterialSection(level - 1, lower.Item1, lower.Item2)
             .Inspect(tile => _lods[level].InsertTile(tileId, tile))
@@ -164,7 +168,7 @@ public class Cache
         return Err(new ErrorStack("Not implemented", new NotImplementedException()));
     }
 
-    public Result<WaterExtm[], ErrorStack> GetWaterTile(int level, ushort tileId)
+    public Result<WaterExtm[], ErrorStack> GetWaterTile(int level, ushort tileId, bool upscale)
     {
         var result = _lods[level].GetWaterTile(tileId);
         WaterExtm[]? subdivided = null;

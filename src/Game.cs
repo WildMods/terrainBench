@@ -81,7 +81,7 @@ public class Game
         Console.WriteLine("Spent {0}ms decompressing Yaz0 from disk", YazWatch.ElapsedMilliseconds);
     }
     
-    public IEnumerable<Result<Sarc, ErrorStack>> IterLodComponent(int level, LodComponent component)
+    public IEnumerable<Result<DataMarshal, ErrorStack>> IterLodComponent(int level, LodComponent component)
     {
         var iter = _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera");
         ConcurrentBag<DataMarshal> buffers = [];
@@ -95,7 +95,7 @@ public class Game
         YazWatch.Stop();
 
         foreach (var data in buffers) {
-            yield return Ok(Sarc.FromBinary(data));
+            yield return Ok(data);
         }
     }
 }
