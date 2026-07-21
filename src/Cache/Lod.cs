@@ -1,6 +1,6 @@
 using CommunityToolkit.HighPerformance;
-using CsOead;
 using OperationResult;
+using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 
 namespace terrainBench.Cache;
@@ -9,44 +9,127 @@ public class Lod
 {
     private static readonly short[] TILE_COUNTS = [1, 4, 16, 36, 144, 320, 1154, 3616, 3742];
     private readonly int _level;
-    private readonly Dictionary<ushort, ushort[]>[] _components;
-    private readonly Dictionary<ushort, ushort[]>[] _dirtyComponents;
+    private readonly Dictionary<ushort, ushort[]> _hghts;
+    private readonly Dictionary<ushort, ushort[]> _dirtyHghts;
+    private readonly Dictionary<ushort, Material[]> _mates;
+    private readonly Dictionary<ushort, Material[]> _dirtyMates;
+    private readonly Dictionary<ushort, GrassExtm[]> _grass;
+    private readonly Dictionary<ushort, GrassExtm[]> _dirtyGrass;
+    private readonly Dictionary<ushort, WaterExtm[]> _water;
+    private readonly Dictionary<ushort, WaterExtm[]> _dirtyWater;
 
     public Lod(int level, Game game)
     {
         _level = level;
-        var count = TILE_COUNTS[_level];
-        _components = [new(count), new(count), new(count), new(count)];
-        _dirtyComponents = [new(), new(), new(), new()];
-        (IEnumerable<Result<Sarc, ErrorStack>>, Dictionary<ushort, ushort[]>)[] groups = [
-            (game.IterLodComponent(_level, LodComponent.hght), _components[0]),
-            (game.IterLodComponent(_level, LodComponent.mate), _components[1]),
-            (game.IterLodComponent(_level, LodComponent.grass), _components[2]),
-            (game.IterLodComponent(_level, LodComponent.water), _components[3])
-        ];
-        Parallel.ForEach(
-            groups,
-            group =>
-            {
-                var (iter, collection) = group;
-                foreach (var result in iter)
-                {
-                    if (result.IsErr()) continue;
-                    foreach (var (name, data) in result.Unwrap())
-                    {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        collection[tileId.Unwrap()] = data.AsSpan().Cast<byte, ushort>().ToArray();
-                    }
-                }
-            }
-        );
+        _hghts = [];
+        _dirtyHghts = [];
+        _mates = [];
+        _dirtyMates = [];
+        _grass = [];
+        _dirtyGrass = [];
+        _water = [];
+        _dirtyWater = [];
+        var tasks = new List<Task>(4)
+        {
+            LoadHeightmapTiles(game),
+            LoadMaterialTiles(game),
+            LoadGrassTiles(game),
+            LoadWaterTiles(game)
+        };
+        Task.WaitAll(tasks);
     }
 
-    public Result<ushort[], (ushort, ushort)> GetComponentTile(LodComponent component, ushort tileId)
+    private async Task LoadHeightmapTiles(Game game)
     {
-        if (_dirtyComponents[(int)component].TryGetValue(tileId, out var result) ||
-            _components[(int)component].TryGetValue(tileId, out result))
+        var iter = game.IterLodComponent(_level, LodComponent.hght);
+        var tasks = new List<Task>(TILE_COUNTS[_level]);
+        
+        foreach (var result in iter)
+        {
+            tasks.Add(Task.Run(delegate
+            {
+                if (result.IsErr()) return;
+                foreach (var (name, data) in result.Unwrap())
+                {
+                    var tileId = ZOrder.IndexFromFilename(name);
+                    if (tileId.IsErr()) continue;
+                    _hghts[tileId.Unwrap()] = data.AsSpan().Cast<byte, ushort>().ToArray();
+                }
+            }));
+        }
+        
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task LoadMaterialTiles(Game game)
+    {
+        var iter = game.IterLodComponent(_level, LodComponent.mate);
+        var tasks = new List<Task>(TILE_COUNTS[_level]);
+        
+        foreach (var result in iter)
+        {
+            tasks.Add(Task.Run(delegate
+            {
+                if (result.IsErr()) return;
+                foreach (var (name, data) in result.Unwrap())
+                {
+                    var tileId = ZOrder.IndexFromFilename(name);
+                    if (tileId.IsErr()) continue;
+                    _mates[tileId.Unwrap()] = data.AsSpan().Cast<byte, Material>().ToArray();
+                }
+            }));
+        }
+        
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task LoadGrassTiles(Game game)
+    {
+        var iter = game.IterLodComponent(_level, LodComponent.grass);
+        var tasks = new List<Task>(TILE_COUNTS[_level]);
+        
+        foreach (var result in iter)
+        {
+            tasks.Add(Task.Run(delegate
+            {
+                if (result.IsErr()) return;
+                foreach (var (name, data) in result.Unwrap())
+                {
+                    var tileId = ZOrder.IndexFromFilename(name);
+                    if (tileId.IsErr()) continue;
+                    _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
+                }
+            }));
+        }
+        
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task LoadWaterTiles(Game game)
+    {
+        var iter = game.IterLodComponent(_level, LodComponent.water);
+        var tasks = new List<Task>(TILE_COUNTS[_level]);
+        
+        foreach (var result in iter)
+        {
+            tasks.Add(Task.Run(delegate
+            {
+                if (result.IsErr()) return;
+                foreach (var (name, data) in result.Unwrap())
+                {
+                    var tileId = ZOrder.IndexFromFilename(name);
+                    if (tileId.IsErr()) continue;
+                    _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
+                }
+            }));
+        }
+        
+        await Task.WhenAll(tasks);
+    }
+
+    public Result<ushort[], (ushort, ushort)> GetHeightmapTile(ushort tileId)
+    {
+        if (_dirtyHghts.TryGetValue(tileId, out var result) || _hghts.TryGetValue(tileId, out result))
         {
             return result;
         }
@@ -56,8 +139,59 @@ public class Lod
         return Err((newId, section));
     }
 
-    public void InsertComponentData(LodComponent component, ushort tileId, ushort[] data)
+    public void InsertTile(ushort tileId, ushort[] data)
     {
-        _dirtyComponents[(int)component].Add(tileId, data);
+        _dirtyHghts.Add(tileId, data);
+    }
+
+    public Result<Material[], (ushort, ushort)> GetMaterialTile(ushort tileId)
+    {
+        if (_dirtyMates.TryGetValue(tileId, out var result) || _mates.TryGetValue(tileId, out result))
+        {
+            return result;
+        }
+
+        var newId = (ushort)(tileId >> 2);
+        var section = (ushort)(tileId & 0b11);
+        return Err((newId, section));
+    }
+
+    public void InsertTile(ushort tileId, Material[] data)
+    {
+        _dirtyMates.Add(tileId, data);
+    }
+
+    public Result<GrassExtm[], (ushort, ushort)> GetGrassTile(ushort tileId)
+    {
+        if (_dirtyGrass.TryGetValue(tileId, out var result) || _grass.TryGetValue(tileId, out result))
+        {
+            return result;
+        }
+
+        var newId = (ushort)(tileId >> 2);
+        var section = (ushort)(tileId & 0b11);
+        return Err((newId, section));
+    }
+
+    public void InsertTile(ushort tileId, GrassExtm[] data)
+    {
+        _dirtyGrass.Add(tileId, data);
+    }
+
+    public Result<WaterExtm[], (ushort, ushort)> GetWaterTile(ushort tileId)
+    {
+        if (_dirtyWater.TryGetValue(tileId, out var result) || _water.TryGetValue(tileId, out result))
+        {
+            return result;
+        }
+
+        var newId = (ushort)(tileId >> 2);
+        var section = (ushort)(tileId & 0b11);
+        return Err((newId, section));
+    }
+
+    public void InsertTile(ushort tileId, WaterExtm[] data)
+    {
+        _dirtyWater.Add(tileId, data);
     }
 }

@@ -1,4 +1,5 @@
 using OperationResult;
+using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 
 namespace terrainBench.Cache;
@@ -25,15 +26,15 @@ public class Cache
 
     public Result<ushort[], ErrorStack> GetHeightmapTile(int level, ushort tileId)
     {
-        var result = _lods[level].GetComponentTile(LodComponent.hght, tileId);
+        var result = _lods[level].GetHeightmapTile(tileId);
         ushort[]? subdivided = null;
         if (result.TryGetValue(ref subdivided, out var lower))
         {
             return subdivided;
         }
         return GenerateHeightmapSection(level - 1, lower.Item1, lower.Item2)
-            .Inspect(tile => _lods[level].InsertComponentData(LodComponent.hght, tileId, tile))
-            .Context("Could not load or generate tile. Warn me if this happens!");
+            .Inspect(tile => _lods[level].InsertTile(tileId, tile))
+            .Context("Could not load or generate heightmap tile.");
     }
 
     public Result<ushort[], ErrorStack> GenerateHeightmapSection(
@@ -41,7 +42,7 @@ public class Cache
         ushort tileId,
         ushort section
     ) {
-        var res = _lods[level].GetComponentTile(LodComponent.hght, tileId);
+        var res = _lods[level].GetHeightmapTile(tileId);
         if (res.IsErr()) return Err(new ErrorStack("Lower LOD is also missing tile!"));
         var lowDetailTile = res.Unwrap();
         
@@ -117,5 +118,71 @@ public class Cache
         }
         
         return subdivided;
+    }
+
+    public Result<Material[], ErrorStack> GetMaterialTile(int level, ushort tileId)
+    {
+        var result = _lods[level].GetMaterialTile(tileId);
+        Material[]? subdivided = null;
+        if (result.TryGetValue(ref subdivided, out var lower))
+        {
+            return subdivided;
+        }
+        return GenerateMaterialSection(level - 1, lower.Item1, lower.Item2)
+            .Inspect(tile => _lods[level].InsertTile(tileId, tile))
+            .Context("Could not load or generate material tile.");
+    }
+
+    public Result<Material[], ErrorStack> GenerateMaterialSection(
+        int level,
+        ushort tileId,
+        ushort section
+    )
+    {
+        return Err(new ErrorStack("Not implemented", new NotImplementedException()));
+    }
+
+    public Result<GrassExtm[], ErrorStack> GetGrassTile(int level, ushort tileId)
+    {
+        var result = _lods[level].GetGrassTile(tileId);
+        GrassExtm[]? subdivided = null;
+        if (result.TryGetValue(ref subdivided, out var lower))
+        {
+            return subdivided;
+        }
+        return GenerateGrassSection(level - 1, lower.Item1, lower.Item2)
+            .Inspect(tile => _lods[level].InsertTile(tileId, tile))
+            .Context("Could not load or generate grass tile.");
+    }
+
+    public Result<GrassExtm[], ErrorStack> GenerateGrassSection(
+        int level,
+        ushort tileId,
+        ushort section
+    )
+    {
+        return Err(new ErrorStack("Not implemented", new NotImplementedException()));
+    }
+
+    public Result<WaterExtm[], ErrorStack> GetWaterTile(int level, ushort tileId)
+    {
+        var result = _lods[level].GetWaterTile(tileId);
+        WaterExtm[]? subdivided = null;
+        if (result.TryGetValue(ref subdivided, out var lower))
+        {
+            return subdivided;
+        }
+        return GenerateWaterSection(level - 1, lower.Item1, lower.Item2)
+            .Inspect(tile => _lods[level].InsertTile(tileId, tile))
+            .Context("Could not load or generate water tile.");
+    }
+
+    public Result<WaterExtm[], ErrorStack> GenerateWaterSection(
+        int level,
+        ushort tileId,
+        ushort section
+    )
+    {
+        return Err(new ErrorStack("Not implemented", new NotImplementedException()));
     }
 }
