@@ -1,11 +1,22 @@
 // Created Jul. 15 2026
 // @author Ginger
+using System.Collections.Concurrent;
 using Native.IO.Handles;
 using OperationResult;
 using static OperationResult.Helpers;
 using CsOead;
 
 namespace terrainBench;
+
+public enum LodComponent
+{
+    // ReSharper disable InconsistentNaming
+    hght,
+    mate,
+    grass,
+    water
+    // ReSharper restore InconsistentNaming
+}
 
 public class Game
 {
@@ -67,5 +78,28 @@ public class Game
         }
 
         Console.WriteLine("Spent {0}ms decompressing Yaz0 from disk", YazWatch.ElapsedMilliseconds);
+    }
+    
+    public IEnumerable<Result<Sarc, ErrorStack>> IterLodComponent(int level, LodComponent component)
+    {
+        ConcurrentBag<Result<Sarc, ErrorStack>> bag = [];
+        Parallel.ForEach(
+            _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera"),
+            path => {
+                DataMarshal data = Yaz0.DecompressFile(path);
+                if (data.AsSpan().Length > 0) {
+                    bag.Add(Ok(Sarc.FromBinary(data)));
+                }
+                else
+                {
+                    bag.Add(Err(new ErrorStack($"Failed to decompress {Path.GetFileName(path)}")));
+                }
+            }
+        );
+
+        foreach (var result in bag)
+        {
+            yield return result;
+        }
     }
 }

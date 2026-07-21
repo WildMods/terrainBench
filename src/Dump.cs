@@ -24,7 +24,7 @@ public class Dump
         return data;
     }
 
-    public Result<Span<byte>, ErrorStack> GetFile(string loose)
+    public RefResult<Span<byte>, ErrorStack> GetFile(string loose)
     {
         if (loose.Contains("//"))
         {
@@ -40,7 +40,7 @@ public class Dump
         return Yaz0.TryDecompress(span, out var data) ? Ok(data!.AsSpan()) : Ok(span);
     }
 
-    public Result<Span<byte>, ErrorStack> GetNestedFile(string relative)
+    public RefResult<Span<byte>, ErrorStack> GetNestedFile(string relative)
     {
         string[] parts = relative.Split("//");
         if (parts.Length == 1)
