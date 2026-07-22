@@ -12,20 +12,16 @@ public static class Program {
     }
 
     public static void Main(string[] args) {
-        if (args.Length < 2) {
-            printUsage();
-            return;
-        }
-
-        string basePath = args[0];
-        string updatePath = args[1];
-        string dlcPath = (args.Length > 2) ? args[2] : "";
         var settings = Settings.Load();
         if (!Settings.Validate(settings))
         {
-            settings.gameDir = basePath;
-            settings.updateDir = updatePath;
-            settings.dlcDir = dlcPath;
+            if (args.Length < 2) {
+                printUsage();
+                return;
+            }
+            settings.gameDir = args[0];
+            settings.updateDir = args[1];
+            settings.dlcDir = args.Length > 2 ? args[2] : "";
             settings.Save();
         }
         var game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir);
