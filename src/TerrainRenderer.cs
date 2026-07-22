@@ -87,7 +87,7 @@ public struct TerrainRenderer {
         byte sizeTiles = 0;
         Int32[] indices;
 
-        public CompactTileSheet(Cache.Cache cache, int lod, byte sizeTiles, byte xCenter, byte yCenter) {
+        public CompactTileSheet(Cache.Cache cache, byte lod, byte sizeTiles, byte xCenter, byte yCenter) {
             hghtTex = CreateTileTexture(SizedInternalFormat.R16, HGHT_DIM * sizeTiles);
             mateTex = CreateTileTexture(SizedInternalFormat.Rgba8, HGHT_DIM * sizeTiles);
             this.sizeTiles = sizeTiles;
@@ -97,18 +97,19 @@ public struct TerrainRenderer {
             var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
             var iter = ZOrder.IterInSquareRange(centerIdx, sizeTiles);
             UInt16 posInTexture = 0;
-            foreach (var idx in iter) {
-                const byte lvl = 4;
-                var resHGHT = cache.GetHeightmapTile(lvl, idx, false);
-                var resMATE = cache.GetMaterialTile(lvl, idx, false);
-                if (resHGHT.IsErr() || resMATE.IsErr()) {
-                    Console.WriteLine("Skipping index {0}", idx);
+            foreach (var idx in iter)
+            {
+                var resHGHT = cache.GetHeightmapTile(lod, idx, false);
+                var resMATE = cache.GetMaterialTile(lod, idx, false);
+                if (resHGHT.IsErr() || resMATE.IsErr())
+                {
+                    // Console.WriteLine("Skipping index {0}", idx);
                     continue;
                 }
 
-                Int32 idxValue = ((Int32)lvl << 16) | (Int32)idx;
+                Int32 idxValue = ((Int32)lod << 16) | (Int32)idx;
                 indices[posInTexture] = idxValue;
-                Console.WriteLine("Wrote {0} to index {1}", idx, posInTexture);
+                // Console.WriteLine("Wrote {0} to index {1}", idx, posInTexture);
 
                 var hghtData = resHGHT.Ok();
                 var mateData = resMATE.Ok();
@@ -118,7 +119,7 @@ public struct TerrainRenderer {
                     xTarget = HGHT_DIM * (UInt16)x;
                     yTarget = HGHT_DIM * (UInt16)y;
                 }
-                Console.WriteLine("Uploading tile starting @ ({0}, {1})", xTarget, yTarget);
+                // Console.WriteLine("Uploading tile starting @ ({0}, {1})", xTarget, yTarget);
                 GL.TextureSubImage2D(hghtTex, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, hghtData);
                 GL.TextureSubImage2D(mateTex, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Rgba, PixelType.UnsignedByte, mateData);
                 posInTexture++;
@@ -165,7 +166,7 @@ public struct TerrainRenderer {
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
-        ring0 = new(cache, 5, 8, 16, 16);
+        ring0 = new(cache, 4, 8, 32, 32);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         
         return true;
