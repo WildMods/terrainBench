@@ -41,7 +41,7 @@ void main() {
     // Don't draw this part of the tile if a higher-res tile has already been drawn here
     int bestLod = int(texture(coverageTex, lvl8Pos).r * 255.0);
     if (bestLod != lod) {
-        discard;
+        // discard;
     }
 
     vec4 material = texture(matTex, uv);
