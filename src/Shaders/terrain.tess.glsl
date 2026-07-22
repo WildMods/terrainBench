@@ -5,6 +5,7 @@ layout (binding = 0) uniform sampler2D heightTex;
 uniform mat4 matModel;
 uniform mat4 matView;
 uniform mat4 matProjection;
+uniform int tilesPerTex;
 
 in vec2 uvOffset[];
 in int tileIndex[];
@@ -15,8 +16,8 @@ flat out int tileIdx;
 
 void main() {
     // get patch coordinate
-    float u = gl_TessCoord.y / 2;
-    float v = gl_TessCoord.x / 2;
+    float u = gl_TessCoord.y / tilesPerTex;
+    float v = gl_TessCoord.x / tilesPerTex;
     u += uvOffset[0].x;
     v += uvOffset[0].y;
     tileIdx = tileIndex[0];

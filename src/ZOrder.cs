@@ -63,4 +63,30 @@ public static class ZOrder {
 
         return (UInt16)res;
     }
+
+    public static IEnumerable<UInt16> IterInSquareRange(UInt16 idx, byte radius) {
+        // These have alternating 0 and 1 bits to isolate just the X or Y bits.
+        // The actual values will be inflated when spaced out every other bit
+        // like this, but relative comparisons (< / >) are still valid.
+        const UInt16 xMask = 0x5555, yMask = 0xAAAA;
+
+        // Calculate the indices of the corners of the square area
+        Deinterleave16To8(idx, out var xCenter, out var yCenter);
+        byte xMin = (byte)Math.Max(0x00, (Int16)xCenter - radius);
+        byte yMin = (byte)Math.Max(0x00, (Int16)yCenter - radius);
+        byte xMax = (byte)Math.Min(0xFF, (Int16)xCenter + radius);
+        byte yMax = (byte)Math.Min(0xFF, (Int16)yCenter + radius);
+
+        UInt16 idxMin = Interleave8To16(xMin, yMin);
+        UInt16 idxMax = Interleave8To16(xMax, yMax);
+        for (UInt16 i = idxMin; i <= idxMax; i++) {
+            if ((i & xMask) < (idxMin & xMask) || (i & xMask) > (idxMax & xMask)) {
+                continue; // Outside of X range
+            }
+            if ((i & yMask) < (idxMin & yMask) || (i & yMask) > (idxMax & yMask)) {
+                continue; // Outside of Y range
+            }
+            yield return i;
+        }
+    }
 }

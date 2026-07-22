@@ -44,7 +44,7 @@ public class Window : GameWindow {
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
 
-        terrain.GLInit();
+        terrain.GLInit(cache);
         terrain.LoadTerrain(cache, game);
     }
 

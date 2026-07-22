@@ -1,5 +1,6 @@
 #version 410 core
-uniform int[4] indices;
+uniform int[64] indices;
+uniform int tilesPerTex;
 out vec2 vertUVOffset;
 out int tileIdx;
 
@@ -30,6 +31,11 @@ ivec2 idxToGridPos(int idx) {
 
 void main() {
     int idx = indices[gl_InstanceID];
+    if (idx == -1) {
+        gl_Position = vec4(0, 0, 0, 1);
+        return;
+    }
+    
     int lod = idx >> 16;
     float tileFactor = float(1 << MAX_LOD) / float(1 << lod);
     ivec2 worldPos = idxToGridPos(idx);
@@ -41,6 +47,7 @@ void main() {
     gl_Position = vec4(pos, 1);
     // Bottom 2 bits of the Z-order index tell us where in the 2x2 tile
     // texture to look
-    vertUVOffset = 0.5 * vec2(float(idx & 1), float((idx >> 1) & 1));
+    ivec2 posInTile = idxToGridPos(gl_InstanceID);
+    vertUVOffset = vec2(posInTile.xy) / tilesPerTex;
     tileIdx = idx;
 }
