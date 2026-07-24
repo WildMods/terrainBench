@@ -9,12 +9,12 @@ public static class ZOrder {
     public static UInt16 Interleave8To16(byte x, byte y) {
         UInt16 result = 0;
 
-        for (UInt16 i = 0; i < 8; i+= 2) {
+        for (UInt16 i = 0; i < 16; i+= 2) {
             UInt16 low = (UInt16)(x & 1);
             result |= (UInt16)(low << i);
             x >>= 1; // Cut off bottom bit
         }
-        for (UInt16 i = 1; i < 8; i+= 2) {
+        for (UInt16 i = 1; i < 16; i+= 2) {
             UInt16 low = (UInt16)(y & 1);
             result |= (UInt16)(low << i);
             y >>= 1; // Cut off bottom bit
