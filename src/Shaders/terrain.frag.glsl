@@ -1,6 +1,5 @@
 #version 420 core
 #extension GL_ARB_shading_language_420pack: require
-uniform int[4] indices;
 in float height;
 in vec2 uv;
 in vec2 posInTile;
@@ -41,7 +40,9 @@ void main() {
     // Don't draw this part of the tile if a higher-res tile has already been drawn here
     int bestLod = int(texture(coverageTex, lvl8Pos).r * 255.0);
     if (bestLod != lod) {
-        // discard;
+        discard;
+        finalColor = vec4(1, 0, 0, 1);
+        return;
     }
 
     vec4 material = texture(matTex, uv);

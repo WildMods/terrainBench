@@ -89,4 +89,13 @@ public static class ZOrder {
             yield return i;
         }
     }
+    
+    public static IEnumerable<Int32> IterInSquareRangeAtLod(UInt16 idx, byte radius, byte lod) {
+        var iter = IterInSquareRange(idx, radius);
+        foreach (var i in iter) {
+            Int32 val = ((Int32)lod) << 16;
+            val |= i;
+            yield return val;
+        }
+    }
 }

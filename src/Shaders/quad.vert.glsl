@@ -1,5 +1,5 @@
 #version 410 core
-uniform int[64] indices;
+uniform int[512] indices;
 uniform int tilesPerTex;
 out vec2 vertUVOffset;
 out int tileIdx;
@@ -12,7 +12,7 @@ const vec3 verts[6] = vec3[](
 );
 
 const float targetTileSize = 8;
-const int MAX_LOD = 8;
+const uint MAX_LOD = 8;
 
 // De-interleave the low 16 bits to get an 8-bit X/Z coordinate
 ivec2 idxToGridPos(int idx) {

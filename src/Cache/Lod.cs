@@ -146,10 +146,10 @@ public class Lod
 
     public Result<ushort[], (ushort, ushort)> GetHeightmapTile(ushort tileId)
     {
-        if (_dirtyHghts[tileId] != null) {
+        if (_dirtyHghts.Length > tileId && _dirtyHghts[tileId] != null) {
             return _dirtyHghts[tileId];
         }
-        if (_hghts[tileId] != null) {
+        if (_hghts.Length > tileId && _hghts[tileId] != null) {
             return _hghts[tileId];
         }
 
