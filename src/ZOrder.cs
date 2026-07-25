@@ -98,4 +98,15 @@ public static class ZOrder {
             yield return val;
         }
     }
+
+    public static Int32 PackIndex(UInt16 idx, byte lod) {
+        Int32 val = ((Int32)lod) << 16;
+        val |= idx;
+        return val;
+    }
+    
+    public static void UnpackIndex(Int32 val, out UInt16 idx, out byte lod) {
+        lod = (byte)((val >> 16) & 0xFF);
+        idx = (UInt16)(val & 0xFFFF);
+    }
 }

@@ -6,6 +6,9 @@ using SmoothGL.Graphics.Shader;
 using OperationResult;
 using BfresLibrary;
 using static OperationResult.Helpers;
+using System.Collections.Specialized;
+using CommunityToolkit.HighPerformance;
+using System.Collections.Immutable;
 namespace terrainBench;
 
 public struct TerrainRenderer {
@@ -82,38 +85,34 @@ public struct TerrainRenderer {
     }
 
     public struct CompactTileSheet {
+        const int MAX_SIZE = 4096;
+        const int MAX_TILES = MAX_SIZE / HGHT_DIM;
         int hghtTex = 0;
         int mateTex = 0;
-        byte sizeTiles = 0;
-        Int32[] indices;
+        List<Int32> indices;
 
-        public CompactTileSheet(Cache.Cache cache, byte sizeTiles, IEnumerable<Int32> iter) {
-            this.sizeTiles = sizeTiles;
+        public CompactTileSheet(Cache.Cache cache, Queue<Int32> iter) {
             // Console.WriteLine("Level {0} HGHT tex {1}, MATE tex {2}", lod, hghtTex, mateTex);
-            hghtTex = CreateTileTexture(SizedInternalFormat.R16, HGHT_DIM * sizeTiles);
-            mateTex = CreateTileTexture(SizedInternalFormat.Rgba8, HGHT_DIM * sizeTiles);
-            indices = new Int32[sizeTiles * sizeTiles];
-            Array.Fill(indices, -1);
+            hghtTex = CreateTileTexture(SizedInternalFormat.R16, MAX_SIZE);
+            mateTex = CreateTileTexture(SizedInternalFormat.Rgba8, MAX_SIZE);
+            indices = new();
+            
             UInt16 posInTexture = 0;
             int tilesTried = 0, tilesFound = 0;
-            foreach (var val in iter) {
-                UInt16 idx = (UInt16)(val & 0xFFFF);
-                var lod = val >> 16;
+            while (iter.TryDequeue(out var val) && posInTexture < MAX_TILES * MAX_TILES) {
+                ZOrder.UnpackIndex(val, out var idx, out var lod);
                 tilesTried++;
+
                 var resHGHT = cache.GetHeightmapTile(lod, idx, false);
                 var resMATE = cache.GetMaterialTile(lod, idx, false);
                 if (resHGHT.IsErr() || resMATE.IsErr()) {
-                    // Console.WriteLine("Skipping index {0}", idx);
                     continue;
                 }
+                var hghtData = resHGHT.Unwrap();
+                var mateData = resMATE.Unwrap();
                 tilesFound++;
 
-                Int32 idxValue = ((Int32)lod << 16) | (Int32)idx;
-                // Console.WriteLine("Writing {0} to index {1}, array is len {2}, sizeTiles = {3}", idx, posInTexture, indices.Length, sizeTiles);
-                indices[posInTexture] = idxValue;
-
-                var hghtData = resHGHT.Ok();
-                var mateData = resMATE.Ok();
+                indices.Add(val);
                 int xTarget, yTarget;
                 {
                     ZOrder.Deinterleave16To8(posInTexture, out var x, out var y);
@@ -126,32 +125,51 @@ public struct TerrainRenderer {
                 posInTexture++;
             }
 
-            Console.Write("Found {0}/{1} tiles", tilesFound, tilesTried);
+            Console.WriteLine("Found {0}/{1} tiles", tilesFound, tilesTried);
         }
 
         public void Draw(int tilesPerTexLoc, int indicesLocation, int shader) {
             GL.BindTextureUnit(0, hghtTex);
             GL.BindTextureUnit(1, mateTex);
-            GL.Uniform1(tilesPerTexLoc, sizeTiles);
-            GL.Uniform1(indicesLocation, indices.Length, indices);
-            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, indices.Length);
+            GL.Uniform1(tilesPerTexLoc, MAX_TILES);
+            GL.Uniform1(indicesLocation, indices.Count, indices.ToArray());
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, indices.Count);
         }
     }
 
     public struct TileRegion {
-        CompactTileSheet[] levels = new CompactTileSheet[MAX_LOD + 1];
+        List<CompactTileSheet> levels = new();
 
-        public TileRegion(Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
-            for (sbyte i = MAX_LOD; i >= 0; i--) {
-                // Console.WriteLine("Creating tile sheet @ ({0}, {1}), level {2}", xCenter, yCenter, i);
-                var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
-                var iter = ZOrder.IterInSquareRangeAtLod(centerIdx, sizeTiles, (byte)i);
-                byte radius = (byte)(sizeTiles * 2 + 1);
-                levels[i] = new(cache, radius, iter);
-                Console.WriteLine(" @ level {0} radius {1} around ({2}, {3})", i, radius, xCenter, yCenter);
-                xCenter >>= 1;
-                yCenter >>= 1;
-                sizeTiles >>= 1;
+        public TileRegion(byte[] bestLevels, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+            var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
+            UInt16 minIdx, maxIdx;
+            {
+                byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
+                byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
+                byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
+                byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
+                minIdx = ZOrder.Interleave8To16(xMin, yMin);
+                maxIdx = ZOrder.Interleave8To16(xMax, yMax);
+            }
+            minIdx = 0;
+            maxIdx = 0xFFFE;
+
+            var indices = new HashSet<Int32>();
+
+            for (UInt16 idx = minIdx; idx < maxIdx; idx++) {
+                ZOrder.Deinterleave16To8(idx, out var x, out var y);
+                var linearIdx = (HGHT_DIM * y + x);
+                var best = bestLevels[linearIdx];
+                var lvlDiff = MAX_LOD - best;
+                UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));
+                indices.Add(ZOrder.PackIndex(targetIdx, best));
+            }
+            Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
+
+            byte radius = (byte)(sizeTiles * 2 + 1);
+            var idxQ = new Queue<Int32>(indices);
+            while (idxQ.Count > 0) {
+                levels.Add(new(cache, idxQ));
             }
         }
 
@@ -193,7 +211,14 @@ public struct TerrainRenderer {
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
-        ring0 = new(cache, 8, 100, 100);
+        bestLevels = CreateCoverageTexture(cache);
+        var loadWatch = Stopwatch.StartNew();
+
+        ring0 = new(bestLevels, cache, 8, 100, 100);
+        
+        loadWatch.Stop();
+        Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
+        
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         
         return true;
@@ -267,13 +292,9 @@ public struct TerrainRenderer {
         return tiles;
     }
 
-    public bool LoadTerrain(Cache.Cache cache, Game game) {
-        var loadWatch = Stopwatch.StartNew();
-
-        loadWatch.Stop();
-        Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
-
-        Console.WriteLine("Building tile coverage texture...");
+    public static byte[] CreateCoverageTexture(Cache.Cache cache) {
+        byte[] buf = new byte[HGHT_DIM * HGHT_DIM];
+        
         for (sbyte lvl = 8; lvl >= 0; lvl--) {
             byte lvlDiff = (byte)(MAX_LOD - lvl);
             UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
@@ -296,14 +317,19 @@ public struct TerrainRenderer {
                     int targetPos = lvl8Idx + i;
                     ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
                     int linearIdx = HGHT_DIM * y + x;
-                    if (bestLevels[linearIdx] < lvl) {
-                        bestLevels[linearIdx] = (byte)lvl;
+                    if (buf[linearIdx] < lvl) {
+                        buf[linearIdx] = (byte)lvl;
                         tilesWritten++;
                     }
                 }
             }
             Console.WriteLine("Found {0}/{1} level {2} tiles, covering {3} level 8 tiles", tilesFound, sizeofLevel, lvl, tilesWritten);
         }
+        return buf;
+    }
+    
+    public bool LoadTerrain(Cache.Cache cache, Game game) {
+        Console.WriteLine("Building tile coverage texture...");
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
 
         // Load terrain textures from the game files
