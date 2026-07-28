@@ -109,4 +109,10 @@ public static class ZOrder {
         lod = (byte)((val >> 16) & 0xFF);
         idx = (UInt16)(val & 0xFFFF);
     }
+
+    public static UInt16 ManhattanDist(UInt16 a, UInt16 b) {
+        Deinterleave16To8(a, out var aX, out var aY);
+        Deinterleave16To8(b, out var bX, out var bY);
+        return (UInt16)(Math.Abs(bX - aX) + Math.Abs(bY - aY));
+    }
 }
