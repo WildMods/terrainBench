@@ -2,8 +2,6 @@
 // Tessellation taken mostly from https://learnopengl.com/Guest-Articles/2021/Tessellation/Tessellation
 
 layout (vertices=4) out;
-// Tessellate to 256 vertices square
-const int tessLevel = 255;
 in vec2 vertUVOffset[];
 in int tileIdx[];
 out vec2 uvOffset[];
@@ -14,9 +12,15 @@ void main() {
     gl_out[gl_InvocationID].gl_Position = pos;
     uvOffset[gl_InvocationID] = vertUVOffset[gl_InvocationID];
     tileIndex[gl_InvocationID] = tileIdx[gl_InvocationID];
-
+    
     // Invocation 0 controls tessellation levels for the entire patch
     if (gl_InvocationID == 0) {
+        // Tessellate to 256 vertices square
+        int tessLevel = 255;
+        if (tileIndex[gl_InvocationID] == -1) {
+            tessLevel = 0;
+        }
+        
         gl_TessLevelOuter[0] = tessLevel;
         gl_TessLevelOuter[1] = tessLevel;
         gl_TessLevelOuter[2] = tessLevel;

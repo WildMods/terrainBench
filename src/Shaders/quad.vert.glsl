@@ -31,11 +31,6 @@ ivec2 idxToGridPos(int idx) {
 
 void main() {
     int idx = indices[gl_InstanceID];
-    if (idx == -1) {
-        gl_Position = vec4(0, 0, 0, 1);
-        return;
-    }
-    
     int lod = idx >> 16;
     float tileFactor = float(1 << MAX_LOD) / float(1 << lod);
     ivec2 worldPos = idxToGridPos(idx);
