@@ -49,8 +49,8 @@ void main() {
     ivec2 indices = ivec2(material.xy * 256);
     float unknown = material.w;
 
-    vec3 color1 = texture(colorTextures, vec3(posInTile, indices.x)).rgb;
-    vec3 color2 = texture(colorTextures, vec3(posInTile, indices.y)).rgb;
+    vec3 color1 = texture(colorTextures, vec3(posInTile * sizeofThisTile, indices.x)).rgb;
+    vec3 color2 = texture(colorTextures, vec3(posInTile * sizeofThisTile, indices.y)).rgb;
     vec3 matColor = mix(color1, color2, material.z);
     float heightMult = (height / 2) + 0.5;
     finalColor = vec4(heightMult * matColor, 1);
