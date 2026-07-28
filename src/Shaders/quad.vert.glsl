@@ -1,7 +1,7 @@
 #version 410 core
 uniform int[512] indices;
 uniform int tilesPerTex;
-out vec2 vertUVOffset;
+out ivec2 vertUVOffset;
 out int tileIdx;
 
 // 1x1 quad vertices
@@ -40,9 +40,7 @@ void main() {
     pos.xz += worldPos * (tileFactor / 2);
 
     gl_Position = vec4(pos, 1);
-    // Bottom 2 bits of the Z-order index tell us where in the 2x2 tile
-    // texture to look
-    ivec2 posInTile = idxToGridPos(gl_InstanceID);
-    vertUVOffset = vec2(posInTile.xy) / tilesPerTex;
+    ivec2 gridPos = idxToGridPos(gl_InstanceID);
+    vertUVOffset = ivec2(gridPos.xy) * 256;
     tileIdx = idx;
 }

@@ -2,9 +2,9 @@
 // Tessellation taken mostly from https://learnopengl.com/Guest-Articles/2021/Tessellation/Tessellation
 
 layout (vertices=4) out;
-in vec2 vertUVOffset[];
+in ivec2 vertUVOffset[];
 in int tileIdx[];
-out vec2 uvOffset[];
+out ivec2 uvOffset[];
 out int tileIndex[];
 
 void main() {

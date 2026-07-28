@@ -7,7 +7,7 @@ uniform mat4 matView;
 uniform mat4 matProjection;
 uniform int tilesPerTex;
 
-in vec2 uvOffset[];
+in ivec2 uvOffset[];
 in int tileIndex[];
 out float height; // To be used in fragment shader
 out vec2 uv;
@@ -16,15 +16,12 @@ flat out int tileIdx;
 
 void main() {
     // get patch coordinate
-    float u = gl_TessCoord.y / tilesPerTex;
-    float v = gl_TessCoord.x / tilesPerTex;
-    u += uvOffset[0].x;
-    v += uvOffset[0].y;
     tileIdx = tileIndex[0];
     posInTile = gl_TessCoord.xy;
 
-    uv = vec2(u, v);
-    height = texture(heightTex, uv).x;
+    ivec2 texelUV = ivec2(gl_TessCoord.yx * 255) + uvOffset[0];
+    uv = vec2(texelUV) / (256 * tilesPerTex);
+    height = texelFetch(heightTex, texelUV, 0).x;
 
     vec4 p00 = gl_in[0].gl_Position;
     vec4 p01 = gl_in[1].gl_Position;
