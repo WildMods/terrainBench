@@ -8,11 +8,21 @@ public class Cache
 {
     private readonly Lod[] _lods = new Lod[9];
 
-    public Cache(Game game)
+    public Cache()
     {
         for (int i = 0; i < 9; ++i)
         {
-            _lods[i] = new(i, game);
+            _lods[i] = new(i);
+        }
+    }
+    
+    public void Load(Game game) {
+        using (Profiler.BeginZone("CacheLoad"))
+        {
+            for (int i = 0; i < 9; ++i)
+            {
+                _lods[i].Load(game);
+            }
         }
     }
 

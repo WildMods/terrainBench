@@ -13,7 +13,7 @@ using terrainBench.Cache;
 public class Window : GameWindow {
     Game game;
     Camera cam = new Camera();
-    Cache.Cache cache;
+    Cache.Cache cache = new();
     TerrainRenderer terrain = new TerrainRenderer();
 
     // A simple constructor to let us set properties like window size, title, FPS, etc. on the window.
@@ -44,16 +44,21 @@ public class Window : GameWindow {
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
 
-        using (Profiler.BeginZone("CacheInit")) {
-            cache = new Cache.Cache(game);
+        var total = Stopwatch.StartNew();
+        var t = Task.Run(delegate {
+            cache.Load(game);
+        });
+        
+        using (Profiler.BeginZone("R_LoadTerrainTextures")) {
+            terrain.LoadTerrainTextures(game);
         }
-
-        using (Profiler.BeginZone("R_GLInit")) {
+        using (Profiler.BeginZone("R_GLInit"))
+        {
             terrain.GLInit(cache);
         }
-        using (Profiler.BeginZone("R_LoadTerrain")) {
-            terrain.LoadTerrain(cache, game);
-        }
+
+        total.Stop();
+        Console.WriteLine("Initialized in {0}ms", total.ElapsedMilliseconds);
     }
 
     protected override void OnUnload() {

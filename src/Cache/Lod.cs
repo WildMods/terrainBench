@@ -20,7 +20,9 @@ public class Lod
     private readonly List<WaterExtm[]> _water = new();
     private readonly List<WaterExtm[]> _dirtyWater = new();
 
-    public Lod(int level, Game game)
+    private bool loadFinished = false;
+
+    public Lod(int level)
     {
         _level = level;
         int dim = 1 << level;
@@ -38,7 +40,10 @@ public class Lod
             CollectionsMarshal.SetCount(_water, dim * dim);
             CollectionsMarshal.SetCount(_dirtyWater, dim * dim);
         }
-        
+    }
+
+    public void Load(Game game)
+    {
         var tasks = new List<Task>()
         {
             LoadHeightmapTiles(game),
@@ -47,7 +52,14 @@ public class Lod
             LoadWaterTiles(game)
         };
         Task.WaitAll(tasks);
-        Console.WriteLine("Loaded level {0}", level);
+        loadFinished = true;
+        Console.WriteLine("Loaded level {0}", _level);
+    }
+
+    private void WaitForLoad() {
+        while (!loadFinished) {
+            Thread.Sleep(5);
+        }
     }
 
     private async Task LoadHeightmapTiles(Game game)
@@ -161,6 +173,7 @@ public class Lod
 
     public Result<ushort[], (ushort, ushort)> GetHeightmapTile(ushort tileId)
     {
+        WaitForLoad();
         using (Profiler.BeginZone("LodGetHGHT")) {
             if (_dirtyHghts.Length > tileId && _dirtyHghts[tileId] != null) {
                 return _dirtyHghts[tileId];
@@ -177,11 +190,13 @@ public class Lod
 
     public void InsertTile(ushort tileId, ushort[] data)
     {
+        WaitForLoad();
         _dirtyHghts[tileId] = data;
     }
 
     public Result<Material[], (ushort, ushort)> GetMaterialTile(ushort tileId)
     {
+        WaitForLoad();
         using (Profiler.BeginZone("LodGetMATE")) {
             if (_dirtyMates[tileId] != null) {
                 return _dirtyMates[tileId];
@@ -198,11 +213,13 @@ public class Lod
 
     public void InsertTile(ushort tileId, Material[] data)
     {
+        WaitForLoad();
         _dirtyMates[tileId] = data;
     }
 
     public Result<GrassExtm[], (ushort, ushort)> GetGrassTile(ushort tileId)
     {
+        WaitForLoad();
         if (_dirtyGrass[tileId] != null) {
             return _dirtyGrass[tileId];
         }
@@ -217,11 +234,13 @@ public class Lod
 
     public void InsertTile(ushort tileId, GrassExtm[] data)
     {
+        WaitForLoad();
         _dirtyGrass[tileId] = data;
     }
 
     public Result<WaterExtm[], (ushort, ushort)> GetWaterTile(ushort tileId)
     {
+        WaitForLoad();
         if (_dirtyWater[tileId] != null) {
             return _dirtyWater[tileId];
         }
@@ -236,6 +255,7 @@ public class Lod
 
     public void InsertTile(ushort tileId, WaterExtm[] data)
     {
+        WaitForLoad();
         _dirtyWater[tileId] = data;
     }
 }

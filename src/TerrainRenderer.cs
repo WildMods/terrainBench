@@ -140,9 +140,7 @@ public struct TerrainRenderer {
 
     TileRegion ring0;
 
-    public TerrainRenderer() {
-        Console.WriteLine("Initialized ring 0 indices");
-    }
+    public TerrainRenderer() { }
 
     private string GetEmbeddedText(string name) {
         var asm = typeof(TerrainRenderer).Assembly;
@@ -167,14 +165,14 @@ public struct TerrainRenderer {
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
         bestLevels = CreateCoverageTexture(cache);
+        coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
+        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
         var loadWatch = Stopwatch.StartNew();
 
         ring0 = new(bestLevels, cache, 8, 100, 100);
         
         loadWatch.Stop();
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
-        
-        coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
 
         zone.Dispose();
         return true;
@@ -254,11 +252,10 @@ public struct TerrainRenderer {
         return buf;
     }
     
-    public bool LoadTerrain(Cache.Cache cache, Game game) {
-        Console.WriteLine("Building tile coverage texture...");
-        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
-
+    public bool LoadTerrainTextures(Game game) {
         // Load terrain textures from the game files
+        Console.WriteLine("Loading terrain textures...");
+        var total = Stopwatch.StartNew();
         var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
         var bfresData = game.BaseGameDecompressed("Model/Terrain.Tex1.sbfres");
         if (bfresData.IsErr()) {
@@ -286,7 +283,6 @@ public struct TerrainRenderer {
                 Console.WriteLine("Failed to create texture array!");
                 break;
             }
-            Console.WriteLine("Found terrain texture array with {0} textures @ {1}x{2}", order.Length, width, height);
             var dxt1 = SizedInternalFormat.CompressedRgbS3tcDxt1Ext;
             GL.TextureStorage3D(terrainTexArray, 1, dxt1, width, height, (int)order.Length);
 
@@ -309,7 +305,8 @@ public struct TerrainRenderer {
             break;
         }
         bfresUpload.Dispose();
-        Console.WriteLine("Uploaded terrain textures to GPU in {0}ms", deswizzleTime.ElapsedMilliseconds);
+        total.Stop();
+        Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
 
         return true;
     }
