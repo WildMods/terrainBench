@@ -2,6 +2,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
+using static Tracy.PInvoke;
 
 namespace terrainBench;
 
@@ -20,12 +21,11 @@ public class Window : GameWindow {
         : base(gameWindowSettings, nativeWindowSettings) {
         this.game = game;
 
+        Profiler.AppInfo("BOTW terrain editor");
         Console.WriteLine("Loading all terrain data...");
         var time = Stopwatch.StartNew();
-        cache = new Cache.Cache(game);
         time.Stop();
         Console.WriteLine("Loaded in {0}ms", time.ElapsedMilliseconds);
-        GC.Collect();
     }
 
     protected override void OnUpdateFrame(FrameEventArgs e) {
@@ -44,8 +44,16 @@ public class Window : GameWindow {
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
 
-        terrain.GLInit(cache);
-        terrain.LoadTerrain(cache, game);
+        using (Profiler.BeginZone("CacheInit")) {
+            cache = new Cache.Cache(game);
+        }
+
+        using (Profiler.BeginZone("R_GLInit")) {
+            terrain.GLInit(cache);
+        }
+        using (Profiler.BeginZone("R_LoadTerrain")) {
+            terrain.LoadTerrain(cache, game);
+        }
     }
 
     protected override void OnUnload() {
@@ -59,9 +67,15 @@ public class Window : GameWindow {
 
     protected override void OnRenderFrame(FrameEventArgs e) {
         base.OnRenderFrame(e);
-        GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+        using (Profiler.BeginZone("GLClear")) {
+            GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+        }
 
         terrain.Render(cam.proj_matrix(), cam.view_matrix());
-        SwapBuffers();
+
+        using (Profiler.BeginZone("SwapBuffers")) {
+            SwapBuffers();
+        }
+        Profiler.EmitFrameMark();
     }
 }

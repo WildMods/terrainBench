@@ -42,7 +42,10 @@ public class Game
     };
 
     public Result<DataMarshal, ErrorStack> BaseGameDecompressed(string relativePath) {
-        return _base.GetDecompressed(relativePath);
+        using (var z = Profiler.BeginZone("BaseGameDecompressed")) {
+            z.EmitText(relativePath);
+            return _base.GetDecompressed(relativePath);
+        }
     }
 
 
@@ -83,19 +86,26 @@ public class Game
     
     public IEnumerable<Result<DataMarshal, ErrorStack>> IterLodComponent(int level, LodComponent component)
     {
-        var iter = _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera");
-        ConcurrentBag<DataMarshal> buffers = [];
-        var YazWatch = Stopwatch.StartNew();
-        Parallel.ForEach(iter, path => {
-                DataMarshal data = Yaz0.DecompressFile(path);
-                if (data.AsSpan().Length > 0) {
-                    buffers.Add(data);
+        using (Profiler.BeginZone("IterLodComponent")) {
+            ConcurrentBag<DataMarshal> buffers = [];
+            var iter = _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera");
+            var YazWatch = Stopwatch.StartNew();
+            Parallel.ForEach(iter, path =>
+            {
+                using (var z = Profiler.BeginZone("oead::DecompressFile")) {
+                    z.EmitText(path);
+                    DataMarshal data = Yaz0.DecompressFile(path);
+                    if (data.AsSpan().Length > 0)
+                    {
+                        buffers.Add(data);
+                    }
                 }
-        });
-        YazWatch.Stop();
+            });
+            YazWatch.Stop();
 
-        foreach (var data in buffers) {
-            yield return Ok(data);
+            foreach (var data in buffers) {
+                yield return Ok(data);
+            }
         }
     }
 }

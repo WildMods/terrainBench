@@ -24,6 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
+	    <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
 	    <ProjectReference Include="$(LibraryPath)/BfresLibrary/BfresLibrary/BfresLibrary.csproj" />
         <PackageReference Include="YamlDotNet" Version="18.1.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />

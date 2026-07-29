@@ -24,17 +24,20 @@ public class Lod
     {
         _level = level;
         int dim = 1 << level;
-        _hghts = new ushort[dim * dim][];
-        _dirtyHghts = new ushort[dim * dim][];
-        
-        _mates = new Material[dim * dim][];
-        _dirtyMates = new Material[dim * dim][];
-        
-        CollectionsMarshal.SetCount(_grass, dim * dim);
-        CollectionsMarshal.SetCount(_dirtyGrass, dim * dim);
-        
-        CollectionsMarshal.SetCount(_water, dim * dim);
-        CollectionsMarshal.SetCount(_dirtyWater, dim * dim);
+
+        using (Profiler.BeginZone("AllocLODLevel")) {
+            _hghts = new ushort[dim * dim][];
+            _dirtyHghts = new ushort[dim * dim][];
+            
+            _mates = new Material[dim * dim][];
+            _dirtyMates = new Material[dim * dim][];
+            
+            CollectionsMarshal.SetCount(_grass, dim * dim);
+            CollectionsMarshal.SetCount(_dirtyGrass, dim * dim);
+            
+            CollectionsMarshal.SetCount(_water, dim * dim);
+            CollectionsMarshal.SetCount(_dirtyWater, dim * dim);
+        }
         
         var tasks = new List<Task>()
         {
@@ -57,16 +60,20 @@ public class Lod
             if (result.IsErr()) return;
             tasks.Add(Task.Run(delegate
             {
-                using (var s = Sarc.FromBinary(result.Ok()))
-                {
-                    foreach (var (name, data) in s)
+                using (Profiler.BeginZone("LoadSSTERA_HGHT")) {
+                    using (var s = Sarc.FromBinary(result.Ok()))
                     {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        _hghts[tileId.Unwrap()] = data.AsSpan().Cast<byte, ushort>().ToArray();
+                        foreach (var (name, data) in s)
+                        {
+                            var tileId = ZOrder.IndexFromFilename(name);
+                            if (tileId.IsErr()) continue;
+                            using (Profiler.BeginZone("HGHT_ToArray")) {
+                                _hghts[tileId.Unwrap()] = data.AsSpan().Cast<byte, ushort>().ToArray();
+                            }
+                        }
                     }
+                    result.Ok().Dispose();
                 }
-                result.Ok().Dispose();
             }));
         }
         
@@ -83,15 +90,19 @@ public class Lod
             if (result.IsErr()) return;
             tasks.Add(Task.Run(delegate
             {
-                Sarc s = Sarc.FromBinary(result.Ok());
-                foreach (var (name, data) in s)
-                {
-                    var tileId = ZOrder.IndexFromFilename(name);
-                    if (tileId.IsErr()) continue;
-                    _mates[tileId.Unwrap()] = data.AsSpan().Cast<byte, Material>().ToArray();
+                using (Profiler.BeginZone("LoadSSTERA_MATE")) {
+                    Sarc s = Sarc.FromBinary(result.Ok());
+                    foreach (var (name, data) in s)
+                    {
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        using (Profiler.BeginZone("MATE_ToArray")) {
+                            _mates[tileId.Unwrap()] = data.AsSpan().Cast<byte, Material>().ToArray();
+                        }
+                    }
+                    s.Dispose();
+                    result.Ok().Dispose();
                 }
-                s.Dispose();
-                result.Ok().Dispose();
             }));
         }
         
@@ -107,13 +118,15 @@ public class Lod
         {
             tasks.Add(Task.Run(delegate
             {
-                if (result.IsErr()) return;
-                Sarc s = Sarc.FromBinary(result.Ok());
-                foreach (var (name, data) in s)
-                {
-                    var tileId = ZOrder.IndexFromFilename(name);
-                    if (tileId.IsErr()) continue;
-                    _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
+                using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
+                    if (result.IsErr()) return;
+                    Sarc s = Sarc.FromBinary(result.Ok());
+                    foreach (var (name, data) in s)
+                    {
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
+                    }
                 }
             }));
         }
@@ -130,13 +143,15 @@ public class Lod
         {
             tasks.Add(Task.Run(delegate
             {
-                if (result.IsErr()) return;
-                Sarc s = Sarc.FromBinary(result.Ok());
-                foreach (var (name, data) in s)
-                {
-                    var tileId = ZOrder.IndexFromFilename(name);
-                    if (tileId.IsErr()) continue;
-                    _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
+                using (Profiler.BeginZone("LoadSSTERA_WATER")) {
+                    if (result.IsErr()) return;
+                    Sarc s = Sarc.FromBinary(result.Ok());
+                    foreach (var (name, data) in s)
+                    {
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
+                    }
                 }
             }));
         }
@@ -146,16 +161,18 @@ public class Lod
 
     public Result<ushort[], (ushort, ushort)> GetHeightmapTile(ushort tileId)
     {
-        if (_dirtyHghts.Length > tileId && _dirtyHghts[tileId] != null) {
-            return _dirtyHghts[tileId];
-        }
-        if (_hghts.Length > tileId && _hghts[tileId] != null) {
-            return _hghts[tileId];
-        }
+        using (Profiler.BeginZone("LodGetHGHT")) {
+            if (_dirtyHghts.Length > tileId && _dirtyHghts[tileId] != null) {
+                return _dirtyHghts[tileId];
+            }
+            if (_hghts.Length > tileId && _hghts[tileId] != null) {
+                return _hghts[tileId];
+            }
 
-        var newId = (ushort)(tileId >> 2);
-        var section = (ushort)(tileId & 0b11);
-        return Err((newId, section));
+            var newId = (ushort)(tileId >> 2);
+            var section = (ushort)(tileId & 0b11);
+            return Err((newId, section));
+        }
     }
 
     public void InsertTile(ushort tileId, ushort[] data)
@@ -165,16 +182,18 @@ public class Lod
 
     public Result<Material[], (ushort, ushort)> GetMaterialTile(ushort tileId)
     {
-        if (_dirtyMates[tileId] != null) {
-            return _dirtyMates[tileId];
-        }
-        if (_mates[tileId] != null) {
-            return _mates[tileId];
-        }
+        using (Profiler.BeginZone("LodGetMATE")) {
+            if (_dirtyMates[tileId] != null) {
+                return _dirtyMates[tileId];
+            }
+            if (_mates[tileId] != null) {
+                return _mates[tileId];
+            }
 
-        var newId = (ushort)(tileId >> 2);
-        var section = (ushort)(tileId & 0b11);
-        return Err((newId, section));
+            var newId = (ushort)(tileId >> 2);
+            var section = (ushort)(tileId & 0b11);
+            return Err((newId, section));
+        }
     }
 
     public void InsertTile(ushort tileId, Material[] data)

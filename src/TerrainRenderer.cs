@@ -6,9 +6,7 @@ using SmoothGL.Graphics.Shader;
 using OperationResult;
 using BfresLibrary;
 using static OperationResult.Helpers;
-using System.Collections.Specialized;
-using CommunityToolkit.HighPerformance;
-using System.Collections.Immutable;
+using static Tracy.PInvoke;
 namespace terrainBench;
 
 public struct TerrainRenderer {
@@ -25,6 +23,7 @@ public struct TerrainRenderer {
         List<Int32> indices;
 
         public CompactTileSheet(Cache.Cache cache, Queue<Int32> iter) {
+            var zone = Profiler.BeginZone("R_CreateCompactTileSheet");
             hghtTex = CreateTileTexture(SizedInternalFormat.R16, MAX_SIZE);
             mateTex = CreateTileTexture(SizedInternalFormat.Rgba8, MAX_SIZE);
             indices = new();
@@ -51,12 +50,15 @@ public struct TerrainRenderer {
                     xTarget = HGHT_DIM * (UInt16)x;
                     yTarget = HGHT_DIM * (UInt16)y;
                 }
+                var zUpload = Profiler.BeginZone("R_UploadTile");
                 GL.TextureSubImage2D(hghtTex, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, hghtData);
                 GL.TextureSubImage2D(mateTex, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Rgba, PixelType.UnsignedByte, mateData);
+                zUpload.Dispose();
                 posInTexture++;
             }
 
             Console.WriteLine("Found {0}/{1} tiles", tilesFound, tilesTried);
+            zone.Dispose();
         }
 
         public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
@@ -87,6 +89,8 @@ public struct TerrainRenderer {
         List<CompactTileSheet> levels = new();
 
         public TileRegion(byte[] bestLevels, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+            var zone = Profiler.BeginZone("R_CreateTileRegion");
+            zone.EmitValue(sizeTiles);
             var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
             UInt16 minIdx, maxIdx;
             {
@@ -117,6 +121,8 @@ public struct TerrainRenderer {
             while (idxQ.Count > 0) {
                 levels.Add(new(cache, idxQ));
             }
+
+            zone.Dispose();
         }
 
         public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
@@ -148,12 +154,15 @@ public struct TerrainRenderer {
     }
 
     public bool GLInit(Cache.Cache cache) {
+        var zone = Profiler.BeginZone("R_GLInit");
         string vert = GetEmbeddedText("terrainBench.Shaders.quad.vert.glsl");
         string tcs = GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
         string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
         string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
 
-        tessShader = new Shader(vert, tcs, tess, frag);
+        using (Profiler.BeginZone("R_ShaderCompile")) {
+            tessShader = new Shader(vert, tcs, tess, frag);
+        }
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
@@ -166,14 +175,17 @@ public struct TerrainRenderer {
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
         
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
-        
+
+        zone.Dispose();
         return true;
     }
 
     static private int CreateTileTexture(SizedInternalFormat inFormat, int squareSize) {
+        var zone = Profiler.BeginZone("R_CreateTileTexture");
         GL.CreateTextures(TextureTarget.Texture2D, 1, out int tex);
         if (tex == 0) {
             Console.WriteLine("Failed to create texture!");
+            zone.Dispose();
             return 0;
         }
 
@@ -182,6 +194,8 @@ public struct TerrainRenderer {
         GL.TextureParameter(tex, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
         GL.TextureParameter(tex, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
         GL.TextureParameter(tex, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        
+        zone.Dispose();
         return tex;
     }
 
@@ -202,6 +216,7 @@ public struct TerrainRenderer {
     }
 
     public static byte[] CreateCoverageTexture(Cache.Cache cache) {
+        var zone = Profiler.BeginZone("R_CreateCoverageTexture");
         byte[] buf = new byte[HGHT_DIM * HGHT_DIM];
         
         for (sbyte lvl = 8; lvl >= 0; lvl--) {
@@ -234,6 +249,8 @@ public struct TerrainRenderer {
             }
             Console.WriteLine("Found {0}/{1} level {2} tiles, covering {3} level 8 tiles", tilesFound, sizeofLevel, lvl, tilesWritten);
         }
+
+        zone.Dispose();
         return buf;
     }
     
@@ -242,7 +259,7 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
 
         // Load terrain textures from the game files
-        var bfresLoad = Stopwatch.StartNew();
+        var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
         var bfresData = game.BaseGameDecompressed("Model/Terrain.Tex1.sbfres");
         if (bfresData.IsErr()) {
             Console.WriteLine("Unable to load terrain texture file: {0}", bfresData.GetErrorMessage());
@@ -250,13 +267,12 @@ public struct TerrainRenderer {
         }
         var bfresStream = new MemoryStream(bfresData.Ok().ToArray());
         ResFile bfres = new ResFile(bfresStream);
-        bfresLoad.Stop();
-        Console.WriteLine("Finished decompressing terrain textures in {0}ms", bfresLoad.ElapsedMilliseconds);
+        bfresLoad.Dispose();
 
         var deswizzleTime = Stopwatch.StartNew();
         deswizzleTime.Stop();
 
-        var bfresUpload = Stopwatch.StartNew();
+        var bfresUpload = Profiler.BeginZone("R_UploadTerrainTex");
         foreach (var pair in bfres.Textures) {
             var t = pair.Value;
             if (t.Name != "MaterialAlb") {
@@ -292,8 +308,8 @@ public struct TerrainRenderer {
 
             break;
         }
-        bfresUpload.Stop();
-        Console.WriteLine("Uploaded terrain textures to GPU in {0}ms ({1}ms spent deswizzling textures)", bfresUpload.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
+        bfresUpload.Dispose();
+        Console.WriteLine("Uploaded terrain textures to GPU in {0}ms", deswizzleTime.ElapsedMilliseconds);
 
         return true;
     }
