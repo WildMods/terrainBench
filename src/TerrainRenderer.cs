@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using System.Collections.Concurrent;
 using Native.IO.Handles;
 using SmoothGL.Graphics.Shader;
 using OperationResult;
 using BfresLibrary;
 using static OperationResult.Helpers;
 using static Tracy.PInvoke;
+using System.Runtime.InteropServices;
 namespace terrainBench;
 
 public struct TerrainRenderer {
@@ -15,48 +17,132 @@ public struct TerrainRenderer {
     const int MAX_LOD = 8;
     const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
 
+    private static int CreateMappableBuffer(int size) {
+        int[] buffers = new int[1];
+        GL.CreateBuffers(1, buffers);
+        int buf = buffers[0];
+        if (buf == 0) {
+            return 0;
+        }
+
+        GL.NamedBufferStorage(buf, size, 0, BufferStorageFlags.ClientStorageBit | BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapPersistentBit);
+        return buf;
+    }
+
     public struct CompactTileSheet {
         const int MAX_SIZE = 4096;
         const int MAX_TILES = MAX_SIZE / HGHT_DIM;
         int hghtTex = 0;
         int mateTex = 0;
-        List<Int32> indices;
+        List<Int32> indices = new();
 
-        public CompactTileSheet(Cache.Cache cache, Queue<Int32> iter) {
+        // Persistent buffers for tile sheets to avoid reallocation
+        static int pboHght = 0;
+        static int pboMate = 0;
+        
+        public CompactTileSheet(Cache.Cache cache, ConcurrentQueue<Int32> iter) {
             var zone = Profiler.BeginZone("R_CreateCompactTileSheet");
             hghtTex = CreateTileTexture(SizedInternalFormat.R16, MAX_SIZE);
             mateTex = CreateTileTexture(SizedInternalFormat.Rgba8, MAX_SIZE);
-            indices = new();
-            
-            UInt16 posInTexture = 0;
-            int tilesTried = 0, tilesFound = 0;
-            while (iter.TryDequeue(out var val) && posInTexture < MAX_TILES * MAX_TILES) {
-                ZOrder.UnpackIndex(val, out var idx, out var lod);
-                tilesTried++;
 
+            // Reserve space for all our indices
+            CollectionsMarshal.SetCount(indices, MAX_TILES * MAX_TILES);
+
+            // Setup buffers to copy pixels into.
+            if (pboHght == 0) {
+                pboHght = CreateMappableBuffer(MAX_SIZE * MAX_SIZE * 2);
+            }
+            if (pboMate == 0) {
+                pboMate = CreateMappableBuffer(MAX_SIZE * MAX_SIZE * 4);
+            }
+            
+            // Map the pixel buffers into CPU address space
+            nint hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
+            nint mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
+            if (hghtBuf == 0 || mateBuf == 0) {
+                Console.WriteLine("Unable to map buffer(s)!");
+                return;
+            }
+            
+            int posInTexture = 0;
+            int tilesTried = 0, tilesFound = 0;
+            var idxList = indices; // Lambda can't access class members, it needs a local variable
+
+            // Use all threads to copy tile data from the cache into the
+            // OpenGL-controlled pixel buffer (avoids heavy synchronous copies)
+            var zCopy = Profiler.BeginZone("R_BuildTileBuffer");
+            Parallel.For(0, MAX_TILES * MAX_TILES, (i, state) => {
+                if (!iter.TryDequeue(out var val)) {
+                    return;
+                }
+                ZOrder.UnpackIndex(val, out var idx, out var lod);
+                Interlocked.Increment(ref tilesTried);
+
+                // Retrieve tile data
                 var resHGHT = cache.GetHeightmapTile(lod, idx, false);
                 var resMATE = cache.GetMaterialTile(lod, idx, false);
                 if (resHGHT.IsErr() || resMATE.IsErr()) {
-                    continue;
+                    return;
                 }
                 var hghtData = resHGHT.Unwrap();
                 var mateData = resMATE.Unwrap();
-                tilesFound++;
+                Interlocked.Increment(ref tilesFound);
 
-                indices.Add(val);
+                // We subtract because we need the value before the increment
+                int pos = Interlocked.Increment(ref posInTexture) - 1;
+
+                // Figure out position in the pixel buffer
                 int xTarget, yTarget;
                 {
-                    ZOrder.Deinterleave16To8(posInTexture, out var x, out var y);
+                    ZOrder.Deinterleave16To8((UInt16)pos, out var x, out var y);
                     xTarget = HGHT_DIM * (UInt16)x;
                     yTarget = HGHT_DIM * (UInt16)y;
                 }
-                var zUpload = Profiler.BeginZone("R_UploadTile");
-                GL.TextureSubImage2D(hghtTex, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, hghtData);
-                GL.TextureSubImage2D(mateTex, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Rgba, PixelType.UnsignedByte, mateData);
-                zUpload.Dispose();
-                posInTexture++;
-            }
+                int linearIdx = xTarget + (yTarget * MAX_SIZE);
 
+                // Copy 1 row of data at a time
+                for (int j = 0; j < HGHT_DIM; j++) {
+                    int srcIdx = j * HGHT_DIM; // Current row in tile
+
+                    nint hghtDst = hghtBuf + (linearIdx * 2);
+                    // glMapBuffer() returns a raw unmanaged pointer, which the C# bindings
+                    // give as an nint. We can't use Marshal.Copy() because it only accepts
+                    // Int16 and Int32 arrays, not UInt16 or Material. So, we have to cast
+                    // everything down to raw pointers and do a blind unsafe copy.
+                    unsafe {
+                        fixed (UInt16* srcHght = hghtData) {
+                            int size = HGHT_DIM * 2;
+                            System.Buffer.MemoryCopy(&srcHght[srcIdx], &((UInt16*)hghtBuf)[linearIdx], size, size);
+                        }
+                        fixed (void* src = mateData) {
+                            int size = HGHT_DIM * 4;
+                            var srcMate = (UInt32*)src;
+                            System.Buffer.MemoryCopy(&srcMate[srcIdx], &((UInt32*)mateBuf)[linearIdx], size, size);
+                        }
+                    }
+                    linearIdx += MAX_SIZE; // Skip down by 1 row
+                }
+                idxList[pos] = val;
+            });
+            zCopy.Dispose();
+            
+            var zUpload = Profiler.BeginZone("R_UploadTile");
+            GL.UnmapNamedBuffer(pboHght);
+            GL.UnmapNamedBuffer(pboMate);
+            
+            GL.BindTexture(TextureTarget.Texture2D, hghtTex);
+            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght);
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, MAX_SIZE, MAX_SIZE, PixelFormat.Red, PixelType.UnsignedShort, 0);
+            
+            GL.BindTexture(TextureTarget.Texture2D, mateTex);
+            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate);
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, MAX_SIZE, MAX_SIZE, PixelFormat.Rgba, PixelType.UnsignedByte, 0);
+            
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
+
+            zUpload.Dispose();
+            
             Console.WriteLine("Found {0}/{1} tiles", tilesFound, tilesTried);
             zone.Dispose();
         }
@@ -117,10 +203,14 @@ public struct TerrainRenderer {
             Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
 
             byte radius = (byte)(sizeTiles * 2 + 1);
-            var idxQ = new Queue<Int32>(indices);
+            var idxQ = new ConcurrentQueue<Int32>(indices);
+
+            var uploadWatch = Stopwatch.StartNew();
             while (idxQ.Count > 0) {
                 levels.Add(new(cache, idxQ));
             }
+            uploadWatch.Stop();
+            Console.WriteLine("Uploaded all tiles in {0}ms", uploadWatch.ElapsedMilliseconds);
 
             zone.Dispose();
         }
@@ -167,13 +257,12 @@ public struct TerrainRenderer {
         bestLevels = CreateCoverageTexture(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
+
         var loadWatch = Stopwatch.StartNew();
-
         ring0 = new(bestLevels, cache, 8, 100, 100);
-        
         loadWatch.Stop();
+        
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
-
         zone.Dispose();
         return true;
     }
