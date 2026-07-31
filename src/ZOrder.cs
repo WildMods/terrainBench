@@ -6,6 +6,8 @@ using static OperationResult.Helpers;
 namespace terrainBench;
 
 public static class ZOrder {
+    public const int MAX_LOD = 8;
+    
     public static UInt16 Interleave8To16(byte x, byte y) {
         UInt16 result = 0;
 
@@ -41,6 +43,14 @@ public static class ZOrder {
         return (byte)(idx & 0b11);
     }
 
+    /// <summary>
+    /// Round an index down to the next multiple of 4, giving the ID of the SSTERA
+    /// file a tile should be in.
+    /// </summary>
+    public static UInt16 RoundToSSTERAIdx(UInt16 idx) {
+        return (UInt16)((idx >> 2) << 2);
+    }
+
     public static Result<UInt16, ErrorStack> IndexFromFilename(string filename) {
         bool validExt = filename.EndsWith(".hght") || filename.EndsWith(".mate")
             || filename.EndsWith(".water.extm") || filename.EndsWith(".grass.extm");
@@ -62,6 +72,22 @@ public static class ZOrder {
         }
 
         return (UInt16)res;
+    }
+
+    public static string BuildFilename(UInt16 idx, int lod) {
+        if (lod > MAX_LOD) {
+            return "";
+        }
+
+        string hexPart = idx.ToString("X8"); // Hexidecimal padded with 0s to 8 digits
+
+        // e.g. "580000C0A0" (just needs an extension added)
+        return $"5${lod}${hexPart}";
+    }
+
+    public static string BuildFilename(UInt16 idx, int lod, string extension) {
+        // e.g. "580000C0A0.hght"
+        return $"${BuildFilename(idx, lod)}.${extension}";
     }
 
     public static IEnumerable<UInt16> IterInSquareRange(UInt16 idx, byte radius) {

@@ -258,4 +258,83 @@ public class Lod
         WaitForLoad();
         _dirtyWater[tileId] = data;
     }
+
+    /// <summary>
+    /// Build a SARC containing all the tiles adjacent to the given index.
+    /// The "STERA" name is not a typo, since the first S in "SSTERA" indicates
+    /// Yaz0, and this just gives the uncompressed SARC.
+    /// </summary>
+    /// <param name="sarcName">The filename that the compressed SARC should have (file extension ending in ".sstera")</param>
+    public Result<Sarc, ErrorStack> BuildSTERA(UInt16 idx, LodComponent type, out string sarcName) {
+        string ext = type switch {
+            LodComponent.hght => "hght",
+            LodComponent.mate => "mate",
+            LodComponent.grass => "grass.extm",
+            LodComponent.water => "water.extm",
+            _ => "",
+        };
+        string invalidEnumMsg = $"Invalid enum value ${(int)type} given for terrain data type";
+        if (ext == "") {
+            sarcName = "";
+            return Err(new ErrorStack(invalidEnumMsg));
+        }
+
+        // SSTERAs must start at a multiple of 4, so round down
+        idx = ZOrder.RoundToSSTERAIdx(idx);
+        sarcName = ZOrder.BuildFilename(idx, _level, $"${ext}.sstera");
+
+        // Try to add the 4 tiles within this SSTERA (some may be missing)
+        var sarc = new CsOead.Sarc();
+        for (UInt16 i = 0; i < 4; i++) {
+            UInt16 tileIdx = (UInt16)(idx + i);
+            string fname = ZOrder.BuildFilename(tileIdx, _level, ext);
+
+            // Get the actual tile data.
+            // There's definitely a more concise way to do this, but I'm not
+            // very familiar with OperationResult. Sorry.
+            // - torf
+            ReadOnlySpan<byte> tile;
+            switch (type) {
+            case LodComponent.hght: {
+                var r = GetHeightmapTile(tileIdx);
+                if (r.IsErr()) {
+                    continue;
+                }
+                tile = r.Unwrap().AsBytes();
+                break;
+                }
+            case LodComponent.mate: {
+                var r = GetMaterialTile(tileIdx);
+                if (r.IsErr()) {
+                    continue;
+                }
+                tile = r.Unwrap().AsBytes();
+                break;
+            }
+            case LodComponent.grass: {
+                var r = GetGrassTile(tileIdx);
+                if (r.IsErr()) {
+                    continue;
+                }
+                tile = r.Unwrap().AsBytes();
+                break;
+            }
+            case LodComponent.water: {
+                var r = GetWaterTile(tileIdx);
+                if (r.IsErr()) {
+                    continue;
+                }
+                tile = r.Unwrap().AsBytes();
+                break;
+            }
+            default:
+                sarcName = "";
+                return Err(new ErrorStack(invalidEnumMsg));
+            }
+
+            sarc.Add(fname, tile);
+        }
+
+        return sarc;
+    }
 }

@@ -333,7 +333,7 @@ public struct TerrainRenderer {
         Console.WriteLine("Loading terrain textures...");
         var total = Stopwatch.StartNew();
         var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
-        var bfresData = game.BaseGameDecompressed("Model/Terrain.Tex1.sbfres");
+        var bfresData = game.ReadDecompressed("Model/Terrain.Tex1.sbfres", Game.Section.Base);
         if (bfresData.IsErr()) {
             Console.WriteLine("Unable to load terrain texture file: {0}", bfresData.GetErrorMessage());
             return false;

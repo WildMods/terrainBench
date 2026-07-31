@@ -14,6 +14,22 @@ public class Dump
         _path = path;
     }
 
+    public Result<Stream, ErrorStack> OpenWrite(string loose) {
+        string baseErr = $"Unable to open ${loose} for writing: ";
+        try {
+            var f = File.OpenWrite(loose);
+            return f;
+        } catch (DirectoryNotFoundException) {
+            return Err(new ErrorStack($"${baseErr} The containing directory couldn't be found"));
+        } catch (UnauthorizedAccessException) {
+            return Err(new ErrorStack($"${baseErr} Unauthorized access"));
+        } catch (PathTooLongException) {
+            return Err(new ErrorStack($"${baseErr} path too long"));
+        } catch (Exception e) {
+            return Err(new ErrorStack($"${baseErr} '${e.Message}'"));
+        }
+    }
+
     public Result<Native.IO.Handles.DataMarshal, ErrorStack> GetDecompressed(string loose)
     {
         string path = Path.Combine(_path, loose);
