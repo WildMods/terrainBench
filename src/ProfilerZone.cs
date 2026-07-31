@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Taken from:
+// https://github.com/clibequilibrium/Tracy-CSharp/blob/main/src/cs/samples/HelloWorld/ProfilerZone.cs
 using static Tracy.PInvoke;
 
 public readonly struct ProfilerZone : IDisposable

@@ -5,9 +5,18 @@ using OperationResult;
 using static OperationResult.Helpers;
 namespace terrainBench;
 
+/// <summary>
+/// Utilities for Z-order curve indices used in BOTW terrain tiles.
+/// See https://handwiki.org/wiki/Z-order_curve
+/// Internally we refer to a Z-value as a "Z-index", which is kind of non-standard.
+/// </summary>
 public static class ZOrder {
     public const int MAX_LOD = 8;
     
+    /// <summary>
+    /// Convert a 2D 8-bit coordinate to a 16-bit 1D Z-index
+    /// (interleaves the bits of the 2 values)
+    /// </summary>
     public static UInt16 Interleave8To16(byte x, byte y) {
         UInt16 result = 0;
 
@@ -25,6 +34,10 @@ public static class ZOrder {
         return result;
     }
 
+    /// <summary>
+    /// Convert a 1D 16-bit Z-index to a 2D 8-bit coordinate
+    /// (deinterleaves the bits of the Z-index)
+    /// </summary>
     public static void Deinterleave16To8(UInt16 idx, out byte x, out byte y) {
         x = 0;
         y = 0;
@@ -39,6 +52,10 @@ public static class ZOrder {
         }
     }
 
+    /// <summary>
+    /// Convert a Z-index to be relative to its SSTERA base index
+    /// (equivalent to modulo 4)
+    /// </summary>
     public static byte LocalIdx(UInt16 idx) {
         return (byte)(idx & 0b11);
     }
@@ -51,6 +68,9 @@ public static class ZOrder {
         return (UInt16)((idx >> 2) << 2);
     }
 
+    /// <summary>
+    /// Parse the Z-index from a tile's filename (expects a tile, not its containing SSTERA)
+    /// </summary>
     public static Result<UInt16, ErrorStack> IndexFromFilename(string filename) {
         bool validExt = filename.EndsWith(".hght") || filename.EndsWith(".mate")
             || filename.EndsWith(".water.extm") || filename.EndsWith(".grass.extm");
@@ -74,6 +94,10 @@ public static class ZOrder {
         return (UInt16)res;
     }
 
+    /// <summary>
+    /// Generate a tile's filename without an extension.
+    /// e.g. if idx = 0xC0A0 and lod = 8, returns "580000C0A0".
+    /// </summary>
     public static string BuildFilename(UInt16 idx, int lod) {
         if (lod > MAX_LOD) {
             return "";
@@ -85,11 +109,17 @@ public static class ZOrder {
         return $"5${lod}${hexPart}";
     }
 
+    /// <summary>
+    /// Equivalent to the other BuildFilename but adds ".extension" (just read the implementation)
+    /// </summary>
     public static string BuildFilename(UInt16 idx, int lod, string extension) {
         // e.g. "580000C0A0.hght"
         return $"${BuildFilename(idx, lod)}.${extension}";
     }
 
+    /// <summary>
+    /// Iterate over the Z-indices within a square region around a point
+    /// </summary>
     public static IEnumerable<UInt16> IterInSquareRange(UInt16 idx, byte radius) {
         // These have alternating 0 and 1 bits to isolate just the X or Y bits.
         // The actual values will be inflated when spaced out every other bit
@@ -116,26 +146,36 @@ public static class ZOrder {
         }
     }
     
+    /// <summary>
+    /// Same as IterInSquareRange(), but returns packed index values that include the LOD
+    /// </summary>
     public static IEnumerable<Int32> IterInSquareRangeAtLod(UInt16 idx, byte radius, byte lod) {
         var iter = IterInSquareRange(idx, radius);
         foreach (var i in iter) {
-            Int32 val = ((Int32)lod) << 16;
-            val |= i;
-            yield return val;
+            yield return PackIndex(i, lod);
         }
     }
 
+    /// <summary>
+    /// Pack a Z-index and LOD value into a single value
+    /// </summary>
     public static Int32 PackIndex(UInt16 idx, byte lod) {
         Int32 val = ((Int32)lod) << 16;
         val |= idx;
         return val;
     }
     
+    /// <summary>
+    /// Unpack a Z-index and LOD value from a packed value
+    /// </summary>
     public static void UnpackIndex(Int32 val, out UInt16 idx, out byte lod) {
         lod = (byte)((val >> 16) & 0xFF);
         idx = (UInt16)(val & 0xFFFF);
     }
 
+    /// <summary>
+    /// Take the 2D Manhattan distance between two Z-indices
+    /// </summary>
     public static UInt16 ManhattanDist(UInt16 a, UInt16 b) {
         Deinterleave16To8(a, out var aX, out var aY);
         Deinterleave16To8(b, out var bX, out var bY);

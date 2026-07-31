@@ -21,7 +21,6 @@ public enum LodComponent
 
 public class Game
 {
-
     /// <summary>
     /// Specifies a game folder to use for file operations
     /// </summary>
@@ -54,14 +53,25 @@ public class Game
         }
     };
 
-    private Dump GetDump(Section s) {
-        return s switch {
+    // Get a specific game folder by enum
+    private Dump GetDump(Section s)
+    {
+        bool valid = true;
+        var res = s switch
+        {
             Section.Base => _base,
             Section.Update => _update,
             Section.DLC => _dlc,
+            _ => new Dump($"${valid = false}"), // Sorry this is kinda janky -- torf
         };
+        Debug.Assert(valid);
+        return res;
     }
     
+    /// <summary>
+    /// Decompress a game file into memory
+    /// </summary>
+    /// <param name="s">The game folder to look for the file in</param>
     public Result<DataMarshal, ErrorStack> ReadDecompressed(string relativePath, Section s) {
         using (var z = Profiler.BeginZone("ReadDecompressed")) {
             z.EmitText(relativePath);
@@ -69,6 +79,10 @@ public class Game
         }
     }
 
+    /// <summary>
+    /// Open a game file for writing
+    /// </summary>
+    /// <param name="s">The game folder to look for the file in</param>
     public Result<Stream, ErrorStack> OpenWrite(string loose, Section s) {
         var res = GetDump(s).OpenWrite(loose);
         if (res.IsErr()) {
@@ -77,6 +91,9 @@ public class Game
         return res;
     }
 
+    /// <summary>
+    /// Iterate over all SSTERAs in this order: [HGHT, MATE, GRASS, WATER]
+    /// </summary>
     public IEnumerable<(string, Sarc)> GetLod(int level)
     {
         IEnumerable<string>[] iters = [
@@ -91,6 +108,8 @@ public class Game
         foreach (var iter in iters) {
             var mutex = new Mutex();
             var buffers = new List<SSTERARecord>();
+            
+            // It's a bit faster to just decompress everything at once
             YazWatch.Start();
             Parallel.ForEach(iter, path => {
                 DataMarshal data = Yaz0.DecompressFile(path);
@@ -112,11 +131,16 @@ public class Game
         Console.WriteLine("Spent {0}ms decompressing Yaz0 from disk", YazWatch.ElapsedMilliseconds);
     }
     
+    /// <summary>
+    /// Iterate over all decompressed SSTERAs of a specific LOD and type
+    /// </summary>
     public IEnumerable<Result<DataMarshal, ErrorStack>> IterLodComponent(int level, LodComponent component)
     {
         using (Profiler.BeginZone("IterLodComponent")) {
             ConcurrentBag<DataMarshal> buffers = [];
             var iter = _base.GlobFilesInFolder("Terrain/A/MainField", $"5{level}0000????.{component.ToString()}.sstera");
+
+            // It's a bit faster to just decompress everything at once
             var YazWatch = Stopwatch.StartNew();
             Parallel.ForEach(iter, path => {
                 using (var z = Profiler.BeginZone("oead::DecompressFile")) {

@@ -3,7 +3,6 @@ using OperationResult;
 using CsOead;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
-using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
 
 namespace terrainBench.Cache;
@@ -16,7 +15,6 @@ using WaterMap = ConcurrentDictionary<ushort, LodComponents.WaterExtm[]>;
 
 public class Lod
 {
-    
     private static readonly short[] TILE_COUNTS = [1, 4, 16, 36, 144, 320, 1154, 3616, 3742];
     private readonly int _level;
     private readonly HGHTMap _hghts;

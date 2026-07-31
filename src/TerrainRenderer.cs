@@ -10,21 +10,26 @@ namespace terrainBench;
 
 public struct TerrainRenderer {
     const int HGHT_DIM = 256;
-    const int TRIS_PER_TILE = 8192;
-    const int MAX_LOD = 8;
-    const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
+    const int BYTES_PER_HGHT = HGHT_DIM * HGHT_DIM * 2;
+    const int BYTES_PER_MATE = HGHT_DIM * HGHT_DIM * 4;
 
+    /// <summary>
+    /// Builds a large atlas of textures which can be drawn in a single draw call
+    /// </summary>
     public struct CompactTileSheet {
         const int MAX_SIZE = 4096;
         const int MAX_TILES = MAX_SIZE / HGHT_DIM;
-        int hghtTex = 0;
-        int mateTex = 0;
-        List<Int32> indices = new();
+        readonly int hghtTex = 0;
+        readonly int mateTex = 0;
+        readonly List<Int32> indices = new();
 
         // Persistent buffers for tile sheets to avoid reallocation
         static int pboHght = 0;
         static int pboMate = 0;
         
+        /// <summary>
+        /// Build an atlas from packed index values
+        /// </summary>
         public CompactTileSheet(Cache.Cache cache, ConcurrentQueue<Int32> iter) {
             var zone = Profiler.BeginZone("R_CreateCompactTileSheet");
             hghtTex = CreateTileTexture(SizedInternalFormat.R16, MAX_SIZE);
@@ -33,12 +38,16 @@ public struct TerrainRenderer {
             // Reserve space for all our indices
             CollectionsMarshal.SetCount(indices, MAX_TILES * MAX_TILES);
 
-            // Setup buffers to copy pixels into.
+            // To avoid the GL driver having to synchronously copy all our texture
+            // data to GL-controlled memory, we copy tiles directly into a
+            // GL-controlled buffer. Then the driver can upload on its own time.
+
+            // Setup buffers to copy pixels into
             if (pboHght == 0) {
-                pboHght = CreateMappableBuffer(MAX_SIZE * MAX_SIZE * 2);
+                pboHght = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
             }
             if (pboMate == 0) {
-                pboMate = CreateMappableBuffer(MAX_SIZE * MAX_SIZE * 4);
+                pboMate = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
             }
             
             // Map the pixel buffers into CPU address space
@@ -55,8 +64,7 @@ public struct TerrainRenderer {
             int tilesTried = 0, tilesFound = 0;
             var idxList = indices; // Lambda can't access class members, it needs a local variable
 
-            // Use all threads to copy tile data from the cache into the
-            // OpenGL-controlled pixel buffer (avoids heavy synchronous copies)
+            // Use all threads to copy tile data to the GL-controlled buffer
             var zCopy = Profiler.BeginZone("R_BuildTileBuffer");
             Parallel.For(0, MAX_TILES * MAX_TILES, (i, state) => {
                 if (!iter.TryDequeue(out var val)) {
@@ -91,18 +99,18 @@ public struct TerrainRenderer {
                 for (int j = 0; j < HGHT_DIM; j++) {
                     int srcIdx = j * HGHT_DIM; // Current row in tile
 
-                    nint hghtDst = hghtBuf + (linearIdx * 2);
+                    nint hghtDst = hghtBuf + (linearIdx * 2); // * 2 because height values are 16-bit
                     // glMapBuffer() returns a raw unmanaged pointer, which the C# bindings
                     // give as an nint. We can't use Marshal.Copy() because it only accepts
                     // Int16 and Int32 arrays, not UInt16 or Material. So, we have to cast
                     // everything down to raw pointers and do a blind unsafe copy.
                     unsafe {
                         fixed (UInt16* srcHght = hghtData) {
-                            int size = HGHT_DIM * 2;
+                            int size = BYTES_PER_HGHT / HGHT_DIM;
                             System.Buffer.MemoryCopy(&srcHght[srcIdx], &((UInt16*)hghtBuf)[linearIdx], size, size);
                         }
                         fixed (void* src = mateData) {
-                            int size = HGHT_DIM * 4;
+                            int size = BYTES_PER_MATE / HGHT_DIM;
                             var srcMate = (UInt32*)src;
                             System.Buffer.MemoryCopy(&srcMate[srcIdx], &((UInt32*)mateBuf)[linearIdx], size, size);
                         }
@@ -117,6 +125,8 @@ public struct TerrainRenderer {
             GL.UnmapNamedBuffer(pboHght);
             GL.UnmapNamedBuffer(pboMate);
             
+            // Tell the driver to upload our buffers as textures on its own time
+            // This returns more or less immediately (compared to a normal texture upload)
             GL.BindTexture(TextureTarget.Texture2D, hghtTex);
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght);
             GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, MAX_SIZE, MAX_SIZE, PixelFormat.Red, PixelType.UnsignedShort, 0);
@@ -139,12 +149,13 @@ public struct TerrainRenderer {
             GL.BindTextureUnit(1, mateTex);
             GL.Uniform1(tilesPerTexLoc, MAX_TILES);
 
+            // Cull by distance by filtering the index list
             var temp = new Int32[indices.Count];
             Array.Fill(temp, -1); // Skip everything unless we explicitly copy the value over
             for (int i = 0; i < temp.Length; i++) {
                 var val = indices[i];
                 ZOrder.UnpackIndex(val, out var idx, out var lod);
-                var lvlDiff = MAX_LOD - lod;
+                var lvlDiff = ZOrder.MAX_LOD - lod;
                 idx <<= 2 * lvlDiff;
                 
                 var d = ZOrder.ManhattanDist(centerTile, idx);
@@ -158,8 +169,11 @@ public struct TerrainRenderer {
         }
     }
 
+    /// <summary>
+    /// A region of tiles backed by potentially many atlases
+    /// </summary>
     public struct TileRegion {
-        List<CompactTileSheet> levels = new();
+        readonly List<CompactTileSheet> sheets = [];
 
         public TileRegion(byte[] bestLevels, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
@@ -174,27 +188,24 @@ public struct TerrainRenderer {
                 minIdx = ZOrder.Interleave8To16(xMin, yMin);
                 maxIdx = ZOrder.Interleave8To16(xMax, yMax);
             }
-            minIdx = 0;
-            maxIdx = 0xFFFE;
 
+            // Build deduplicated set of packed index values
             var indices = new HashSet<Int32>();
-
             for (UInt16 idx = minIdx; idx < maxIdx; idx++) {
                 ZOrder.Deinterleave16To8(idx, out var x, out var y);
                 var linearIdx = (HGHT_DIM * y + x);
                 var best = bestLevels[linearIdx];
-                var lvlDiff = MAX_LOD - best;
+                var lvlDiff = ZOrder.MAX_LOD - best;
                 UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));
                 indices.Add(ZOrder.PackIndex(targetIdx, best));
             }
             Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
 
-            byte radius = (byte)(sizeTiles * 2 + 1);
+            // Build tile atlases and do GPU upload
             var idxQ = new ConcurrentQueue<Int32>(indices);
-
             var uploadWatch = Stopwatch.StartNew();
             while (idxQ.Count > 0) {
-                levels.Add(new(cache, idxQ));
+                sheets.Add(new(cache, idxQ));
             }
             uploadWatch.Stop();
             Console.WriteLine("Uploaded all tiles in {0}ms", uploadWatch.ElapsedMilliseconds);
@@ -203,14 +214,14 @@ public struct TerrainRenderer {
         }
 
         public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
-            foreach (var lvl in levels) {
+            foreach (var lvl in sheets) {
                 lvl.Draw(tilesPerTexLoc, indicesLocation, minDist, maxDist, centerTile);
             }
         }
     }
     
     Shader tessShader;
-    int vaoBlank = 0;
+    int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     int terrainTexArray = 0;
     int coverageTex = 0;
     byte[] bestLevels = new byte[HGHT_DIM * HGHT_DIM];
@@ -219,7 +230,7 @@ public struct TerrainRenderer {
 
     public TerrainRenderer() { }
 
-    private string GetEmbeddedText(string name) {
+    private readonly string GetEmbeddedText(string name) {
         var asm = typeof(TerrainRenderer).Assembly;
         Stream? vertStream = asm.GetManifestResourceStream(name);
         if (vertStream == null) {
@@ -246,7 +257,7 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(bestLevels, cache, 8, 100, 100);
+        ring0 = new(bestLevels, cache, 16, 128, 128);
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
@@ -254,6 +265,7 @@ public struct TerrainRenderer {
         return true;
     }
 
+    // Create a square GL texture
     static private int CreateTileTexture(SizedInternalFormat inFormat, int squareSize) {
         var zone = Profiler.BeginZone("R_CreateTileTexture");
         GL.CreateTextures(TextureTarget.Texture2D, 1, out int tex);
@@ -273,28 +285,16 @@ public struct TerrainRenderer {
         return tex;
     }
 
-    private void UpdateTileTexture<T>(int tex, PixelFormat fmt, PixelType type, ReadOnlySpan<T> data, UInt16 idx) {
-        if (tex == 0) {
-            Console.WriteLine("The given texture is 0!");
-            return;
-        }
-        ZOrder.Deinterleave16To8(ZOrder.LocalIdx(idx), out byte x, out byte y);
-
-        int xOffset = x * HGHT_DIM, yOffset = y * HGHT_DIM;
-        unsafe {
-            fixed (void* bp = data) {
-                nint ptr = (IntPtr)bp;
-                GL.TextureSubImage2D(tex, 0, xOffset, yOffset, HGHT_DIM, HGHT_DIM, fmt, type, ptr);
-            }
-        }
-    }
-
+    /// <summary>
+    /// Build a buffer with 1 byte per tile in the level 8 grid, indicating the
+    /// highest LOD level that's available to cover that location
+    /// </summary>
     public static byte[] CreateCoverageTexture(Cache.Cache cache) {
         var zone = Profiler.BeginZone("R_CreateCoverageTexture");
         byte[] buf = new byte[HGHT_DIM * HGHT_DIM];
         
         for (sbyte lvl = 8; lvl >= 0; lvl--) {
-            byte lvlDiff = (byte)(MAX_LOD - lvl);
+            byte lvlDiff = (byte)(ZOrder.MAX_LOD - lvl);
             UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
             int sizeofLevel = (int)((1 << lvl) * (1 << lvl));
 
@@ -328,8 +328,8 @@ public struct TerrainRenderer {
         return buf;
     }
     
+    // Load terrain texture array from the game files
     public bool LoadTerrainTextures(Game game) {
-        // Load terrain textures from the game files
         Console.WriteLine("Loading terrain textures...");
         var total = Stopwatch.StartNew();
         var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
@@ -389,15 +389,21 @@ public struct TerrainRenderer {
 
     public void Render(Matrix4 projT, Matrix4 viewT) {
         tessShader.Use();
+        // Upload camera state
         tessShader.Uniform("matView")?.SetValue(viewT);
         tessShader.Uniform("matProjection")?.SetValue(projT);
         tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
+
+        // We have to upload texture uniforms ourselves, because the terrible
+        // SmoothGL wrappers want you to use a cumbersome Sampler2D wrapper
         int indicesLocation = tessShader.GetUniformLocation("indices");
         int hghtLoc = tessShader.GetUniformLocation("heightTex");
         int matLoc = tessShader.GetUniformLocation("matTex");
         int arrayLoc = tessShader.GetUniformLocation("colorTextures");
         int coverageLoc = tessShader.GetUniformLocation("coverageTex");
         int tilesPerTexLoc = tessShader.GetUniformLocation("tilesPerTex");
+        // This is specified in the shader via an extension, but for some reason
+        // Nvidia hardware doesn't respect it and assigns locations seemingly at random
         GL.Uniform1(hghtLoc, 0);
         GL.Uniform1(matLoc, 1);
         GL.Uniform1(arrayLoc, 2);
@@ -405,7 +411,7 @@ public struct TerrainRenderer {
 
         GL.BindTextureUnit(2, terrainTexArray);
         GL.BindTextureUnit(3, coverageTex);
-        GL.BindVertexArray(vaoBlank);
+        GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
 
         var center = ZOrder.Interleave8To16(128, 128);
         ring0.Draw(tilesPerTexLoc, indicesLocation, 0, 16, center);

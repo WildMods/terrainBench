@@ -8,17 +8,17 @@ using terrainBench.Settings;
 
 public static class Program {
     public static void printUsage() {
-        Console.WriteLine("Usage: terrainBench [base game folder]");
+        Console.WriteLine("Usage: terrainBench [base game folder] [update folder] [dlc folder (optional)]");
     }
 
     public static void Main(string[] args) {
-        if (args.Length < 1) {
+        if (args.Length < 2) {
             printUsage();
             return;
         }
 
         string basePath = args[0];
-        string updatePath = (args.Length > 1) ? args[1] : "";
+        string updatePath = args[1];
         string dlcPath = (args.Length > 2) ? args[2] : "";
         var settings = Settings.Load();
         if (!Settings.Validate(settings))

@@ -6,7 +6,8 @@ namespace SmoothGL.Graphics.Shader;
 
 /// <summary>
 /// Fork of SmoothGL's ShaderProgram class which exposes a bunch of previously
-/// private important functionality
+/// private important functionality. Taken from:
+/// https://github.com/jnagykuhlen/SmoothGL/blob/main/SmoothGL/Graphics/Shader/ShaderProgram.cs
 /// </summary>
 public class Shader : GraphicsResource, IHotSwappable<Shader> {
     private static int currentProgramId;

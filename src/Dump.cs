@@ -6,6 +6,9 @@ using static OperationResult.Helpers;
 
 namespace terrainBench;
 
+/// <summary>
+/// Represents a game folder in the game dump (i.e. base, update, or DLC folder)
+/// </summary>
 public class Dump
 {
     private string _path;
@@ -14,6 +17,9 @@ public class Dump
         _path = path;
     }
 
+    /// <summary>
+    /// Open a game file for writing
+    /// </summary>
     public Result<Stream, ErrorStack> OpenWrite(string loose) {
         string baseErr = $"Unable to open ${loose} for writing: ";
         try {
@@ -30,6 +36,9 @@ public class Dump
         }
     }
 
+    /// <summary>
+    /// Read and decompress a loose file
+    /// </summary>
     public Result<Native.IO.Handles.DataMarshal, ErrorStack> GetDecompressed(string loose)
     {
         string path = Path.Combine(_path, loose);
@@ -40,6 +49,9 @@ public class Dump
         return data;
     }
 
+    /// <summary>
+    /// Read a loose file
+    /// </summary>
     public RefResult<Span<byte>, ErrorStack> GetFile(string loose)
     {
         if (loose.Contains("//"))
@@ -51,11 +63,16 @@ public class Dump
         {
             return Err(new ErrorStack($"Loose file not found: {loose}"));
         }
-        
+
         Span<byte> span = File.ReadAllBytes(path);
         return Yaz0.TryDecompress(span, out var data) ? Ok(data!.AsSpan()) : Ok(span);
     }
 
+    /// <summary>
+    /// Read a file inside a SARC. The path to the SARC is specified normally,
+    /// but folders inside the SARC use a double slash.
+    /// e.g. "Pack/TitleBG.pack//Model//Link.sbfres"
+    /// </summary>
     public RefResult<Span<byte>, ErrorStack> GetNestedFile(string relative)
     {
         string[] parts = relative.Split("//");

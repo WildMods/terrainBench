@@ -1,5 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// Taken from:
+// https://github.com/clibequilibrium/Tracy-CSharp/blob/main/src/cs/samples/HelloWorld/Profiler.cs
+
 using System.Runtime.CompilerServices;
 using bottlenoselabs.C2CS.Runtime;
 using static Tracy.PInvoke;

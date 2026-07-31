@@ -27,8 +27,6 @@ public class Camera {
     float near = 0.1f;
     float far = 1100.0f;
 
-    Vector2 last_cursor = Vector2.Zero;
-
     bool invert_mouse_x = true;
     bool invert_mouse_y = false;
     Mode mode = Mode.ORBIT;

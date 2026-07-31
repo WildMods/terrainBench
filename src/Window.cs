@@ -2,12 +2,9 @@ using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
-using static Tracy.PInvoke;
 
 namespace terrainBench;
-
 using System.Diagnostics;
-using terrainBench.Cache;
 
 // Callbacks run by OpenTK throughout the lifetime of the program
 public class Window : GameWindow {
@@ -22,21 +19,9 @@ public class Window : GameWindow {
         this.game = game;
 
         Profiler.AppInfo("BOTW terrain editor");
-        Console.WriteLine("Loading all terrain data...");
-        var time = Stopwatch.StartNew();
-        time.Stop();
-        Console.WriteLine("Loaded in {0}ms", time.ElapsedMilliseconds);
     }
 
-    protected override void OnUpdateFrame(FrameEventArgs e) {
-        if (KeyboardState.IsKeyDown(Keys.Escape)) {
-            Close();
-        }
-        cam.update(KeyboardState, MouseState, e.Time);
-
-        base.OnUpdateFrame(e);
-    }
-
+    // Called from Run() once OpenGL is available
     protected override void OnLoad() {
         base.OnLoad();
         GL.Enable(EnableCap.DepthTest);
@@ -68,6 +53,15 @@ public class Window : GameWindow {
     protected override void OnResize(ResizeEventArgs e) {
         base.OnResize(e);
         GL.Viewport(0, 0, Size.X, Size.Y);
+    }
+
+    protected override void OnUpdateFrame(FrameEventArgs e) {
+        if (KeyboardState.IsKeyDown(Keys.Escape)) {
+            Close();
+        }
+        cam.update(KeyboardState, MouseState, e.Time);
+
+        base.OnUpdateFrame(e);
     }
 
     protected override void OnRenderFrame(FrameEventArgs e) {
