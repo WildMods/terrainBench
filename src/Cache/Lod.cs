@@ -73,7 +73,8 @@ public class Lod
             tasks.Add(Task.Run(delegate
             {
                 using (Profiler.BeginZone("LoadSSTERA_HGHT")) {
-                    using (var s = Sarc.FromBinary(result.Ok()))
+                    if (result.IsErr()) return;
+                    using (var s = Sarc.FromBinary(result.Unwrap()))
                     {
                         foreach (var (name, data) in s)
                         {
@@ -84,7 +85,7 @@ public class Lod
                             }
                         }
                     }
-                    result.Ok().Dispose();
+                    result.Unwrap().Dispose();
                 }
             }));
         }
@@ -103,7 +104,8 @@ public class Lod
             tasks.Add(Task.Run(delegate
             {
                 using (Profiler.BeginZone("LoadSSTERA_MATE")) {
-                    Sarc s = Sarc.FromBinary(result.Ok());
+                    if (result.IsErr()) return;
+                    Sarc s = Sarc.FromBinary(result.Unwrap());
                     foreach (var (name, data) in s)
                     {
                         var tileId = ZOrder.IndexFromFilename(name);
@@ -113,7 +115,7 @@ public class Lod
                         }
                     }
                     s.Dispose();
-                    result.Ok().Dispose();
+                    result.Unwrap().Dispose();
                 }
             }));
         }
@@ -132,7 +134,7 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
                     if (result.IsErr()) return;
-                    Sarc s = Sarc.FromBinary(result.Ok());
+                    Sarc s = Sarc.FromBinary(result.Unwrap());
                     foreach (var (name, data) in s)
                     {
                         var tileId = ZOrder.IndexFromFilename(name);
@@ -157,7 +159,7 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_WATER")) {
                     if (result.IsErr()) return;
-                    Sarc s = Sarc.FromBinary(result.Ok());
+                    Sarc s = Sarc.FromBinary(result.Unwrap());
                     foreach (var (name, data) in s)
                     {
                         var tileId = ZOrder.IndexFromFilename(name);
