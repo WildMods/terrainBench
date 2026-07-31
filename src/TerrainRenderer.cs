@@ -330,57 +330,87 @@ public struct TerrainRenderer {
     
     // Load terrain texture array from the game files
     public bool LoadTerrainTextures(Game game) {
+        // Texture indices for the terrain texture array. We use this instead of
+        // loading it from the file on Switch dumps, since the BFRES library
+        // doesn't parse the user data section of Switch BNTX.
+        Int32[] fallbackIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+            14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 17, 18,
+            0, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+            46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 7, 60, 61, 62,
+            63, 64, 65, 66, 67, 68, 69, 70, 71, 0, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 };
+        
         Console.WriteLine("Loading terrain textures...");
         var total = Stopwatch.StartNew();
         var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
-        var bfresData = game.ReadDecompressed("Model/Terrain.Tex1.sbfres", Game.Section.Base);
-        if (bfresData.IsErr()) {
-            Console.WriteLine("Unable to load terrain texture file: {0}", bfresData.GetErrorMessage());
+
+        string texPath = "Pack/TitleBG.pack//Model//Terrain.Tex.sbfres";
+        string tex1Path = "Model/Terrain.Tex1.sbfres";
+        string tex2Path = "Pack/TitleBG.pack//Model//Terrain.Tex2.sbfres";
+        
+        var res = BfresTextureReader.Create(game, texPath, tex1Path, tex2Path);
+        if (res.IsErr()) {
+            Console.WriteLine("Unable to load terrain textures.\n{0}", res.Err()?.Message);
             return false;
         }
-        var bfresStream = new MemoryStream(bfresData.Ok().ToArray());
-        ResFile bfres = new ResFile(bfresStream);
+        var bfresReader = res.Unwrap();
         bfresLoad.Dispose();
 
         var deswizzleTime = Stopwatch.StartNew();
         deswizzleTime.Stop();
 
         var bfresUpload = Profiler.BeginZone("R_UploadTerrainTex");
-        foreach (var pair in bfres.Textures) {
-            var t = pair.Value;
-            if (t.Name != "MaterialAlb") {
+        var texResult = bfresReader.GetTexture("MaterialAlb", 0);
+        if (texResult.IsErr()) {
+            Console.WriteLine("Unable to find terrain texture array!");
+            return false;
+        }
+        var t = texResult.Unwrap();
+        var order = fallbackIndices;
+        if (t.UserData != null) {
+            // Load indices from the BFRES if possible for accuracy
+            order = t.UserData["array_index"].GetValueInt32Array();
+        }
+
+        int height = (int)t.Height, width = (int)t.Width;
+        GL.CreateTextures(TextureTarget.Texture2DArray, 1, out terrainTexArray);
+        if (terrainTexArray == 0) {
+            Console.WriteLine("Failed to create texture array!");
+        }
+        var dxt1 = SizedInternalFormat.CompressedRgbS3tcDxt1Ext;
+        GL.TextureStorage3D(terrainTexArray, (int)Math.Log2(width), dxt1, width, height, (int)order.Length);
+        GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+        GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.MirroredRepeat);
+
+        for (Int32 i = 0, pos = 0; i < order.Length; i++) {
+            deswizzleTime.Start();
+
+            // The BFRES library's mipmap loading doesn't work and I couldn't
+            // easily fix it, so we only load mip 0. -- torf
+            int mip = 0;
+            var curTex = bfresReader.GetTexture("MaterialAlb", mip);
+            if (curTex.IsErr()) {
+                Console.WriteLine("Unable to get texture for mip level {0}", mip);
                 continue;
             }
-
-            Int32[] order = t.UserData["array_index"].GetValueInt32Array();
-            int height = (int)t.Height, width = (int)t.Width;
-            GL.CreateTextures(TextureTarget.Texture2DArray, 1, out terrainTexArray);
-            if (terrainTexArray == 0) {
-                Console.WriteLine("Failed to create texture array!");
-                break;
+            
+            var data = curTex.Unwrap().GetDeswizzledData(order[i], mip);
+            deswizzleTime.Stop();
+            if (data.Length == 0) {
+                Console.WriteLine("Failed to decode texture {0}", i);
+                continue;
             }
-            var dxt1 = SizedInternalFormat.CompressedRgbS3tcDxt1Ext;
-            GL.TextureStorage3D(terrainTexArray, 1, dxt1, width, height, (int)order.Length);
-
-            for (Int32 i = 0, pos = 0; i < order.Length; i++) {
-                deswizzleTime.Start();
-                var data = t.GetDeswizzledData(order[i], 0);
-                deswizzleTime.Stop();
-                if (data.Length == 0) {
-                    Console.WriteLine("Failed to decode texture {0}", i);
-                    continue;
-                }
-                unsafe {
-                    fixed (byte* bp = data) {
-                        nint ptr = (IntPtr)bp;
-                        GL.CompressedTextureSubImage3D(terrainTexArray, 0, 0, 0, pos++, width, height, 1, (PixelFormat)dxt1, data.Length, ptr);
-                    }
+            unsafe {
+                fixed (byte* bp = data) {
+                    nint ptr = (IntPtr)bp;
+                    GL.CompressedTextureSubImage3D(terrainTexArray, mip, 0, 0, pos, width, height, 1, (PixelFormat)dxt1, data.Length, ptr);
                 }
             }
-
-            break;
+            pos++;
         }
         bfresUpload.Dispose();
+        Console.WriteLine("Generating mipmaps...");
+        GL.GenerateTextureMipmap(terrainTexArray);
+
         total.Stop();
         Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
 

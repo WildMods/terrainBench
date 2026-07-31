@@ -78,6 +78,18 @@ public class Game
             return GetDump(s).GetDecompressed(relativePath);
         }
     }
+    
+    public RefResult<Span<byte>, ErrorStack> ReadFile(string relativePath, Section s) {
+        using (var z = Profiler.BeginZone("ReadFile")) {
+            z.EmitText(relativePath);
+            var d = GetDump(s);
+            if (relativePath.Contains("//")) {
+                return d.GetNestedFile(relativePath);
+            } else {
+                return d.GetFile(relativePath);
+            }
+        }
+    }
 
     /// <summary>
     /// Open a game file for writing
