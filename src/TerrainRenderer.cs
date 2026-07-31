@@ -2,12 +2,9 @@ using System.Diagnostics;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System.Collections.Concurrent;
-using Native.IO.Handles;
 using SmoothGL.Graphics.Shader;
-using OperationResult;
 using BfresLibrary;
-using static OperationResult.Helpers;
-using static Tracy.PInvoke;
+using static GLUtil;
 using System.Runtime.InteropServices;
 namespace terrainBench;
 
@@ -16,18 +13,6 @@ public struct TerrainRenderer {
     const int TRIS_PER_TILE = 8192;
     const int MAX_LOD = 8;
     const int BYTES_PER_TILE = HGHT_DIM * HGHT_DIM * 2;
-
-    private static int CreateMappableBuffer(int size) {
-        int[] buffers = new int[1];
-        GL.CreateBuffers(1, buffers);
-        int buf = buffers[0];
-        if (buf == 0) {
-            return 0;
-        }
-
-        GL.NamedBufferStorage(buf, size, 0, BufferStorageFlags.ClientStorageBit | BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapPersistentBit);
-        return buf;
-    }
 
     public struct CompactTileSheet {
         const int MAX_SIZE = 4096;
@@ -57,8 +42,10 @@ public struct TerrainRenderer {
             }
             
             // Map the pixel buffers into CPU address space
+            var zMap = Profiler.BeginZone("R_MapTileBuffer");
             nint hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
             nint mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
+            zMap.Dispose();
             if (hghtBuf == 0 || mateBuf == 0) {
                 Console.WriteLine("Unable to map buffer(s)!");
                 return;
