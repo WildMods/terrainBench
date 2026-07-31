@@ -4,42 +4,45 @@ using CsOead;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 using System.Runtime.InteropServices;
+using System.Collections.Concurrent;
 
 namespace terrainBench.Cache;
 
+// Shorthands to keep later code a bit shorter
+using HGHTMap = ConcurrentDictionary<ushort, ushort[]>;
+using MATEMap = ConcurrentDictionary<ushort, LodComponents.Material[]>;
+using GrassMap = ConcurrentDictionary<ushort, LodComponents.GrassExtm[]>;
+using WaterMap = ConcurrentDictionary<ushort, LodComponents.WaterExtm[]>;
+
 public class Lod
 {
+    
     private static readonly short[] TILE_COUNTS = [1, 4, 16, 36, 144, 320, 1154, 3616, 3742];
     private readonly int _level;
-    private readonly ushort[][] _hghts;
-    private readonly ushort[][] _dirtyHghts;
-    private readonly Material[][] _mates;
-    private readonly Material[][] _dirtyMates;
-    private readonly List<GrassExtm[]> _grass = new();
-    private readonly List<GrassExtm[]> _dirtyGrass = new();
-    private readonly List<WaterExtm[]> _water = new();
-    private readonly List<WaterExtm[]> _dirtyWater = new();
+    private readonly HGHTMap _hghts;
+    private readonly HGHTMap _dirtyHghts;
+    private readonly MATEMap _mates;
+    private readonly MATEMap _dirtyMates;
+    private readonly GrassMap _grass = new();
+    private readonly GrassMap _dirtyGrass = new();
+    private readonly WaterMap _water = new();
+    private readonly WaterMap _dirtyWater = new();
 
     private bool loadFinished = false;
 
     public Lod(int level)
     {
         _level = level;
-        int dim = 1 << level;
 
-        using (Profiler.BeginZone("AllocLODLevel")) {
-            _hghts = new ushort[dim * dim][];
-            _dirtyHghts = new ushort[dim * dim][];
-            
-            _mates = new Material[dim * dim][];
-            _dirtyMates = new Material[dim * dim][];
-            
-            CollectionsMarshal.SetCount(_grass, dim * dim);
-            CollectionsMarshal.SetCount(_dirtyGrass, dim * dim);
-            
-            CollectionsMarshal.SetCount(_water, dim * dim);
-            CollectionsMarshal.SetCount(_dirtyWater, dim * dim);
-        }
+        _hghts = new();
+        _dirtyHghts = new();
+        _mates = new();
+        _dirtyMates = new();
+
+        _grass = new();
+        _dirtyGrass = new();
+        _water = new();
+        _dirtyWater = new();
     }
 
     public void Load(Game game)
@@ -183,11 +186,9 @@ public class Lod
     {
         WaitForLoad();
         using (Profiler.BeginZone("LodGetHGHT")) {
-            if (_dirtyHghts.Length > tileId && _dirtyHghts[tileId] != null) {
-                return _dirtyHghts[tileId];
-            }
-            if (_hghts.Length > tileId && _hghts[tileId] != null) {
-                return _hghts[tileId];
+            if (_dirtyHghts.TryGetValue(tileId, out var result) || _hghts.TryGetValue(tileId, out result))
+            {
+                return result;
             }
 
             var newId = (ushort)(tileId >> 2);
@@ -206,11 +207,9 @@ public class Lod
     {
         WaitForLoad();
         using (Profiler.BeginZone("LodGetMATE")) {
-            if (_dirtyMates[tileId] != null) {
-                return _dirtyMates[tileId];
-            }
-            if (_mates[tileId] != null) {
-                return _mates[tileId];
+            if (_dirtyMates.TryGetValue(tileId, out var result) || _mates.TryGetValue(tileId, out result))
+            {
+                return result;
             }
 
             var newId = (ushort)(tileId >> 2);
@@ -228,11 +227,9 @@ public class Lod
     public Result<GrassExtm[], (ushort, ushort)> GetGrassTile(ushort tileId)
     {
         WaitForLoad();
-        if (_dirtyGrass[tileId] != null) {
-            return _dirtyGrass[tileId];
-        }
-        if (_grass[tileId] != null) {
-            return _grass[tileId];
+        if (_dirtyGrass.TryGetValue(tileId, out var result) || _grass.TryGetValue(tileId, out result))
+        {
+            return result;
         }
 
         var newId = (ushort)(tileId >> 2);
@@ -249,11 +246,9 @@ public class Lod
     public Result<WaterExtm[], (ushort, ushort)> GetWaterTile(ushort tileId)
     {
         WaitForLoad();
-        if (_dirtyWater[tileId] != null) {
-            return _dirtyWater[tileId];
-        }
-        if (_water[tileId] != null) {
-            return _water[tileId];
+        if (_dirtyWater.TryGetValue(tileId, out var result) || _water.TryGetValue(tileId, out result))
+        {
+            return result;
         }
 
         var newId = (ushort)(tileId >> 2);
