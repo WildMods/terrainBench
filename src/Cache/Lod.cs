@@ -295,38 +295,35 @@ public class Lod
             // There's definitely a more concise way to do this, but I'm not
             // very familiar with OperationResult. Sorry.
             // - torf
-            ReadOnlySpan<byte> tile;
+            ReadOnlySpan<byte> tile = new();
+            bool found = true;
             switch (type) {
             case LodComponent.hght: {
-                var r = GetHeightmapTile(tileIdx);
-                if (r.IsErr()) {
-                    continue;
+                var r = GetHeightmapTile(tileIdx).InspectErr(err => found = false);
+                if (r.IsOk()) {
+                    tile = r.Unwrap().AsBytes();
                 }
-                tile = r.Unwrap().AsBytes();
                 break;
-                }
+            }
             case LodComponent.mate: {
-                var r = GetMaterialTile(tileIdx);
-                if (r.IsErr()) {
-                    continue;
+                var r = GetMaterialTile(tileIdx).InspectErr(err => found = false);
+                if (r.IsOk()) {
+                    tile = r.Unwrap().AsBytes();
                 }
-                tile = r.Unwrap().AsBytes();
                 break;
             }
             case LodComponent.grass: {
-                var r = GetGrassTile(tileIdx);
-                if (r.IsErr()) {
-                    continue;
+                var r = GetGrassTile(tileIdx).InspectErr(err => found = false);
+                if (r.IsOk()) {
+                    tile = r.Unwrap().AsBytes();
                 }
-                tile = r.Unwrap().AsBytes();
                 break;
             }
             case LodComponent.water: {
-                var r = GetWaterTile(tileIdx);
-                if (r.IsErr()) {
-                    continue;
+                var r = GetWaterTile(tileIdx).InspectErr(err => found = false);
+                if (r.IsOk()) {
+                    tile = r.Unwrap().AsBytes();
                 }
-                tile = r.Unwrap().AsBytes();
                 break;
             }
             default:
@@ -334,7 +331,9 @@ public class Lod
                 return Err(new ErrorStack(invalidEnumMsg));
             }
 
-            sarc.Add(fname, tile);
+            if (found) {
+                sarc.Add(fname, tile);
+            }
         }
 
         return sarc;
