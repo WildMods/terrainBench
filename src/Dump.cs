@@ -75,7 +75,7 @@ public class Dump
     /// </summary>
     public RefResult<Span<byte>, ErrorStack> GetNestedFile(string relative)
     {
-        string[] parts = relative.Split("//");
+        string[] parts = relative.Split("//", 2);
         if (parts.Length == 1)
         {
             return Err(new ErrorStack($"relative path must be nested file. Use GetFile for loose files: {relative}"));
@@ -88,21 +88,30 @@ public class Dump
 
         Sarc sarc;
         Span<byte> span = File.ReadAllBytes(loose);
-        foreach (var nest in parts.Skip(1))
+        
+        var nest = parts[1].Replace("//", "/");
+        // Handle compressed and uncompressed SARCs
+        var sarcData = span;
+        if (Yaz0.TryDecompress(span, out var data)) {
+            sarcData = data.AsSpan();
+        }
+        try
         {
-            Yaz0.TryDecompress(span, out var data);
-            try
-            {
-                sarc = Sarc.FromBinary(data);
-            }
-            catch (Exception e)
-            {
-                return Err(new ErrorStack(e.Message, e.StackTrace));
-            }
-            if (!sarc.TryGetFile(nest, out span))
-            {
-                return Err(new ErrorStack($"Nested file not found: {nest}"));
-            }
+            sarc = Sarc.FromBinary(sarcData);
+        }
+        catch (Exception e)
+        {
+            return Err(new ErrorStack(e.Message, e.StackTrace));
+        }
+        if (!sarc.TryGetFile(nest, out span))
+        {
+            return Err(new ErrorStack($"Nested file not found: {nest}"));
+        }
+        
+        // Handle compressed data inside a SARC
+        var decompressedData = Yaz0.Decompress(span);
+        if (decompressedData.Length > 0) {
+            span = decompressedData;
         }
 
         return Ok(span);
