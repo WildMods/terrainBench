@@ -106,7 +106,7 @@ public static class ZOrder {
         string hexPart = idx.ToString("X8"); // Hexidecimal padded with 0s to 8 digits
 
         // e.g. "580000C0A0" (just needs an extension added)
-        return $"5${lod}${hexPart}";
+        return $"5{lod}{hexPart}";
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public static class ZOrder {
     /// </summary>
     public static string BuildFilename(UInt16 idx, int lod, string extension) {
         // e.g. "580000C0A0.hght"
-        return $"${BuildFilename(idx, lod)}.${extension}";
+        return $"{BuildFilename(idx, lod)}.{extension}";
     }
 
     /// <summary>
