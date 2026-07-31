@@ -105,16 +105,18 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_MATE")) {
                     if (result.IsErr()) return;
-                    Sarc s = Sarc.FromBinary(result.Unwrap());
-                    foreach (var (name, data) in s)
+                    using (var s = Sarc.FromBinary(result.Unwrap()))
                     {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        using (Profiler.BeginZone("MATE_ToArray")) {
-                            _mates[tileId.Unwrap()] = data.AsSpan().Cast<byte, Material>().ToArray();
+                        foreach (var (name, data) in s)
+                        {
+                            var tileId = ZOrder.IndexFromFilename(name);
+                            if (tileId.IsErr()) continue;
+                            using (Profiler.BeginZone("MATE_ToArray"))
+                            {
+                                _mates[tileId.Unwrap()] = data.AsSpan().Cast<byte, Material>().ToArray();
+                            }
                         }
                     }
-                    s.Dispose();
                     result.Unwrap().Dispose();
                 }
             }));
@@ -134,12 +136,14 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
                     if (result.IsErr()) return;
-                    Sarc s = Sarc.FromBinary(result.Unwrap());
-                    foreach (var (name, data) in s)
+                    using (var s = Sarc.FromBinary(result.Unwrap()))
                     {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
+                        foreach (var (name, data) in s)
+                        {
+                            var tileId = ZOrder.IndexFromFilename(name);
+                            if (tileId.IsErr()) continue;
+                            _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
+                        }
                     }
                 }
             }));
@@ -159,12 +163,14 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_WATER")) {
                     if (result.IsErr()) return;
-                    Sarc s = Sarc.FromBinary(result.Unwrap());
-                    foreach (var (name, data) in s)
+                    using (var s = Sarc.FromBinary(result.Unwrap()))
                     {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
+                        foreach (var (name, data) in s)
+                        {
+                            var tileId = ZOrder.IndexFromFilename(name);
+                            if (tileId.IsErr()) continue;
+                            _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
+                        }
                     }
                 }
             }));
