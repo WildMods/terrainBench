@@ -9,7 +9,7 @@ public static class GLUtil {
             return 0;
         }
 
-        GL.NamedBufferStorage(buf, size, 0, BufferStorageFlags.ClientStorageBit | BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapPersistentBit);
+        GL.NamedBufferStorage(buf, size, 0, BufferStorageFlags.ClientStorageBit | BufferStorageFlags.MapWriteBit);
         return buf;
     }
 

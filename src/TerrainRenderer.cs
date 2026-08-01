@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using SmoothGL.Graphics.Shader;
 using BfresLibrary;
 using static GLUtil;
+using CommunityToolkit.HighPerformance;
 using System.Runtime.InteropServices;
 namespace terrainBench;
 
@@ -19,13 +20,184 @@ public struct TerrainRenderer {
     public struct CompactTileSheet {
         const int MAX_SIZE = 4096;
         const int MAX_TILES = MAX_SIZE / HGHT_DIM;
-        readonly int hghtTex = 0;
-        readonly int mateTex = 0;
-        readonly List<Int32> indices = new();
+        int hghtTex = 0;
+        int mateTex = 0;
+        List<Int32> indices = new();
 
         // Persistent buffers for tile sheets to avoid reallocation
-        static int pboHght = 0;
-        static int pboMate = 0;
+        int pboHght = 0;
+        int pboMate = 0;
+
+        private Mutex pboMapLock = new();
+        bool mapped = false;
+        
+        // Mapped HGHT buffer
+        private nint hghtBuf = 0;
+        // Mapped MATE buffer
+        private nint mateBuf = 0;
+
+        private List<int> hghtUpdates = [];
+        private List<int> mateUpdates = [];
+
+        private void MapPBOs(bool mapState) {
+            if (mapped == mapState) {
+                return; // No change needed
+            }
+            
+            if (mapState) {
+                hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
+                mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
+            } else {
+                GL.UnmapNamedBuffer(pboHght);
+                GL.UnmapNamedBuffer(pboMate);
+                hghtBuf = 0;
+                mateBuf = 0;
+            }
+            mapped = mapState;
+        }
+        
+        private static int GetLinearIndex(int posInTexture) {
+            int xTarget, yTarget;
+            {
+                ZOrder.Deinterleave16To8((UInt16)posInTexture, out var x, out var y);
+                xTarget = HGHT_DIM * (UInt16)x;
+                yTarget = HGHT_DIM * (UInt16)y;
+            }
+            int linearIdx = xTarget + (yTarget * MAX_SIZE);
+            return linearIdx;
+        }
+        
+        /// <summary>
+        /// Update tile data in an OpenGL-controlled buffer
+        /// </summary>
+        private static bool UpdatePBOTile(int posInTexture, ReadOnlySpan<byte> data, nint buf, int pixelSize) {
+            if (buf == 0 || pixelSize < 2) {
+                return false;
+            }
+            int linearIdx = GetLinearIndex(posInTexture) * pixelSize;
+            
+            // Copy 1 row of data at a time
+            int srcRowSize = HGHT_DIM * pixelSize;
+            int dstRowSize = MAX_SIZE * pixelSize;
+            for (int j = 0; j < HGHT_DIM; j++) {
+                int srcIdx = j * srcRowSize; // Current row in tile
+                nint dst = buf + linearIdx + (j * dstRowSize);
+                
+                // glMapBuffer() returns a raw unmanaged pointer, which the C# bindings
+                // give as an nint. We can't use Marshal.Copy() because it only accepts
+                // Int16 and Int32 arrays, not UInt16 or Material. So, we have to cast
+                // everything down to raw pointers and do a blind unsafe copy.
+                unsafe {
+                    fixed (byte* src = data) {
+                        System.Buffer.MemoryCopy(&src[srcIdx], (void*)dst, srcRowSize, srcRowSize);
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        public bool ScheduleTileUpdateTexturePos(int posInTexture, ReadOnlySpan<byte> data, LodComponent type) {
+            // Ensure the buffer is actually mapped and available
+            pboMapLock.WaitOne();
+            nint buf;
+            int pixelSize;
+            List<int> updateList;
+            if (type == LodComponent.hght) {
+                buf = hghtBuf;
+                pixelSize = 2;
+                updateList = hghtUpdates;
+            } else if (type == LodComponent.mate) {
+                buf = mateBuf;
+                pixelSize = 4;
+                updateList = mateUpdates;
+            } else {
+                Console.WriteLine("Unsupported terrain tile type");
+                return false; // Unsupported tile type
+            }
+            if (buf == 0) {
+                Console.WriteLine("PBO is not mapped, PBO map state reads {0}, hghtBuf = {1}, mateBuf = {2}.", mapped, hghtBuf, mateBuf);
+                return false; // Buffer isn't mapped right now
+            }
+
+            updateList.Add(posInTexture);
+            UpdatePBOTile(posInTexture, data, buf, pixelSize);
+            pboMapLock.ReleaseMutex();
+            return true;
+        }
+        
+        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+            Int32 packed = ZOrder.PackIndex(idx, lod);
+            var pos = indices.FindIndex(0, indices.Count, val => val == packed);
+            if (pos < 0) {
+                return false;
+            }
+
+            return ScheduleTileUpdateTexturePos(pos, data, type);
+        }
+        
+        public void ProcessTileUpdates() {
+            pboMapLock.WaitOne(); // Make sure no one is using the mapped region
+            bool hghtDirty = hghtUpdates.Count > 0;
+            bool mateDirty = mateUpdates.Count > 0;
+            if (!hghtDirty && mateDirty) {
+                pboMapLock.ReleaseMutex();
+                return; // Nothind to do.
+            }
+            
+            MapPBOs(false);
+
+            if (hghtDirty) {
+                Console.WriteLine("Processing {0} HGHT updates", hghtUpdates.Count);
+                GL.BindTexture(TextureTarget.Texture2D, hghtTex);
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght);
+                foreach (var pos in hghtUpdates) {
+                    int xTarget, yTarget;
+                    {
+                        ZOrder.Deinterleave16To8((UInt16)pos, out var x, out var y);
+                        xTarget = HGHT_DIM * (UInt16)x;
+                        yTarget = HGHT_DIM * (UInt16)y;
+                    }
+                    int rowSize = MAX_SIZE * 2;
+                    int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 2;
+                    
+                    // Have the driver upload just this tile. If we upload the entire tile
+                    for (int row = 0; row < HGHT_DIM; row++) {
+                        GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Red, PixelType.UnsignedShort, linearIdx);
+                        linearIdx += rowSize;
+                    }
+                }
+                hghtUpdates.Clear();
+            }
+            
+            if (mateDirty) {
+                Console.WriteLine("Processing {0} MATE updates", mateUpdates.Count);
+                GL.BindTexture(TextureTarget.Texture2D, mateTex);
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate);
+                foreach (var pos in mateUpdates) {
+                    int xTarget, yTarget;
+                    {
+                        ZOrder.Deinterleave16To8((UInt16)pos, out var x, out var y);
+                        xTarget = HGHT_DIM * (UInt16)x;
+                        yTarget = HGHT_DIM * (UInt16)y;
+                    }
+                    int rowSize = MAX_SIZE * 4;
+                    int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 4;
+                    
+                    // Have the driver upload just this tile. If we upload the entire tile
+                    for (int row = 0; row < HGHT_DIM; row++) {
+                        GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Rgba, PixelType.UnsignedByte, linearIdx);
+                        linearIdx += rowSize;
+                    }
+                }
+                mateUpdates.Clear();
+            }
+
+            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+            MapPBOs(true); // Allow updates again
+            pboMapLock.ReleaseMutex();
+        }
         
         /// <summary>
         /// Build an atlas from packed index values
@@ -43,26 +215,23 @@ public struct TerrainRenderer {
             // GL-controlled buffer. Then the driver can upload on its own time.
 
             // Setup buffers to copy pixels into
-            if (pboHght == 0) {
-                pboHght = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
-            }
-            if (pboMate == 0) {
-                pboMate = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
-            }
+            pboHght = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
+            pboMate = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
             
             // Map the pixel buffers into CPU address space
             var zMap = Profiler.BeginZone("R_MapTileBuffer");
-            nint hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
-            nint mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
+            MapPBOs(true);
             zMap.Dispose();
-            if (hghtBuf == 0 || mateBuf == 0) {
+            if (this.hghtBuf == 0 || this.mateBuf == 0) {
                 Console.WriteLine("Unable to map buffer(s)!");
                 return;
             }
             
             int posInTexture = 0;
             int tilesTried = 0, tilesFound = 0;
-            var idxList = indices; // Lambda can't access class members, it needs a local variable
+            // Lambda can't access class members, it needs local variables
+            var idxList = indices;
+            nint hghtBuf = this.hghtBuf, mateBuf = this.mateBuf;
 
             // Use all threads to copy tile data to the GL-controlled buffer
             var zCopy = Profiler.BeginZone("R_BuildTileBuffer");
@@ -87,43 +256,15 @@ public struct TerrainRenderer {
                 int pos = Interlocked.Increment(ref posInTexture) - 1;
 
                 // Figure out position in the pixel buffer
-                int xTarget, yTarget;
-                {
-                    ZOrder.Deinterleave16To8((UInt16)pos, out var x, out var y);
-                    xTarget = HGHT_DIM * (UInt16)x;
-                    yTarget = HGHT_DIM * (UInt16)y;
-                }
-                int linearIdx = xTarget + (yTarget * MAX_SIZE);
+                UpdatePBOTile(pos, hghtData.AsSpan().AsBytes(), hghtBuf, 2);
+                UpdatePBOTile(pos, mateData.AsSpan().AsBytes(), mateBuf, 4);
 
-                // Copy 1 row of data at a time
-                for (int j = 0; j < HGHT_DIM; j++) {
-                    int srcIdx = j * HGHT_DIM; // Current row in tile
-
-                    nint hghtDst = hghtBuf + (linearIdx * 2); // * 2 because height values are 16-bit
-                    // glMapBuffer() returns a raw unmanaged pointer, which the C# bindings
-                    // give as an nint. We can't use Marshal.Copy() because it only accepts
-                    // Int16 and Int32 arrays, not UInt16 or Material. So, we have to cast
-                    // everything down to raw pointers and do a blind unsafe copy.
-                    unsafe {
-                        fixed (UInt16* srcHght = hghtData) {
-                            int size = BYTES_PER_HGHT / HGHT_DIM;
-                            System.Buffer.MemoryCopy(&srcHght[srcIdx], &((UInt16*)hghtBuf)[linearIdx], size, size);
-                        }
-                        fixed (void* src = mateData) {
-                            int size = BYTES_PER_MATE / HGHT_DIM;
-                            var srcMate = (UInt32*)src;
-                            System.Buffer.MemoryCopy(&srcMate[srcIdx], &((UInt32*)mateBuf)[linearIdx], size, size);
-                        }
-                    }
-                    linearIdx += MAX_SIZE; // Skip down by 1 row
-                }
                 idxList[pos] = val;
             });
             zCopy.Dispose();
             
             var zUpload = Profiler.BeginZone("R_UploadTile");
-            GL.UnmapNamedBuffer(pboHght);
-            GL.UnmapNamedBuffer(pboMate);
+            MapPBOs(false);
             
             // Tell the driver to upload our buffers as textures on its own time
             // This returns more or less immediately (compared to a normal texture upload)
@@ -138,6 +279,7 @@ public struct TerrainRenderer {
             GL.BindTexture(TextureTarget.Texture2D, 0);
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
 
+            MapPBOs(true);
             zUpload.Dispose();
             
             Console.WriteLine("Found {0}/{1} tiles", tilesFound, tilesTried);
@@ -145,6 +287,8 @@ public struct TerrainRenderer {
         }
 
         public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
+            ProcessTileUpdates();
+            
             GL.BindTextureUnit(0, hghtTex);
             GL.BindTextureUnit(1, mateTex);
             GL.Uniform1(tilesPerTexLoc, MAX_TILES);
@@ -218,6 +362,16 @@ public struct TerrainRenderer {
                 lvl.Draw(tilesPerTexLoc, indicesLocation, minDist, maxDist, centerTile);
             }
         }
+
+        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+            foreach (var sheet in sheets) {
+                if (sheet.ScheduleTileUpdate(idx, lod, data, type)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
     }
     
     Shader tessShader;
@@ -228,6 +382,10 @@ public struct TerrainRenderer {
 
     TileRegion ring0;
 
+    public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+        return ring0.ScheduleTileUpdate(idx, lod, data, type);
+    }
+    
     public TerrainRenderer() { }
 
     private readonly string GetEmbeddedText(string name) {
