@@ -20,25 +20,35 @@ public struct TerrainRenderer {
     public struct CompactTileSheet {
         const int MAX_SIZE = 4096;
         const int MAX_TILES = MAX_SIZE / HGHT_DIM;
-        int hghtTex = 0;
-        int mateTex = 0;
+        // GL textures for the tile atlases
+        private int hghtTex = 0;
+        private int mateTex = 0;
+        // The packed index + LOD values to be used by the shader
         List<Int32> indices = new();
 
-        // Persistent buffers for tile sheets to avoid reallocation
-        int pboHght = 0;
-        int pboMate = 0;
+        // CPU-mapped GL buffers for async texture uploading
+        private int pboHght = 0;
+        private int pboMate = 0;
 
+        // Controls access to all PBO mapping state
         private Mutex pboMapLock = new();
-        bool mapped = false;
+        private bool mapped = false;
         
         // Mapped HGHT buffer
         private nint hghtBuf = 0;
         // Mapped MATE buffer
         private nint mateBuf = 0;
 
+        // The set of Z-order tile indices (within the tile atlas) that need to
+        // be streamed to the GPU
         private List<int> hghtUpdates = [];
         private List<int> mateUpdates = [];
 
+        /// <summary>
+        /// Map or unmap PBOs to/from CPU address space.
+        /// Please lock the mapping mutex before calling this, to make sure other
+        /// threads don't try to use a newly unmapped buffer or miss a newly mapped buffer.
+        /// </summary>
         private void MapPBOs(bool mapState) {
             if (mapped == mapState) {
                 return; // No change needed
@@ -56,6 +66,11 @@ public struct TerrainRenderer {
             mapped = mapState;
         }
         
+        /// <summary>
+        /// Convert a Z-order tile index to a linear index in an array of pixels
+        /// </summary>
+        /// <param name="posInTexture">The Z-order index of the tile in the atlas</param>
+        /// <returns>The linear index (in units of pixels, not bytes)</returns>
         private static int GetLinearIndex(int posInTexture) {
             int xTarget, yTarget;
             {
@@ -70,6 +85,10 @@ public struct TerrainRenderer {
         /// <summary>
         /// Update tile data in an OpenGL-controlled buffer
         /// </summary>
+        /// <param name="posInTexture">The Z-order index of the tile in the atlas</param>
+        /// <param name="data">The tile data to upload</param>
+        /// <param name="buf">The pixel buffer object to copy data to</param>
+        /// <param name="pixelSize">The size in bytes of each pixel in the tile</param>
         private static bool UpdatePBOTile(int posInTexture, ReadOnlySpan<byte> data, nint buf, int pixelSize) {
             if (buf == 0 || pixelSize < 2) {
                 return false;
@@ -97,7 +116,18 @@ public struct TerrainRenderer {
             return true;
         }
 
-        public bool ScheduleTileUpdateTexturePos(int posInTexture, ReadOnlySpan<byte> data, LodComponent type) {
+        
+        /// <summary>
+        /// Update a rendered tile.
+        /// The render thread streams tiles to the GPU at the start of each frame.
+        /// </summary>
+        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+            Int32 packed = ZOrder.PackIndex(idx, lod);
+            var pos = indices.FindIndex(0, indices.Count, val => val == packed);
+            if (pos < 0) {
+                return false;
+            }
+
             // Ensure the buffer is actually mapped and available
             pboMapLock.WaitOne();
             nint buf;
@@ -120,33 +150,33 @@ public struct TerrainRenderer {
                 return false; // Buffer isn't mapped right now
             }
 
-            updateList.Add(posInTexture);
-            UpdatePBOTile(posInTexture, data, buf, pixelSize);
+            updateList.Add(pos);
+            UpdatePBOTile(pos, data, buf, pixelSize);
             pboMapLock.ReleaseMutex();
             return true;
         }
         
-        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
-            Int32 packed = ZOrder.PackIndex(idx, lod);
-            var pos = indices.FindIndex(0, indices.Count, val => val == packed);
-            if (pos < 0) {
-                return false;
-            }
-
-            return ScheduleTileUpdateTexturePos(pos, data, type);
-        }
-        
+        /// <summary>
+        /// Have OpenGL stream all newly updated tiles to the GPU asynchronously
+        /// </summary>
         public void ProcessTileUpdates() {
             pboMapLock.WaitOne(); // Make sure no one is using the mapped region
             bool hghtDirty = hghtUpdates.Count > 0;
             bool mateDirty = mateUpdates.Count > 0;
             if (!hghtDirty && mateDirty) {
                 pboMapLock.ReleaseMutex();
-                return; // Nothind to do.
+                return; // Nothing to do.
             }
-            
-            MapPBOs(false);
+            MapPBOs(false); // Buffers can't be bound while mapped
 
+            // Tile uploads are done 1 row at a time, because OpenGL expects to
+            // find contiguous image data at whatever resolution we specify. The
+            // current PBO format is a contiguous image for the whole atlas, but
+            // we would need the entire tile to be contiguous to upload the tile
+            // in 1 call.
+            // 
+            // TODO: Treat the PBO as tile-contiguous after initialization
+            // TODO: Write a helper method to eliminate this code duplication
             if (hghtDirty) {
                 Console.WriteLine("Processing {0} HGHT updates", hghtUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, hghtTex);
@@ -161,7 +191,6 @@ public struct TerrainRenderer {
                     int rowSize = MAX_SIZE * 2;
                     int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 2;
                     
-                    // Have the driver upload just this tile. If we upload the entire tile
                     for (int row = 0; row < HGHT_DIM; row++) {
                         GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Red, PixelType.UnsignedShort, linearIdx);
                         linearIdx += rowSize;
@@ -184,7 +213,6 @@ public struct TerrainRenderer {
                     int rowSize = MAX_SIZE * 4;
                     int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 4;
                     
-                    // Have the driver upload just this tile. If we upload the entire tile
                     for (int row = 0; row < HGHT_DIM; row++) {
                         GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Rgba, PixelType.UnsignedByte, linearIdx);
                         linearIdx += rowSize;
@@ -255,7 +283,7 @@ public struct TerrainRenderer {
                 // We subtract because we need the value before the increment
                 int pos = Interlocked.Increment(ref posInTexture) - 1;
 
-                // Figure out position in the pixel buffer
+                // Copy the tile data
                 UpdatePBOTile(pos, hghtData.AsSpan().AsBytes(), hghtBuf, 2);
                 UpdatePBOTile(pos, mateData.AsSpan().AsBytes(), mateBuf, 4);
 
@@ -279,6 +307,8 @@ public struct TerrainRenderer {
             GL.BindTexture(TextureTarget.Texture2D, 0);
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
 
+            GL.InvalidateBufferData(pboHght);
+            GL.InvalidateBufferData(pboMate);
             MapPBOs(true);
             zUpload.Dispose();
             
@@ -363,6 +393,10 @@ public struct TerrainRenderer {
             }
         }
 
+        /// <summary>
+        /// Update a rendered tile.
+        /// The render thread streams tiles to the GPU at the start of each frame.
+        /// </summary>
         public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
             foreach (var sheet in sheets) {
                 if (sheet.ScheduleTileUpdate(idx, lod, data, type)) {
@@ -382,6 +416,10 @@ public struct TerrainRenderer {
 
     TileRegion ring0;
 
+    /// <summary>
+    /// Update a rendered tile.
+    /// The render thread streams tiles to the GPU at the start of each frame.
+    /// </summary>
     public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
         return ring0.ScheduleTileUpdate(idx, lod, data, type);
     }
