@@ -16,16 +16,16 @@ public class Camera {
 
     static Vector3 camera_up = new Vector3(0, 1, 0);
 
-    Vector3 pos = Vector3.Zero; // Position of the viewer
+    Vector3 pos = new Vector3(0, 200, 0); // Position of the viewer
     Quaternion orbit_angles = Quaternion.Identity;
     float radius = 30.0f;
-    float move_speed = 10.0f;
+    float move_speed = 100.0f;
     float mouse_sens = 0.015f;
 
     // Projection settings
     float fov_angle = DegreesToRadians(70.0f);
     float near = 0.1f;
-    float far = 1100.0f;
+    float far = 10000.0f;
 
     bool invert_mouse_x = true;
     bool invert_mouse_y = false;
