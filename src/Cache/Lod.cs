@@ -75,15 +75,14 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_HGHT")) {
                     if (result.IsErr()) return;
-                    using (var s = Sarc.FromBinary(result.Unwrap()))
+                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var s = new SarcLibrary.ImmutableSarc(ref reader);
+                    foreach (var (name, data) in s)
                     {
-                        foreach (var (name, data) in s)
-                        {
-                            var tileId = ZOrder.IndexFromFilename(name);
-                            if (tileId.IsErr()) continue;
-                            using (Profiler.BeginZone("HGHT_ToArray")) {
-                                _hghts[tileId.Unwrap()] = data.AsSpan().Cast<byte, ushort>().ToArray();
-                            }
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        using (Profiler.BeginZone("HGHT_ToArray")) {
+                            _hghts[tileId.Unwrap()] = data.Cast<byte, ushort>().ToArray();
                         }
                     }
                     result.Unwrap().Dispose();
@@ -106,16 +105,15 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_MATE")) {
                     if (result.IsErr()) return;
-                    using (var s = Sarc.FromBinary(result.Unwrap()))
+                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var s = new SarcLibrary.ImmutableSarc(ref reader);
+                    foreach (var (name, data) in s)
                     {
-                        foreach (var (name, data) in s)
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        using (Profiler.BeginZone("MATE_ToArray"))
                         {
-                            var tileId = ZOrder.IndexFromFilename(name);
-                            if (tileId.IsErr()) continue;
-                            using (Profiler.BeginZone("MATE_ToArray"))
-                            {
-                                _mates[tileId.Unwrap()] = data.AsSpan().Cast<byte, Material>().ToArray();
-                            }
+                            _mates[tileId.Unwrap()] = data.Cast<byte, Material>().ToArray();
                         }
                     }
                     result.Unwrap().Dispose();
@@ -137,14 +135,13 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
                     if (result.IsErr()) return;
-                    using (var s = Sarc.FromBinary(result.Unwrap()))
+                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var s = new SarcLibrary.ImmutableSarc(ref reader);
+                    foreach (var (name, data) in s)
                     {
-                        foreach (var (name, data) in s)
-                        {
-                            var tileId = ZOrder.IndexFromFilename(name);
-                            if (tileId.IsErr()) continue;
-                            _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
-                        }
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        _grass[tileId.Unwrap()] = data.Cast<byte, GrassExtm>().ToArray();
                     }
                     result.Unwrap().Dispose();
                 }
@@ -165,14 +162,13 @@ public class Lod
             {
                 using (Profiler.BeginZone("LoadSSTERA_WATER")) {
                     if (result.IsErr()) return;
-                    using (var s = Sarc.FromBinary(result.Unwrap()))
+                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var s = new SarcLibrary.ImmutableSarc(ref reader);
+                    foreach (var (name, data) in s)
                     {
-                        foreach (var (name, data) in s)
-                        {
-                            var tileId = ZOrder.IndexFromFilename(name);
-                            if (tileId.IsErr()) continue;
-                            _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
-                        }
+                        var tileId = ZOrder.IndexFromFilename(name);
+                        if (tileId.IsErr()) continue;
+                        _water[tileId.Unwrap()] = data.Cast<byte, WaterExtm>().ToArray();
                     }
                     result.Unwrap().Dispose();
                 }
