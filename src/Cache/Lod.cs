@@ -9,9 +9,9 @@ namespace terrainBench.Cache;
 
 // Shorthands to keep later code a bit shorter
 using HGHTMap = ConcurrentDictionary<ushort, ushort[]>;
-using MATEMap = ConcurrentDictionary<ushort, LodComponents.Material[]>;
-using GrassMap = ConcurrentDictionary<ushort, LodComponents.GrassExtm[]>;
-using WaterMap = ConcurrentDictionary<ushort, LodComponents.WaterExtm[]>;
+using MATEMap = ConcurrentDictionary<ushort, Material[]>;
+using GrassMap = ConcurrentDictionary<ushort, GrassExtm[]>;
+using WaterMap = ConcurrentDictionary<ushort, WaterExtm[]>;
 
 public class Lod
 {
@@ -21,12 +21,12 @@ public class Lod
     private readonly HGHTMap _dirtyHghts;
     private readonly MATEMap _mates;
     private readonly MATEMap _dirtyMates;
-    private readonly GrassMap _grass = new();
-    private readonly GrassMap _dirtyGrass = new();
-    private readonly WaterMap _water = new();
-    private readonly WaterMap _dirtyWater = new();
+    private readonly GrassMap _grass;
+    private readonly GrassMap _dirtyGrass;
+    private readonly WaterMap _water;
+    private readonly WaterMap _dirtyWater;
 
-    private bool loadFinished = false;
+    private bool _loadFinished;
 
     public Lod(int level)
     {
@@ -53,22 +53,21 @@ public class Lod
             LoadWaterTiles(game)
         };
         Task.WaitAll(tasks);
-        loadFinished = true;
+        _loadFinished = true;
         Console.WriteLine("Loaded level {0}", _level);
     }
 
     private void WaitForLoad() {
-        while (!loadFinished) {
+        while (!_loadFinished) {
             Thread.Sleep(5);
         }
     }
 
     private async Task LoadHeightmapTiles(Game game)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.hght);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
-        foreach (var result in iter)
+        foreach (var result in game.IterLodComponent(_level, LodComponent.hght))
         {
             if (result.IsErr()) return;
             tasks.Add(Task.Run(delegate
@@ -96,10 +95,9 @@ public class Lod
 
     private async Task LoadMaterialTiles(Game game)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.mate);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
-        foreach (var result in iter)
+        foreach (var result in game.IterLodComponent(_level, LodComponent.mate))
         {
             if (result.IsErr()) return;
             tasks.Add(Task.Run(delegate
@@ -128,10 +126,9 @@ public class Lod
 
     private async Task LoadGrassTiles(Game game)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.grass);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
-        foreach (var result in iter)
+        foreach (var result in game.IterLodComponent(_level, LodComponent.grass))
         {
             tasks.Add(Task.Run(delegate
             {
@@ -156,10 +153,9 @@ public class Lod
 
     private async Task LoadWaterTiles(Game game)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.water);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
-        foreach (var result in iter)
+        foreach (var result in game.IterLodComponent(_level, LodComponent.water))
         {
             tasks.Add(Task.Run(delegate
             {
@@ -267,8 +263,10 @@ public class Lod
     /// The "STERA" name is not a typo, since the first S in "SSTERA" indicates
     /// Yaz0, and this just gives the uncompressed SARC.
     /// </summary>
+    /// <param name="idx">The Z-order index of one of the tiles in the STERA</param>
+    /// <param name="type">The terrain component type to build</param>
     /// <param name="sarcName">The filename that the compressed SARC should have (file extension ending in ".sstera")</param>
-    public Result<Sarc, ErrorStack> BuildSTERA(UInt16 idx, LodComponent type, out string sarcName) {
+    public Result<Sarc, ErrorStack> BuildSTERA(ushort idx, LodComponent type, out string sarcName) {
         string ext = type switch {
             LodComponent.hght => "hght",
             LodComponent.mate => "mate",
@@ -287,53 +285,25 @@ public class Lod
         sarcName = ZOrder.BuildFilename(idx, _level, $"${ext}.sstera");
 
         // Try to add the 4 tiles within this SSTERA (some may be missing)
-        var sarc = new CsOead.Sarc();
-        for (UInt16 i = 0; i < 4; i++) {
-            UInt16 tileIdx = (UInt16)(idx + i);
-            string fname = ZOrder.BuildFilename(tileIdx, _level, ext);
+        var sarc = new Sarc();
+        for (ushort i = 0; i < 4; i++) {
+            var tileIdx = (ushort)(idx + i);
+            var fname = ZOrder.BuildFilename(tileIdx, _level, ext);
 
-            // Get the actual tile data.
-            // There's definitely a more concise way to do this, but I'm not
-            // very familiar with OperationResult. Sorry.
-            // - torf
-            ReadOnlySpan<byte> tile = new();
-            bool found = true;
-            switch (type) {
-            case LodComponent.hght: {
-                var r = GetHeightmapTile(tileIdx).InspectErr(err => found = false);
-                if (r.IsOk()) {
-                    tile = r.Unwrap().AsBytes();
-                }
-                break;
-            }
-            case LodComponent.mate: {
-                var r = GetMaterialTile(tileIdx).InspectErr(err => found = false);
-                if (r.IsOk()) {
-                    tile = r.Unwrap().AsBytes();
-                }
-                break;
-            }
-            case LodComponent.grass: {
-                var r = GetGrassTile(tileIdx).InspectErr(err => found = false);
-                if (r.IsOk()) {
-                    tile = r.Unwrap().AsBytes();
-                }
-                break;
-            }
-            case LodComponent.water: {
-                var r = GetWaterTile(tileIdx).InspectErr(err => found = false);
-                if (r.IsOk()) {
-                    tile = r.Unwrap().AsBytes();
-                }
-                break;
-            }
-            default:
+            dynamic? tile = type switch
+            {
+                LodComponent.hght => GetHeightmapTile(tileIdx).Ok(),
+                LodComponent.mate => GetMaterialTile(tileIdx).Ok(),
+                LodComponent.grass => GetGrassTile(tileIdx).Ok(),
+                LodComponent.water => GetWaterTile(tileIdx).Ok(),
+                _ => null
+            };
+
+            if (tile != null) {
+                sarc.Add(fname, tile.AsBytes());
+            } else {
                 sarcName = "";
                 return Err(new ErrorStack(invalidEnumMsg));
-            }
-
-            if (found) {
-                sarc.Add(fname, tile);
             }
         }
 
