@@ -41,16 +41,13 @@ public class Camera {
             return; // Nothing to do.
         }
 
-        switch (new_mode) {
-            case Mode.ORBIT:
-                mouse_sens = 0.015f;
-                break;
-            default:
-            case Mode.FLY:
-                mouse_sens = 0.005f;
-                break;
+        if (new_mode == Mode.ORBIT)
+        {
+            mouse_sens *= (float)Math.PI;
+        } else if (mode == Mode.ORBIT) {
+            mouse_sens /= (float)Math.PI;
         }
-
+        
         // If entering or leaving orbit mode, the target will be swapped with the
         // camera. We need to face the opposite direction to correct for the change
         bool needs_view_flip = (mode == Mode.ORBIT || new_mode == Mode.ORBIT);
@@ -68,7 +65,7 @@ public class Camera {
     /// @param The camera to modify
     /// @param delta_time Time elapsed since the last call
     public void update(KeyboardState input, MouseState mouse, double delta_time) {
-        if (mouse.WasButtonDown(MouseButton.Middle)) {
+        if (mouse.WasButtonDown(MouseButton.Middle) && !mouse.IsButtonDown(MouseButton.Middle)) {
             set_mode((Mode)(((int)mode + 1) % (int)Mode.MODE_ENUM_MAX));
         }
 
@@ -105,7 +102,7 @@ public class Camera {
         orbit_angles = Quaternion.FromAxisAngle(camera_up, cursor_delta.X) * orbit_angles;
 
         radius -= scroll_delta.Y;
-        radius = Math.Clamp(0.05f, radius, 256.0f); // Don't allow <= 0 or really high zoom
+        radius = Math.Clamp(radius, 0.05f, 1024.0f); // Don't allow <= 0 or really high zoom
     }
 
     /// @brief Gets the unit direction vector the camera is looking
