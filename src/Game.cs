@@ -136,6 +136,7 @@ public class Game
             foreach (var record in buffers) {
                 string basename = Path.GetFileName(record.path);
                 yield return (basename.Replace(".sstera", ""), Sarc.FromBinary(record.buf));
+                record.buf.Dispose();
             }
 
         }

@@ -146,6 +146,7 @@ public class Lod
                             _grass[tileId.Unwrap()] = data.AsSpan().Cast<byte, GrassExtm>().ToArray();
                         }
                     }
+                    result.Unwrap().Dispose();
                 }
             }));
         }
@@ -173,6 +174,7 @@ public class Lod
                             _water[tileId.Unwrap()] = data.AsSpan().Cast<byte, WaterExtm>().ToArray();
                         }
                     }
+                    result.Unwrap().Dispose();
                 }
             }));
         }
