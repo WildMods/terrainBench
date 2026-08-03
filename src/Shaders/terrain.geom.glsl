@@ -14,7 +14,6 @@ out VertexData {
     float height;
     vec2 uv;
     vec2 posInTile;
-    flat int tileIdx;
 }outData;
 
 // Copied from vertex shader
@@ -44,23 +43,33 @@ float edge_func(vec2 v0, vec2 v1, vec2 p) {
     return determinant(mat2(p - v0, v1 - v0));
 }
 
-void main() {
-    int idx = inData[0].tileIdx;
+// Check if a vertex belongs to a low-res tile that should be culled to make
+// room for a higher-res one
+bool cull_by_coverage(int i) {
+    int idx = inData[i].tileIdx;
     int lod = idx >> 16;
     // Figure out this pixel's position within the level 8 tile grid
     int sizeofThisTile = (1 << (8 - lod));
     int index = idx & 0xFFFF;
     index <<= (2 * (8 - lod)); // Convert to index in the level 8 grid
-    vec2 lvl8Pos = (idxToGridPos(index) + ivec2(inData[0].posInTile.yx * sizeofThisTile)) / float(0xFF);
+    ivec2 lvl8Pos = (idxToGridPos(index) + ivec2(inData[i].posInTile.yx));
 
     // Don't draw this part of the tile if a higher-res tile has already been drawn here
     int lodBit = lod - 1;
-    int lodCoverage = int(texture(coverageTex, lvl8Pos).r * 255.0);
+    int lodCoverage = int(texelFetch(coverageTex, lvl8Pos, 0).r * 255.0);
     // If the value isn't 1 after shifting, that means a higher LOD bit is
     // present (i.e. there is a higher-quality tile available), and/or our LOD
     // bit is unset.
     if ((lodCoverage >> lodBit) != 1) {
-        return;
+        return true;
+    }
+    
+    return false;
+}
+
+void main() {
+    if (cull_by_coverage(0) && cull_by_coverage(1) && cull_by_coverage(2)) {
+        return; // Low-quality triangle, cull it.
     }
 
     // Use the edge function on the screen coordinates to do backface culling
@@ -68,18 +77,15 @@ void main() {
     vec4 v1 = gl_in[1].gl_Position;
     vec4 v2 = gl_in[2].gl_Position;
     if (edge_func(v1.xy / v1.w, v2.xy / v2.w, v0.xy / v0.w) > 0) {
-        // Face is seen from behind, cull it.
-        return;
+        return; // Face is seen from behind, cull it.
     }
 
     // Just emit the vertex as-is.
     for (int i = 0; i < 3; i++) {
         gl_Position = gl_in[i].gl_Position;
-        // outData = inData[i];
         outData.height = inData[i].height;
         outData.uv = inData[i].uv;
         outData.posInTile = inData[i].posInTile;
-        outData.tileIdx = inData[i].tileIdx;
         EmitVertex();
     }    
     EndPrimitive();

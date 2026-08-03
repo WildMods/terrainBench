@@ -20,23 +20,27 @@ out VertexData {
 void main() {
     // get patch coordinate
     outData.tileIdx = tileIndex[0];
-    outData.posInTile = gl_TessCoord.xy;
+
+    int idx = outData.tileIdx;
+    int lod = idx >> 16;
+    int sizeofThisTile = (1 << (8 - lod));
+    outData.posInTile = gl_TessCoord.xy * sizeofThisTile;
 
     ivec2 texelUV = ivec2(gl_TessCoord.yx * 255) + uvOffset[0];
     outData.uv = vec2(texelUV) / (256 * tilesPerTex);
     outData.height = texelFetch(heightTex, texelUV, 0).x;
 
-    vec4 p00 = gl_in[0].gl_Position;
-    vec4 p01 = gl_in[1].gl_Position;
-    vec4 p10 = gl_in[2].gl_Position;
-    vec4 p11 = gl_in[3].gl_Position;
+    vec3 p00 = gl_in[0].gl_Position.xyz;
+    vec3 p01 = gl_in[1].gl_Position.xyz;
+    vec3 p10 = gl_in[2].gl_Position.xyz;
+    vec3 p11 = gl_in[3].gl_Position.xyz;
 
     // Interpolate position across patch
-    vec4 p0 = (p01 - p00) * gl_TessCoord.x + p00;
-    vec4 p1 = (p11 - p10) * gl_TessCoord.x + p10;
-    vec4 p = (p1 - p0) * gl_TessCoord.y + p0;
+    vec3 p0 = (p01 - p00) * gl_TessCoord.x + p00;
+    vec3 p1 = (p11 - p10) * gl_TessCoord.x + p10;
+    vec3 p = (p1 - p0) * gl_TessCoord.y + p0;
 
     p.y += outData.height * 16;
 
-    gl_Position = matProjection * matView * matModel * vec4(p.xyz, 1);
+    gl_Position = matProjection * matView * matModel * vec4(p, 1);
 }
