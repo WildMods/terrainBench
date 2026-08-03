@@ -13,6 +13,10 @@ public static class Raycast {
     /// <returns>The grid position, and the exact collision point along the edge of the cell</returns>
     public static IEnumerable<(Vector2i cell, Vector2 uv)> Iterate2DLine(Vector2 start, Vector2 dir, float maxDist)
     {
+        // Algorithm adapted from John Amanatides & Andrew Woo, via Joel Schumacher:
+        // https://joelschumacher.de/posts/ray-casting-in-2d-grids
+        // http://www.cse.yorku.ca/~amana/research/grid.pdf
+        
         var startCell = (Vector2i)start;
         var uvOffset = start - startCell;
         if (dir == Vector2.Zero) {
@@ -22,7 +26,6 @@ public static class Raycast {
         
         var dirSign = new Vector2i(dir.X > 0 ? 1 : -1, dir.Y > 0 ? 1 : -1);
         var tileOffset = new Vector2i(dir.X > 0 ? 1 : 0, dir.Y > 0 ? 1 : 0);
-        var tileUVOffset = new Vector2i(dir.X < 0 ? 1 : 0, dir.Y < 0 ? 1 : 0);
         var tile = startCell;
 
         float t = 0;

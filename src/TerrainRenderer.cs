@@ -443,13 +443,14 @@ public struct TerrainRenderer {
 
     public bool GLInit(Cache.Cache cache) {
         var zone = Profiler.BeginZone("R_GLInit");
-        string vert = GetEmbeddedText("terrainBench.Shaders.quad.vert.glsl");
+        string vert = GetEmbeddedText("terrainBench.Shaders.terrain.vert.glsl");
         string tcs = GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
         string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
+        string geom = GetEmbeddedText("terrainBench.Shaders.terrain.geom.glsl");
         string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
 
         using (Profiler.BeginZone("R_ShaderCompile")) {
-            tessShader = new Shader(vert, tcs, tess, frag);
+            tessShader = new Shader(vert, tcs, tess, geom, frag);
         }
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
@@ -459,7 +460,7 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(bestLevels, cache, 16, 128, 128);
+        ring0 = new(lodCoverage, cache, 255, 128, 128);
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
@@ -622,7 +623,7 @@ public struct TerrainRenderer {
         return true;
     }
 
-    public void Render(Matrix4 projT, Matrix4 viewT) {
+    public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
         tessShader.Use();
         // Upload camera state
         tessShader.Uniform("matView")?.SetValue(viewT);
@@ -648,8 +649,9 @@ public struct TerrainRenderer {
         GL.BindTextureUnit(3, coverageTex);
         GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
 
-        var center = ZOrder.Interleave8To16(128, 128);
-        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, 16, center);
+        var eyeTile = (TerrainCoords.TileGrid8Pos)eyeWorld;
+        var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);
+        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, 32, center);
 
         GL.BindVertexArray(0);
     }

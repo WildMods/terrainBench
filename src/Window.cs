@@ -122,7 +122,7 @@ public class Window : GameWindow {
             GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
         }
 
-        terrain.Render(cam.proj_matrix(), cam.view_matrix());
+        terrain.Render(cam.proj_matrix(), cam.view_matrix(), new WorldPos(cam.eye()));
 
         using (Profiler.BeginZone("SwapBuffers")) {
             SwapBuffers();

@@ -17,9 +17,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Shaders/quad.vert.glsl" />
+        <EmbeddedResource Include="Shaders/terrain.vert.glsl" />
         <EmbeddedResource Include="Shaders/terrain.tcs.glsl" />
         <EmbeddedResource Include="Shaders/terrain.tess.glsl" />
+        <EmbeddedResource Include="Shaders/terrain.geom.glsl" />
         <EmbeddedResource Include="Shaders/terrain.frag.glsl" />
     </ItemGroup>
 
