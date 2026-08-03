@@ -349,7 +349,7 @@ public struct TerrainRenderer {
     public struct TileRegion {
         readonly List<CompactTileSheet> sheets = [];
 
-        public TileRegion(byte[] bestLevels, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+        public TileRegion(byte[] lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
             var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
@@ -368,7 +368,13 @@ public struct TerrainRenderer {
             for (UInt16 idx = minIdx; idx < maxIdx; idx++) {
                 ZOrder.Deinterleave16To8(idx, out var x, out var y);
                 var linearIdx = (HGHT_DIM * y + x);
-                var best = bestLevels[linearIdx];
+                var cov = lodCoverage[linearIdx];
+                byte best = ZOrder.MAX_LOD;
+                while ((cov & 0x80) == 0) {
+                    cov <<= 1;
+                    best--;
+                }
+                
                 var lvlDiff = ZOrder.MAX_LOD - best;
                 UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));
                 indices.Add(ZOrder.PackIndex(targetIdx, best));
@@ -412,7 +418,7 @@ public struct TerrainRenderer {
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     int terrainTexArray = 0;
     int coverageTex = 0;
-    byte[] bestLevels = new byte[HGHT_DIM * HGHT_DIM];
+    byte[] lodCoverage = new byte[HGHT_DIM * HGHT_DIM];
 
     TileRegion ring0;
 
@@ -448,9 +454,9 @@ public struct TerrainRenderer {
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
-        bestLevels = CreateCoverageTexture(cache);
+        lodCoverage = CreateCoverageTexture(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
-        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
+        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage);
 
         var loadWatch = Stopwatch.StartNew();
         ring0 = new(bestLevels, cache, 16, 128, 128);
@@ -489,7 +495,7 @@ public struct TerrainRenderer {
         var zone = Profiler.BeginZone("R_CreateCoverageTexture");
         byte[] buf = new byte[HGHT_DIM * HGHT_DIM];
         
-        for (sbyte lvl = 8; lvl >= 0; lvl--) {
+        for (sbyte lvl = 8; lvl > 0; lvl--) {
             byte lvlDiff = (byte)(ZOrder.MAX_LOD - lvl);
             UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
             int sizeofLevel = (int)((1 << lvl) * (1 << lvl));
@@ -507,14 +513,17 @@ public struct TerrainRenderer {
 
                 // Find the index of this tile's starting point on the level 8 grid
                 UInt16 lvl8Idx = (UInt16)(idx << (2 * lvlDiff));
+                byte val = (byte)(1 << (lvl - 1));
                 for (int i = 0; i < drawSize; i++) {
                     int targetPos = lvl8Idx + i;
                     ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
                     int linearIdx = HGHT_DIM * y + x;
-                    if (buf[linearIdx] < lvl) {
-                        buf[linearIdx] = (byte)lvl;
-                        tilesWritten++;
-                    }
+
+                    // We have 8 bits and 9 detail levels, so exclude level 0.
+                    Debug.Assert(lvl > 0);
+                    // MSB = level 8, LSB = level 1.
+                    buf[linearIdx] |= val;
+                    tilesWritten++;
                 }
             }
             Console.WriteLine("Found {0}/{1} level {2} tiles, covering {3} level 8 tiles", tilesFound, sizeofLevel, lvl, tilesWritten);

@@ -38,13 +38,17 @@ void main() {
     vec2 lvl8Pos = (idxToGridPos(index) + ivec2(posInTile.yx * sizeofThisTile)) / float(0xFF);
 
     // Don't draw this part of the tile if a higher-res tile has already been drawn here
-    int bestLod = int(texture(coverageTex, lvl8Pos).r * 255.0);
-    if (bestLod != lod) {
+    int lodBit = lod - 1;
+    int lodCoverage = int(texture(coverageTex, lvl8Pos).r * 255.0);
+    // If the value isn't 1 after shifting, that means a higher LOD bit is
+    // present (i.e. there is a higher-quality tile available), and/or our LOD
+    // bit is unset.
+    if ((lodCoverage >> lodBit) != 1) {
         discard;
         finalColor = vec4(1, 0, 0, 1);
         return;
     }
-
+    
     vec4 material = texture(matTex, uv);
     ivec2 indices = ivec2(material.xy * 256);
     float unknown = material.w;
