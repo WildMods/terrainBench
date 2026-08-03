@@ -1,7 +1,10 @@
+using CommunityToolkit.HighPerformance;
 using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
+using static terrainBench.TerrainCoords;
 
 namespace terrainBench;
 using System.Diagnostics;
@@ -58,6 +61,55 @@ public class Window : GameWindow {
     protected override void OnUpdateFrame(FrameEventArgs e) {
         if (KeyboardState.IsKeyDown(Keys.Escape)) {
             Close();
+        }
+
+        int MAX_EDIT_RANGE = 32;
+        if (KeyboardState.IsKeyDown(Keys.U)) {
+            var editRangeWorld = ((WorldPos)new TileGrid8Pos(new Vector3(MAX_EDIT_RANGE))).x;
+            
+            WorldPos eyeWorld = new(cam.eye());
+            TileGrid8Pos eyeTile = eyeWorld;
+            
+            var hght = new UInt16[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
+            var source = new Vector2i((int)eyeTile.x, (int)eyeTile.z);
+            var dir = cam.facing().Xz;
+            foreach (var (cell, uv) in Raycast.Iterate2DLine(source, dir, MAX_EDIT_RANGE)) {
+                if (cell.X >= ZOrder.GRID_SIZE || cell.Y >= ZOrder.GRID_SIZE) {
+                    break;
+                }
+                if (cell.X < 0 || cell.Y < 0) {
+                    break;
+                }
+                
+                var idx = ZOrder.Interleave8To16((byte)cell.X, (byte)cell.Y);
+                var tileRes = cache.GetHeightmapTile(8, idx, false);
+                if (tileRes.IsErr()) {
+                    continue;
+                }
+                var tile = tileRes.Unwrap();
+                var startPixel = (Vector2i)(uv * new Vector2(255));
+                var prevPix = startPixel;
+                foreach (var (pixel, subpixel) in Raycast.Iterate2DLine(startPixel, dir, Single.PositiveInfinity))
+                {
+                    if (pixel.X >= ZOrder.GRID_SIZE || pixel.Y >= ZOrder.GRID_SIZE) {
+                        break;
+                    }
+                    if (pixel.X < 0 || pixel.Y < 0) {
+                        break;
+                    }
+
+                    var dist = pixel - prevPix;
+                    if (dist.EuclideanLength > 1.0f) {
+                        Console.WriteLine("Jumped from {0} -> {1}", prevPix, pixel);
+                    }
+                    
+                    int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
+                    tile[linearIdx] = UInt16.MaxValue;
+                    prevPix = pixel;
+                }
+                
+                terrain.ScheduleTileUpdate(idx, 8, tile.AsSpan().AsBytes(), LodComponent.hght);
+            }
         }
         cam.update(KeyboardState, MouseState, e.Time);
 

@@ -18,9 +18,10 @@ public class Camera {
 
     Vector3 pos = new Vector3(0, 200, 0); // Position of the viewer
     Quaternion orbit_angles = Quaternion.Identity;
-    float radius = 30.0f;
-    float move_speed = 100.0f;
+    public float radius = 30.0f;
+    float move_speed = 500.0f;
     float mouse_sens = 0.015f;
+    private float zoom_sense = 10.0f;
 
     // Projection settings
     float fov_angle = DegreesToRadians(70.0f);
@@ -101,8 +102,8 @@ public class Camera {
         orbit_angles = Quaternion.FromAxisAngle(cam_side, cursor_delta.Y) * orbit_angles;
         orbit_angles = Quaternion.FromAxisAngle(camera_up, cursor_delta.X) * orbit_angles;
 
-        radius -= scroll_delta.Y;
-        radius = Math.Clamp(radius, 0.05f, 1024.0f); // Don't allow <= 0 or really high zoom
+        radius -= scroll_delta.Y * zoom_sense;
+        radius = Math.Clamp(radius, 0.05f, 8192.0f); // Don't allow <= 0 or really high zoom
     }
 
     /// @brief Gets the unit direction vector the camera is looking
