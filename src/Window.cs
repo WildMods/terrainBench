@@ -64,6 +64,21 @@ public class Window : GameWindow {
         }
 
         int MAX_EDIT_RANGE = 32;
+        if (KeyboardState.IsKeyDown(Keys.R)) {
+            WorldPos eyeWorld = new(cam.eye());
+            TileGrid8Pos eyeTile = eyeWorld;
+            eyeTile.y = eyeWorld.y;
+            var r = Raycast.RaycastTerrain(cache, eyeTile, cam.facing(), MAX_EDIT_RANGE);
+            if (r.IsOk()) {
+                var pp = r.Unwrap();
+                TileGrid8Pos tilePos = pp;
+                
+                var hght = new UInt16[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
+                var idx = ZOrder.Interleave8To16((byte)tilePos.x, (byte)tilePos.z);
+                terrain.ScheduleTileUpdate(idx, 8, hght.AsSpan().AsBytes(), LodComponent.hght);
+            }
+        }
+        
         if (KeyboardState.IsKeyDown(Keys.U)) {
             var editRangeWorld = ((WorldPos)new TileGrid8Pos(new Vector3(MAX_EDIT_RANGE))).x;
             
