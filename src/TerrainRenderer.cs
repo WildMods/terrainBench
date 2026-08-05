@@ -54,6 +54,8 @@ public struct TerrainRenderer {
                 return; // No change needed
             }
             
+            var z = Profiler.BeginZone("MapPBOs");
+            z.EmitText(mapState.ToString());
             if (mapState) {
                 hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
                 mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
@@ -64,6 +66,7 @@ public struct TerrainRenderer {
                 mateBuf = 0;
             }
             mapped = mapState;
+            z.Dispose();
         }
         
         /// <summary>
@@ -93,6 +96,8 @@ public struct TerrainRenderer {
             if (buf == 0 || pixelSize < 2) {
                 return false;
             }
+
+            var z = Profiler.BeginZone("UpdatePBOTile");
             int linearIdx = GetLinearIndex(posInTexture) * pixelSize;
             
             // Copy 1 row of data at a time
@@ -113,6 +118,7 @@ public struct TerrainRenderer {
                 }
             }
             
+            z.Dispose();
             return true;
         }
 
@@ -121,10 +127,15 @@ public struct TerrainRenderer {
         /// Update a rendered tile.
         /// The render thread streams tiles to the GPU at the start of each frame.
         /// </summary>
-        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type)
+        {
+            var z = Profiler.BeginZone("ScheduleTileUpdate");
+            var z2 = Profiler.BeginZone("ScheduleTileUpdateFindIdx");
             Int32 packed = ZOrder.PackIndex(idx, lod);
-            var pos = indices.FindIndex(0, indices.Count, val => val == packed);
+            var pos = indices.FindIndex(0, indices.Count, v => v == packed);
+            z2.Dispose();
             if (pos < 0) {
+                z.Dispose();
                 return false;
             }
 
@@ -152,6 +163,7 @@ public struct TerrainRenderer {
 
             updateList.Add(pos);
             UpdatePBOTile(pos, data, buf, pixelSize);
+            z.Dispose();
             pboMapLock.ReleaseMutex();
             return true;
         }
@@ -161,9 +173,11 @@ public struct TerrainRenderer {
         /// </summary>
         public void ProcessTileUpdates() {
             pboMapLock.WaitOne(); // Make sure no one is using the mapped region
+            var z = Profiler.BeginZone("ProcessTileUpdates");
             bool hghtDirty = hghtUpdates.Count > 0;
             bool mateDirty = mateUpdates.Count > 0;
             if (!hghtDirty && mateDirty) {
+                z.Dispose();
                 pboMapLock.ReleaseMutex();
                 return; // Nothing to do.
             }
@@ -224,6 +238,7 @@ public struct TerrainRenderer {
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
             GL.BindTexture(TextureTarget.Texture2D, 0);
             MapPBOs(true); // Allow updates again
+            z.Dispose();
             pboMapLock.ReleaseMutex();
         }
         
