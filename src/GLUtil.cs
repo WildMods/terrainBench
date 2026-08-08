@@ -13,4 +13,12 @@ public static class GLUtil {
         return buf;
     }
 
+    public static string GetEmbeddedText(string name) {
+        var asm = typeof(GLUtil).Assembly;
+        Stream? vertStream = asm.GetManifestResourceStream(name);
+        if (vertStream == null) {
+            return $"#error Unable to load embedded text '{name}'";
+        }
+        return new StreamReader(vertStream).ReadToEnd();
+    }
 }

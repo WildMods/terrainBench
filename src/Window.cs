@@ -14,7 +14,8 @@ public class Window : GameWindow {
     Game game;
     Camera cam = new Camera();
     Cache.Cache cache = new();
-    TerrainRenderer terrain = new TerrainRenderer();
+    TerrainRenderer terrain = new();
+    BrushRenderer brush = new();
 
     // A simple constructor to let us set properties like window size, title, FPS, etc. on the window.
     public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings, Game game)
@@ -42,6 +43,7 @@ public class Window : GameWindow {
         }
         using (Profiler.BeginZone("R_GLInit"))
         {
+            brush.GLInit();
             terrain.GLInit(cache);
         }
 
@@ -68,14 +70,16 @@ public class Window : GameWindow {
             WorldPos eyeWorld = new(cam.eye());
             TileGrid8Pos eyeTile = eyeWorld;
             eyeTile.y = eyeWorld.y;
-            var r = Raycast.RaycastTerrain(cache, eyeTile, cam.facing(), MAX_EDIT_RANGE);
+            var dir = cam.facing();
+            dir.Z = -dir.Z;
+            var r = Raycast.RaycastTerrain(cache, eyeTile, cam.facing().Xzy, MAX_EDIT_RANGE);
             if (r.IsOk()) {
                 var pp = r.Unwrap();
                 TileGrid8Pos tilePos = pp;
-                
-                var hght = new UInt16[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
-                var idx = ZOrder.Interleave8To16((byte)tilePos.x, (byte)tilePos.z);
-                terrain.ScheduleTileUpdate(idx, 8, hght.AsSpan().AsBytes(), LodComponent.hght);
+
+                WorldPos wp = pp;
+                wp.y += 16f;
+                brush.modelT = Matrix4.CreateTranslation(wp);
             }
         }
         
@@ -137,7 +141,10 @@ public class Window : GameWindow {
             GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
         }
 
-        terrain.Render(cam.proj_matrix(), cam.view_matrix(), new WorldPos(cam.eye()));
+        var projT = cam.proj_matrix();
+        var viewT = cam.view_matrix();
+        terrain.Render(projT, viewT, new WorldPos(cam.eye()));
+        brush.Draw(projT, viewT);
 
         using (Profiler.BeginZone("SwapBuffers")) {
             SwapBuffers();

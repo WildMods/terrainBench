@@ -356,13 +356,20 @@ public struct TerrainRenderer {
             GL.Uniform1(indicesLocation, temp.Length, temp);
             GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, temp.Length);
         }
+
+        public void GLUninit() {
+            GL.DeleteBuffer(pboHght);
+            GL.DeleteBuffer(pboMate);
+            GL.DeleteTexture(hghtTex);
+            GL.DeleteTexture(mateTex);
+        }
     }
 
     /// <summary>
     /// A region of tiles backed by potentially many atlases
     /// </summary>
     public struct TileRegion {
-        readonly List<CompactTileSheet> sheets = [];
+        public readonly List<CompactTileSheet> sheets = [];
 
         public TileRegion(byte[] lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
@@ -447,19 +454,10 @@ public struct TerrainRenderer {
     
     public TerrainRenderer() { }
 
-    private readonly string GetEmbeddedText(string name) {
-        var asm = typeof(TerrainRenderer).Assembly;
-        Stream? vertStream = asm.GetManifestResourceStream(name);
-        if (vertStream == null) {
-            return $"#error Unable to load embedded text '{name}'";
-        }
-        return new StreamReader(vertStream).ReadToEnd();
-    }
-
     public bool GLInit(Cache.Cache cache) {
         var zone = Profiler.BeginZone("R_GLInit");
         string vert = GetEmbeddedText("terrainBench.Shaders.terrain.vert.glsl");
-        string tcs = GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
+        string tcs =  GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
         string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
         string geom = GetEmbeddedText("terrainBench.Shaders.terrain.geom.glsl");
         string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
@@ -481,6 +479,16 @@ public struct TerrainRenderer {
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
         zone.Dispose();
         return true;
+    }
+
+    public void GLUninit() {
+        foreach (var s in ring0.sheets) {
+            s.GLUninit();
+        }
+        GL.DeleteTexture(coverageTex);
+        GL.DeleteTexture(terrainTexArray);
+        GL.DeleteVertexArray(vaoBlank);
+        tessShader.Dispose();
     }
 
     // Create a square GL texture
