@@ -28,12 +28,12 @@ public static class TerrainCoords {
         }
 
         public static implicit operator WorldPos(TileGrid8Pos p) {
-            var wp = FromTileGridXform() * new Vector4(p, 1);
+            var wp = FromTileGridXform().Transposed() * new Vector4(p, 1);
             return new(wp.Xyz);
         }
         
         public static implicit operator TileGrid8Pos(WorldPos wp) {
-            var tp = wp + new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
+            Vector3 tp = wp + new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
             tp *= ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
             return new(tp);
         }
@@ -49,10 +49,10 @@ public static class TerrainCoords {
     public class TileGrid8Pos(Vector3 position) : Vec3Base(position) {
         public static implicit operator Vector3(TileGrid8Pos p) => p.position;
         public static implicit operator PixelGrid8Pos(TileGrid8Pos p) {
-            return new((Vector3)p * 256);
+            return new(new Vector3(p.x * 256, p.y, p.z * 256));
         }
         public static implicit operator TileGrid8Pos(PixelGrid8Pos p) {
-            return new((Vector3)p / 256);
+            return new(new Vector3(p.x / 256, p.y, p.z / 256));
         }
     }
     

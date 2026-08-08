@@ -86,15 +86,18 @@ public static class Raycast {
                 }
 
                 var tp = new TileGrid8Pos(new Vector3(cell.X, 0, cell.Y));
-                var pp = (PixelGrid8Pos)tp + new PixelGrid8Pos(new Vector3(pixel));
+                PixelGrid8Pos pp = new(new Vector3(pixel.X, 0, pixel.Y));
+                pp += tp;
+                
                 var pixelDist = pp - startPos;
                 pixelDist.y = 0;
                 var worldDist = (WorldPos)pixelDist;
-                float t = (worldDist / dir).Length;
-                float rayHeight = (startPos + dir * t).Y;
+                float t = ((Vector3)worldDist).Length / Vector3.Dot(Vector3.Normalize(worldDist), dir);
+                float rayHeight = startPos.y + dir.Y * t;
                 
                 int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
                 var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * 16;
+                pp.y = normalizedHeight;
                 if (normalizedHeight >= rayHeight) {
                     return pp; // Ray has gone under the terrain, it's a hit
                 }
