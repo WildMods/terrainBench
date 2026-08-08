@@ -61,7 +61,9 @@ public static class Raycast {
     public static Result<PixelGrid8Pos, ErrorStack> RaycastTerrain(Cache.Cache cache, TileGrid8Pos startPos, Vector3 dir, float rangeTiles)
     {
         var source = new Vector2(startPos.x, startPos.z);
-        foreach (var (cell, uv) in Iterate2DLine(source, dir.Xz, rangeTiles))
+        Vector2 tileDir = ((Vector3)new WorldPos(dir).ToTileDir()).Xz.Normalized();
+        Vector2 pixelDir = ((Vector3)new(tileDir)).Xz.Normalized();
+        foreach (var (cell, uv) in Iterate2DLine(source, tileDir, rangeTiles))
         {
             // Bounds check
             bool oobHigh = (cell.X >= ZOrder.GRID_SIZE || cell.Y >= ZOrder.GRID_SIZE);
@@ -77,7 +79,7 @@ public static class Raycast {
             }
             var tile = tileRes.Unwrap();
             var startPixel = (Vector2i)(uv * new Vector2(255));
-            foreach (var (pixel, subpixel) in Raycast.Iterate2DLine(startPixel, dir.Xz, Single.PositiveInfinity))
+            foreach (var (pixel, subpixel) in Raycast.Iterate2DLine(startPixel, pixelDir, Single.PositiveInfinity))
             {
                 bool oobHighPixel = (pixel.X >= ZOrder.GRID_SIZE || pixel.Y >= ZOrder.GRID_SIZE);
                 bool oobLowPixel = (pixel.X < 0 || pixel.Y < 0);
@@ -89,10 +91,8 @@ public static class Raycast {
                 PixelGrid8Pos pp = new(new Vector3(pixel.X, 0, pixel.Y));
                 pp += tp;
                 
-                var pixelDist = pp - startPos;
-                pixelDist.y = 0;
-                var worldDist = (WorldPos)pixelDist;
-                float t = ((Vector3)worldDist).Length / Vector3.Dot(Vector3.Normalize(worldDist), dir);
+                var pixelDist = ((Vector3)(pp - startPos)).Xz; // Make sure only 2D is considered
+                float t = pixelDist.Length / Vector2.Dot(Vector2.Normalize(pixelDist), pixelDir);
                 float rayHeight = startPos.y + dir.Y * t;
                 
                 int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;

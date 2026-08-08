@@ -72,7 +72,7 @@ public class Window : GameWindow {
             eyeTile.y = eyeWorld.y;
             var dir = cam.facing();
             dir.Z = -dir.Z;
-            var r = Raycast.RaycastTerrain(cache, eyeTile, cam.facing().Xzy, MAX_EDIT_RANGE);
+            var r = Raycast.RaycastTerrain(cache, eyeTile, cam.facing(), MAX_EDIT_RANGE);
             if (r.IsOk()) {
                 var pp = r.Unwrap();
                 TileGrid8Pos tilePos = pp;

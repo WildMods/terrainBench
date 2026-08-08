@@ -44,6 +44,15 @@ public static class TerrainCoords {
         public static WorldPos operator-(WorldPos p1, WorldPos p2) {
             return new(p1.position - p2.position);
         }
+
+        /// <summary>
+        /// Convert a world space direction to a tile space one.
+        /// Only use this with direction vectors, not positions.
+        /// </summary>
+        public TileGrid8Pos ToTileDir() {
+            const float mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            return new(new Vector3(position.X * mult, position.Y, position.Z * mult));
+        }
     }
 
     public class TileGrid8Pos(Vector3 position) : Vec3Base(position) {
