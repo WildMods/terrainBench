@@ -199,4 +199,11 @@ public class Cache
     {
         return Err(new ErrorStack("Not implemented", new NotImplementedException()));
     }
+
+    public void WriteAllTiles(string basePath, bool dirty, CsOead.Endianness endian, string fieldName = "MainField") {
+        foreach (var lvl in _lods)
+        {
+            lvl.WriteAllTiles(basePath, dirty, endian, fieldName);
+        }
+    }
 }

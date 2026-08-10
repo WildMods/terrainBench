@@ -1,4 +1,5 @@
 using CommunityToolkit.HighPerformance;
+using CsOead;
 using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -126,6 +127,11 @@ public class Window : GameWindow {
                 terrain.ScheduleTileUpdate(idx, 8, tile.AsSpan().AsBytes(), LodComponent.hght);
             }
         }
+
+        if (KeyboardState.IsKeyDown(Keys.S) && KeyboardState.IsKeyDown(Keys.LeftControl)) {
+            cache.WriteAllTiles(".", false, Endianness.Big);
+        }
+
         cam.update(KeyboardState, MouseState, e.Time);
 
         base.OnUpdateFrame(e);

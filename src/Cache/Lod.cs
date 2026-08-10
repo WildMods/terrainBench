@@ -264,7 +264,7 @@ public class Lod
     /// Yaz0, and this just gives the uncompressed SARC.
     /// </summary>
     /// <param name="sarcName">The filename that the compressed SARC should have (file extension ending in ".sstera")</param>
-    public Result<Sarc, ErrorStack> BuildSTERA(UInt16 idx, LodComponent type, out string sarcName) {
+    public Result<CsOead.Sarc, ErrorStack> BuildSTERA(UInt16 idx, LodComponent type, out string sarcName) {
         string ext = type switch {
             LodComponent.hght => "hght",
             LodComponent.mate => "mate",
@@ -272,7 +272,7 @@ public class Lod
             LodComponent.water => "water.extm",
             _ => "",
         };
-        string invalidEnumMsg = $"Invalid enum value ${(int)type} given for terrain data type";
+        string invalidEnumMsg = $"Invalid enum value {(int)type} given for terrain data type";
         if (ext == "") {
             sarcName = "";
             return Err(new ErrorStack(invalidEnumMsg));
@@ -280,7 +280,7 @@ public class Lod
 
         // SSTERAs must start at a multiple of 4, so round down
         idx = ZOrder.RoundToSSTERAIdx(idx);
-        sarcName = ZOrder.BuildFilename(idx, _level, $"${ext}.sstera");
+        sarcName = ZOrder.BuildFilename(idx, _level, $"{ext}.sstera");
 
         // Try to add the 4 tiles within this SSTERA (some may be missing)
         var sarc = new CsOead.Sarc();
@@ -334,5 +334,41 @@ public class Lod
         }
 
         return sarc;
+    }
+
+    public void WriteAllTiles(string basePath, bool dirty, Endianness endian, string fieldName = "MainField")
+    {
+        var hghts = dirty ? _dirtyHghts : _hghts;
+        var mates = dirty ? _dirtyMates : _mates;
+        var grasses = dirty ? _dirtyGrass : _grass;
+        var waters = dirty ? _dirtyWater : _water;
+        var tileFolder = Path.Combine(basePath, "Terrain/A", fieldName);
+        Directory.CreateDirectory(tileFolder);
+
+        ConcurrentDictionary<ushort, bool> foundHghts = new();
+        Parallel.ForEach(hghts.Keys, idx => {
+            if (foundHghts.ContainsKey(idx)) {
+                return; // Already written
+            }
+            
+            var sarcRes = BuildSTERA(idx, LodComponent.hght, out var name);
+            if (sarcRes.IsErr()) {
+                return;
+            }
+            var sarc = sarcRes.Unwrap();
+            
+            var baseIdx = ZOrder.RoundToSSTERAIdx(idx);
+            for (var i = baseIdx; i < baseIdx + 4; i++) {
+                foundHghts[i] = true;
+            }
+
+            var sarcPath = Path.Combine(tileFolder, name);
+            var data = sarc.ToBinary(endian);
+            var compressedData = Yaz0.Compress(data);
+            data.Dispose();
+            File.WriteAllBytes(sarcPath, compressedData);
+            compressedData.Dispose();
+            Console.WriteLine("Saved '{0}'", name);
+        });
     }
 }
