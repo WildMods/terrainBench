@@ -19,15 +19,15 @@ public class BrushRenderer {
     }
 
     public void Draw(Matrix4 projT, Matrix4 viewT) {
-        var res = 8;
-        float radius = 10.0f;
+        const int res = 32;
+        const float radius = 10.0f;
         shader.Uniform("resolution")?.SetValue(res);
         shader.Uniform("radius")?.SetValue(radius);
         
         shader.Uniform("projT")?.SetValue(projT);
         shader.Uniform("viewT")?.SetValue(viewT);
         shader.Uniform("modelT")?.SetValue(modelT);
-
+        
         GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
         shader.Use();
         GL.DrawArrays(PrimitiveType.LineStrip, 0, res + 1);
