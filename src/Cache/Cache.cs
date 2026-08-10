@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OperationResult;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
@@ -200,10 +201,16 @@ public class Cache
         return Err(new ErrorStack("Not implemented", new NotImplementedException()));
     }
 
-    public void WriteAllTiles(string basePath, bool dirty, CsOead.Endianness endian, string fieldName = "MainField") {
-        foreach (var lvl in _lods)
-        {
+    public void WriteAllTiles(string basePath, bool dirty, CsOead.Endianness endian, string fieldName = "MainField")
+    {
+        var timer = Stopwatch.StartNew();
+        for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
+            var lvl = _lods[i];
             lvl.WriteAllTiles(basePath, dirty, endian, fieldName);
+            Console.WriteLine("Saved level {0}", i);
         }
+
+        timer.Stop();
+        Console.WriteLine("Finished saving all tiles in {0}ms.", timer.ElapsedMilliseconds);
     }
 }

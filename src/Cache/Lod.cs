@@ -346,6 +346,7 @@ public class Lod
         Directory.CreateDirectory(tileFolder);
 
         ConcurrentDictionary<ushort, bool> foundHghts = new();
+        ConcurrentDictionary<ushort, bool> foundMates = new();
         Parallel.ForEach(hghts.Keys, idx => {
             if (foundHghts.ContainsKey(idx)) {
                 return; // Already written
@@ -355,20 +356,39 @@ public class Lod
             if (sarcRes.IsErr()) {
                 return;
             }
-            var sarc = sarcRes.Unwrap();
             
             var baseIdx = ZOrder.RoundToSSTERAIdx(idx);
             for (var i = baseIdx; i < baseIdx + 4; i++) {
                 foundHghts[i] = true;
             }
 
-            var sarcPath = Path.Combine(tileFolder, name);
-            var data = sarc.ToBinary(endian);
+            var data = sarcRes.Unwrap().ToBinary(endian);
             var compressedData = Yaz0.Compress(data);
             data.Dispose();
-            File.WriteAllBytes(sarcPath, compressedData);
+            File.WriteAllBytes(Path.Combine(tileFolder, name), compressedData);
             compressedData.Dispose();
-            Console.WriteLine("Saved '{0}'", name);
+        });
+        
+        Parallel.ForEach(mates.Keys, idx => {
+            if (foundMates.ContainsKey(idx)) {
+                return; // Already written
+            }
+            
+            var sarcRes = BuildSTERA(idx, LodComponent.mate, out var name);
+            if (sarcRes.IsErr()) {
+                return;
+            }
+            
+            var baseIdx = ZOrder.RoundToSSTERAIdx(idx);
+            for (var i = baseIdx; i < baseIdx + 4; i++) {
+                foundMates[i] = true;
+            }
+
+            var data = sarcRes.Unwrap().ToBinary(endian);
+            var compressedData = Yaz0.Compress(data);
+            data.Dispose();
+            File.WriteAllBytes(Path.Combine(tileFolder, name), compressedData);
+            compressedData.Dispose();
         });
     }
 }
