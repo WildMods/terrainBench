@@ -73,8 +73,6 @@ public class Window : GameWindow {
             var r = Raycast.RaycastTerrain(cache, eyeTile, dir, MAX_EDIT_RANGE);
             if (r.IsOk()) {
                 var pp = r.Unwrap();
-                TileGrid8Pos tilePos = pp;
-
                 WorldPos wp = pp;
                 wp.y += 8f;
                 brush.modelT = Matrix4.CreateTranslation(wp);

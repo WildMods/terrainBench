@@ -64,7 +64,7 @@ public static class Raycast {
         WorldPos worldDir = new(dir);
         Vector2 tileDir = worldDir.ToTileDir().xz.Normalized();
         Vector2 pixelDir = new PixelGrid8Pos(new Vector3(tileDir.X, 0, tileDir.Y)).xz.Normalized();
-        foreach (var (cell, uv) in Iterate2DLine(source, tileDir, rangeTiles))
+        foreach (var (cell, uvInitial) in Iterate2DLine(source, tileDir, rangeTiles))
         {
             // Bounds check
             bool oobHigh = (cell.X >= ZOrder.GRID_SIZE || cell.Y >= ZOrder.GRID_SIZE);
@@ -72,15 +72,33 @@ public static class Raycast {
             if  (oobHigh || oobLow) {
                 break;
             }
-                
+
+            // TODO: Get coverage info from caller to find the best tile in 1 attempt.
+            int lod = 0;
+            var uv = uvInitial;
             var idx = ZOrder.Interleave8To16((byte)cell.X, (byte)cell.Y);
-            var tileRes = cache.GetHeightmapTile(8, idx, false);
-            if (tileRes.IsErr()) {
-                continue; // There's no tile to hit here
+            Result<ushort[], ErrorStack> tileRes = Err(new ErrorStack(""));
+            for (int i = ZOrder.MAX_LOD; i >= 0; i--) {
+                tileRes = cache.GetHeightmapTile(i, idx, false);
+                if (tileRes.IsOk()) {
+                    lod = i;
+                    break; // Found one!
+                }
+
+                // Convert coordinates to the lower LOD level
+                idx >>= 2;
+                uv /= 2;
             }
+            int lodDiff = ZOrder.MAX_LOD - lod;
+
+            if (tileRes.IsErr()) {
+                continue; // Didn't find anything...
+            }
+            
             var tile = tileRes.Unwrap();
+            var tp = new TileGrid8Pos(new Vector3(cell.X, 0, cell.Y));
             var startPixel = (Vector2i)(uv * new Vector2(255));
-            foreach (var (pixel, subpixel) in Raycast.Iterate2DLine(startPixel, pixelDir, Single.PositiveInfinity))
+            foreach (var (pixel, subpixel) in Iterate2DLine(startPixel, pixelDir, Single.PositiveInfinity))
             {
                 bool oobHighPixel = (pixel.X >= ZOrder.GRID_SIZE || pixel.Y >= ZOrder.GRID_SIZE);
                 bool oobLowPixel = (pixel.X < 0 || pixel.Y < 0);
@@ -89,9 +107,9 @@ public static class Raycast {
                 }
                 int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
                 var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * WorldPos.WORLD_HEIGHT;
+                var pixel8 = pixel * 2 * lodDiff;
 
-                var tp = new TileGrid8Pos(new Vector3(cell.X, 0, cell.Y));
-                PixelGrid8Pos pp = new(new Vector3(pixel.X, 0, pixel.Y));
+                PixelGrid8Pos pp = new(new Vector3(pixel8.X, 0, pixel8.Y));
                 WorldPos wp = pp + tp;
                 
                 var worldDist = ((Vector3)(wp - startPos)).Xz; // Make sure only 2D is considered

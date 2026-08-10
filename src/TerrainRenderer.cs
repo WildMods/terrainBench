@@ -473,7 +473,7 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(lodCoverage, cache, 255, 128, 128);
+        ring0 = new(lodCoverage, cache, 32, 128, 128);
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
