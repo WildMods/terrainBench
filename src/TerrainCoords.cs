@@ -11,6 +11,10 @@ public static class TerrainCoords {
     // tile_size = 32 and world_scale = 500.
     // Plugging into the equation on the wiki:
     //    (32 / 32 * 500) * 20 = 10000
+    // BEWARE! The terrain coordinate space has a very similar size and nearby
+    // origin to the world space used for the map, but they aren't the same.
+    // Map space is 10km x 8km, while terrain space is 10,000^2 but covering a
+    // larger area than the map.
     public const int WORLD_SIZE = 10000;
     public const float TILE_TO_WORLD_HEIGHT = WORLD_SIZE / (float)ZOrder.GRID_SIZE;
     // Taken from the vanilla TSCB header
