@@ -69,16 +69,14 @@ public class Window : GameWindow {
         if (KeyboardState.IsKeyDown(Keys.R)) {
             WorldPos eyeWorld = new(cam.eye());
             TileGrid8Pos eyeTile = eyeWorld;
-            eyeTile.y = eyeWorld.y;
             var dir = cam.facing();
-            dir.Z = -dir.Z;
-            var r = Raycast.RaycastTerrain(cache, eyeTile, cam.facing(), MAX_EDIT_RANGE);
+            var r = Raycast.RaycastTerrain(cache, eyeTile, dir, MAX_EDIT_RANGE);
             if (r.IsOk()) {
                 var pp = r.Unwrap();
                 TileGrid8Pos tilePos = pp;
 
                 WorldPos wp = pp;
-                wp.y += 16f;
+                wp.y += 8f;
                 brush.modelT = Matrix4.CreateTranslation(wp);
             }
         }

@@ -22,7 +22,7 @@ public static class Raycast {
         // http://www.cse.yorku.ca/~amana/research/grid.pdf
         
         var startCell = (Vector2i)start;
-        var uvOffset = start - startCell;
+        Vector2 uvOffset = start - startCell;
         if (dir == Vector2.Zero) {
             yield return (startCell, uvOffset.Yx);
             z.Dispose();
@@ -37,7 +37,7 @@ public static class Raycast {
         var dt = (tile + tileOffset - startCell) / dir;
         while (t <= maxDist)
         {
-            Vector2 uv = (t * dir * dirSign) + uvOffset;
+            Vector2 uv = t * dir * dirSign;
             uv -= uv.Truncate(); // Get only the fractional part, i.e. the
                                  // offset within the tile we hit.
             yield return (tile, uv);
@@ -61,8 +61,9 @@ public static class Raycast {
     public static Result<PixelGrid8Pos, ErrorStack> RaycastTerrain(Cache.Cache cache, TileGrid8Pos startPos, Vector3 dir, float rangeTiles)
     {
         var source = new Vector2(startPos.x, startPos.z);
-        Vector2 tileDir = ((Vector3)new WorldPos(dir).ToTileDir()).Xz.Normalized();
-        Vector2 pixelDir = ((Vector3)new(tileDir)).Xz.Normalized();
+        WorldPos worldDir = new(dir);
+        Vector2 tileDir = worldDir.ToTileDir().xz.Normalized();
+        Vector2 pixelDir = new PixelGrid8Pos(new Vector3(tileDir.X, 0, tileDir.Y)).xz.Normalized();
         foreach (var (cell, uv) in Iterate2DLine(source, tileDir, rangeTiles))
         {
             // Bounds check
@@ -86,20 +87,21 @@ public static class Raycast {
                 if (oobHighPixel || oobLowPixel) {
                     break;
                 }
+                int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
+                var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * WorldPos.WORLD_HEIGHT;
 
                 var tp = new TileGrid8Pos(new Vector3(cell.X, 0, cell.Y));
                 PixelGrid8Pos pp = new(new Vector3(pixel.X, 0, pixel.Y));
-                pp += tp;
+                WorldPos wp = pp + tp;
                 
-                var pixelDist = ((Vector3)(pp - startPos)).Xz; // Make sure only 2D is considered
-                float t = pixelDist.Length / Vector2.Dot(Vector2.Normalize(pixelDist), pixelDir);
-                float rayHeight = startPos.y + dir.Y * t;
+                var worldDist = ((Vector3)(wp - startPos)).Xz; // Make sure only 2D is considered
+                float t = worldDist.Length / Vector2.Dot(Vector2.Normalize(worldDist), ((Vector3)worldDir).Xz);
+                WorldPos hitPos = new((WorldPos)startPos + (Vector3)worldDir * t);
                 
-                int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
-                var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * 16;
-                pp.y = normalizedHeight;
-                if (normalizedHeight >= rayHeight) {
-                    return pp; // Ray has gone under the terrain, it's a hit
+                if (normalizedHeight >= hitPos.y) {
+                    // Ray has gone under the terrain, it's a hit
+                    hitPos.y = normalizedHeight; // Snap to terrain
+                    return (PixelGrid8Pos)(TileGrid8Pos)hitPos;
                 }
             }
         }
