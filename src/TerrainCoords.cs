@@ -6,6 +6,16 @@ namespace terrainBench;
 
 // Convert between various terrain coordinate systems
 public static class TerrainCoords {
+    // See https://zeldamods.org/wiki/TSCB#Parameters
+    // The tile entry for the level 0 tile has area_size = 32.
+    // tile_size = 32 and world_scale = 500.
+    // Plugging into the equation on the wiki:
+    //    (32 / 32 * 500) * 20 = 10000
+    public const int WORLD_SIZE = 10000;
+    public const float TILE_TO_WORLD_HEIGHT = WORLD_SIZE / (float)ZOrder.GRID_SIZE;
+    // Taken from the vanilla TSCB header
+    public const float WORLD_HEIGHT = 800;
+    
     public class Vec3Base(Vector3 position) {
         protected Vector3 position = position;
         public float x { get => position.X; set => position.X = value; }
@@ -20,9 +30,6 @@ public static class TerrainCoords {
     }
     
     public class WorldPos(Vector3 position) : Vec3Base(position) {
-        public const int WORLD_SIZE = 16 * 1000;
-        public const float TILE_TO_WORLD_HEIGHT = WORLD_SIZE / (float)ZOrder.GRID_SIZE;
-        public const float WORLD_HEIGHT = 1000;
         public static implicit operator Vector3(WorldPos w) => w.position;
 
         public static Matrix4 FromTileGridXform() {

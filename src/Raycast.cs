@@ -106,7 +106,7 @@ public static class Raycast {
                     break;
                 }
                 int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
-                var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * WorldPos.WORLD_HEIGHT;
+                var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * WORLD_HEIGHT;
                 var pixel8 = pixel * 2 * lodDiff;
 
                 PixelGrid8Pos pp = new(new Vector3(pixel8.X, 0, pixel8.Y));

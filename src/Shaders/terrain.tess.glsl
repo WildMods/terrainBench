@@ -10,7 +10,7 @@ uniform int tilesPerTex;
 in ivec2 uvOffset[];
 in int tileIndex[];
 
-#define WORLD_HEIGHT 1000.0
+#define WORLD_HEIGHT 800.0
 
 out VertexData {
     float height; // To be used in fragment shader
