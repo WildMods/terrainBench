@@ -10,6 +10,8 @@ uniform int tilesPerTex;
 in ivec2 uvOffset[];
 in int tileIndex[];
 
+#define WORLD_HEIGHT 1000.0
+
 out VertexData {
     float height; // To be used in fragment shader
     vec2 uv;
@@ -40,7 +42,7 @@ void main() {
     vec3 p1 = (p11 - p10) * gl_TessCoord.x + p10;
     vec3 p = (p1 - p0) * gl_TessCoord.y + p0;
 
-    p.y += outData.height * 16;
+    p.y += outData.height * WORLD_HEIGHT;
 
     gl_Position = matProjection * matView * matModel * vec4(p, 1);
 }

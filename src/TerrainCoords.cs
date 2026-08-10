@@ -12,6 +12,8 @@ public static class TerrainCoords {
         public float y { get => position.Y; set => position.Y = value; }
         public float z { get => position.Z; set => position.Z = value; }
         
+        public Vector2 xz =>  new(position.X, position.Z);
+        
         public static Vec3Base operator+(Vec3Base p1, Vec3Base p2) {
             return new(p1.position + p2.position);
         }
@@ -19,22 +21,32 @@ public static class TerrainCoords {
     
     public class WorldPos(Vector3 position) : Vec3Base(position) {
         public const int WORLD_SIZE = 16 * 1000;
+        public const float TILE_TO_WORLD_HEIGHT = WORLD_SIZE / (float)ZOrder.GRID_SIZE;
+        public const float WORLD_HEIGHT = 1000;
         public static implicit operator Vector3(WorldPos w) => w.position;
 
         public static Matrix4 FromTileGridXform() {
-            var scale = Matrix4.CreateScale(WORLD_SIZE / (float)ZOrder.GRID_SIZE);
+            var scale = Matrix4.CreateScale(TILE_TO_WORLD_HEIGHT, 1, TILE_TO_WORLD_HEIGHT);
             var offset = Matrix4.CreateTranslation(-WORLD_SIZE / 2, 0, -WORLD_SIZE / 2);
             return scale * offset;
         }
 
         public static implicit operator WorldPos(TileGrid8Pos p) {
-            var wp = FromTileGridXform().Transposed() * new Vector4(p, 1);
-            return new(wp.Xyz);
+            var offset = new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
+            var mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            Vector3 wp = p;
+            wp.X /= mult;
+            wp.Z /= mult;
+            wp -= offset;
+            return new(wp);
         }
         
         public static implicit operator TileGrid8Pos(WorldPos wp) {
-            Vector3 tp = wp + new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
-            tp *= ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            var offset = new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
+            var mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            Vector3 tp = wp + offset;
+            tp.X *= mult;
+            tp.Z *= mult;
             return new(tp);
         }
         
@@ -53,6 +65,7 @@ public static class TerrainCoords {
             const float mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
             return new(new Vector3(position.X * mult, position.Y, position.Z * mult));
         }
+        
     }
 
     public class TileGrid8Pos(Vector3 position) : Vec3Base(position) {
