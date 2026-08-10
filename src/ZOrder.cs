@@ -12,6 +12,7 @@ namespace terrainBench;
 /// </summary>
 public static class ZOrder {
     public const int MAX_LOD = 8;
+    public const int GRID_SIZE = 1 << MAX_LOD;
     
     /// <summary>
     /// Convert a 2D 8-bit coordinate to a 16-bit 1D Z-index

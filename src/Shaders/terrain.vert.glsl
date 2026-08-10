@@ -5,13 +5,12 @@ out ivec2 vertUVOffset;
 out int tileIdx;
 
 // 1x1 quad vertices
-const vec2 base = vec2(0, 0.5);
+const vec2 base = vec2(0, 1.0);
 const vec3 verts[6] = vec3[](
-    base.xxx, base.yxx, base.xyx,
-    base.yyx, base.yxx, base.xyx
+    base.xxx, base.xxy, base.yxx,
+    base.yxy, base.xxy, base.yxx
 );
 
-const float targetTileSize = 8;
 const uint MAX_LOD = 8;
 
 // De-interleave the low 16 bits to get an 8-bit X/Z coordinate
@@ -35,9 +34,8 @@ void main() {
     float tileFactor = float(1 << MAX_LOD) / float(1 << lod);
     ivec2 worldPos = idxToGridPos(idx);
 
-    vec3 pos = verts[gl_VertexID] * tileFactor;
-    pos = pos.yzx;
-    pos.xz += worldPos * (tileFactor / 2);
+    vec3 pos = verts[gl_VertexID] + vec3(worldPos.x, 0, worldPos.y);
+    pos *= tileFactor;
 
     gl_Position = vec4(pos, 1);
     ivec2 gridPos = idxToGridPos(gl_InstanceID);

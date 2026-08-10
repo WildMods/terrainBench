@@ -54,6 +54,8 @@ public struct TerrainRenderer {
                 return; // No change needed
             }
             
+            var z = Profiler.BeginZone("MapPBOs");
+            z.EmitText(mapState.ToString());
             if (mapState) {
                 hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
                 mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
@@ -64,6 +66,7 @@ public struct TerrainRenderer {
                 mateBuf = 0;
             }
             mapped = mapState;
+            z.Dispose();
         }
         
         /// <summary>
@@ -93,6 +96,8 @@ public struct TerrainRenderer {
             if (buf == 0 || pixelSize < 2) {
                 return false;
             }
+
+            var z = Profiler.BeginZone("UpdatePBOTile");
             int linearIdx = GetLinearIndex(posInTexture) * pixelSize;
             
             // Copy 1 row of data at a time
@@ -113,6 +118,7 @@ public struct TerrainRenderer {
                 }
             }
             
+            z.Dispose();
             return true;
         }
 
@@ -121,10 +127,15 @@ public struct TerrainRenderer {
         /// Update a rendered tile.
         /// The render thread streams tiles to the GPU at the start of each frame.
         /// </summary>
-        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type)
+        {
+            var z = Profiler.BeginZone("ScheduleTileUpdate");
+            var z2 = Profiler.BeginZone("ScheduleTileUpdateFindIdx");
             Int32 packed = ZOrder.PackIndex(idx, lod);
-            var pos = indices.FindIndex(0, indices.Count, val => val == packed);
+            var pos = indices.FindIndex(0, indices.Count, v => v == packed);
+            z2.Dispose();
             if (pos < 0) {
+                z.Dispose();
                 return false;
             }
 
@@ -152,6 +163,7 @@ public struct TerrainRenderer {
 
             updateList.Add(pos);
             UpdatePBOTile(pos, data, buf, pixelSize);
+            z.Dispose();
             pboMapLock.ReleaseMutex();
             return true;
         }
@@ -161,9 +173,11 @@ public struct TerrainRenderer {
         /// </summary>
         public void ProcessTileUpdates() {
             pboMapLock.WaitOne(); // Make sure no one is using the mapped region
+            var z = Profiler.BeginZone("ProcessTileUpdates");
             bool hghtDirty = hghtUpdates.Count > 0;
             bool mateDirty = mateUpdates.Count > 0;
             if (!hghtDirty && mateDirty) {
+                z.Dispose();
                 pboMapLock.ReleaseMutex();
                 return; // Nothing to do.
             }
@@ -224,6 +238,7 @@ public struct TerrainRenderer {
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
             GL.BindTexture(TextureTarget.Texture2D, 0);
             MapPBOs(true); // Allow updates again
+            z.Dispose();
             pboMapLock.ReleaseMutex();
         }
         
@@ -341,15 +356,22 @@ public struct TerrainRenderer {
             GL.Uniform1(indicesLocation, temp.Length, temp);
             GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, temp.Length);
         }
+
+        public void GLUninit() {
+            GL.DeleteBuffer(pboHght);
+            GL.DeleteBuffer(pboMate);
+            GL.DeleteTexture(hghtTex);
+            GL.DeleteTexture(mateTex);
+        }
     }
 
     /// <summary>
     /// A region of tiles backed by potentially many atlases
     /// </summary>
     public struct TileRegion {
-        readonly List<CompactTileSheet> sheets = [];
+        public readonly List<CompactTileSheet> sheets = [];
 
-        public TileRegion(byte[] bestLevels, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+        public TileRegion(byte[] lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
             var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
@@ -368,7 +390,13 @@ public struct TerrainRenderer {
             for (UInt16 idx = minIdx; idx < maxIdx; idx++) {
                 ZOrder.Deinterleave16To8(idx, out var x, out var y);
                 var linearIdx = (HGHT_DIM * y + x);
-                var best = bestLevels[linearIdx];
+                var cov = lodCoverage[linearIdx];
+                byte best = ZOrder.MAX_LOD;
+                while ((cov & 0x80) == 0) {
+                    cov <<= 1;
+                    best--;
+                }
+                
                 var lvlDiff = ZOrder.MAX_LOD - best;
                 UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));
                 indices.Add(ZOrder.PackIndex(targetIdx, best));
@@ -412,7 +440,7 @@ public struct TerrainRenderer {
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     int terrainTexArray = 0;
     int coverageTex = 0;
-    byte[] bestLevels = new byte[HGHT_DIM * HGHT_DIM];
+    byte[] lodCoverage = new byte[HGHT_DIM * HGHT_DIM];
 
     TileRegion ring0;
 
@@ -426,39 +454,41 @@ public struct TerrainRenderer {
     
     public TerrainRenderer() { }
 
-    private readonly string GetEmbeddedText(string name) {
-        var asm = typeof(TerrainRenderer).Assembly;
-        Stream? vertStream = asm.GetManifestResourceStream(name);
-        if (vertStream == null) {
-            return $"#error Unable to load embedded text '{name}'";
-        }
-        return new StreamReader(vertStream).ReadToEnd();
-    }
-
     public bool GLInit(Cache.Cache cache) {
         var zone = Profiler.BeginZone("R_GLInit");
-        string vert = GetEmbeddedText("terrainBench.Shaders.quad.vert.glsl");
-        string tcs = GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
+        string vert = GetEmbeddedText("terrainBench.Shaders.terrain.vert.glsl");
+        string tcs =  GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
         string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
+        string geom = GetEmbeddedText("terrainBench.Shaders.terrain.geom.glsl");
         string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
 
         using (Profiler.BeginZone("R_ShaderCompile")) {
-            tessShader = new Shader(vert, tcs, tess, frag);
+            tessShader = new Shader(vert, tcs, tess, geom, frag);
         }
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
-        bestLevels = CreateCoverageTexture(cache);
+        lodCoverage = CreateCoverageTexture(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
-        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, bestLevels);
+        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(bestLevels, cache, 16, 128, 128);
+        ring0 = new(lodCoverage, cache, 32, 128, 128);
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
         zone.Dispose();
         return true;
+    }
+
+    public void GLUninit() {
+        foreach (var s in ring0.sheets) {
+            s.GLUninit();
+        }
+        GL.DeleteTexture(coverageTex);
+        GL.DeleteTexture(terrainTexArray);
+        GL.DeleteVertexArray(vaoBlank);
+        tessShader.Dispose();
     }
 
     // Create a square GL texture
@@ -489,7 +519,7 @@ public struct TerrainRenderer {
         var zone = Profiler.BeginZone("R_CreateCoverageTexture");
         byte[] buf = new byte[HGHT_DIM * HGHT_DIM];
         
-        for (sbyte lvl = 8; lvl >= 0; lvl--) {
+        for (sbyte lvl = 8; lvl > 0; lvl--) {
             byte lvlDiff = (byte)(ZOrder.MAX_LOD - lvl);
             UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
             int sizeofLevel = (int)((1 << lvl) * (1 << lvl));
@@ -507,14 +537,17 @@ public struct TerrainRenderer {
 
                 // Find the index of this tile's starting point on the level 8 grid
                 UInt16 lvl8Idx = (UInt16)(idx << (2 * lvlDiff));
+                byte val = (byte)(1 << (lvl - 1));
                 for (int i = 0; i < drawSize; i++) {
                     int targetPos = lvl8Idx + i;
                     ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
                     int linearIdx = HGHT_DIM * y + x;
-                    if (buf[linearIdx] < lvl) {
-                        buf[linearIdx] = (byte)lvl;
-                        tilesWritten++;
-                    }
+
+                    // We have 8 bits and 9 detail levels, so exclude level 0.
+                    Debug.Assert(lvl > 0);
+                    // MSB = level 8, LSB = level 1.
+                    buf[linearIdx] |= val;
+                    tilesWritten++;
                 }
             }
             Console.WriteLine("Found {0}/{1} level {2} tiles, covering {3} level 8 tiles", tilesFound, sizeofLevel, lvl, tilesWritten);
@@ -613,12 +646,12 @@ public struct TerrainRenderer {
         return true;
     }
 
-    public void Render(Matrix4 projT, Matrix4 viewT) {
+    public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
         tessShader.Use();
         // Upload camera state
         tessShader.Uniform("matView")?.SetValue(viewT);
         tessShader.Uniform("matProjection")?.SetValue(projT);
-        tessShader.Uniform("matModel")?.SetValue(Matrix4.Identity);
+        tessShader.Uniform("matModel")?.SetValue(TerrainCoords.WorldPos.FromTileGridXform());
 
         // We have to upload texture uniforms ourselves, because the terrible
         // SmoothGL wrappers want you to use a cumbersome Sampler2D wrapper
@@ -639,8 +672,9 @@ public struct TerrainRenderer {
         GL.BindTextureUnit(3, coverageTex);
         GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
 
-        var center = ZOrder.Interleave8To16(128, 128);
-        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, 16, center);
+        var eyeTile = (TerrainCoords.TileGrid8Pos)eyeWorld;
+        var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);
+        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, 32, center);
 
         GL.BindVertexArray(0);
     }
