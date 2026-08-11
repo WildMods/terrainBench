@@ -14,6 +14,7 @@ out VertexData {
     float height;
     vec2 uv;
     vec2 posInTile;
+    vec3 normal;
 }outData;
 
 // Copied from vertex shader
@@ -79,6 +80,10 @@ void main() {
     if (edge_func(v1.xy / v1.w, v2.xy / v2.w, v0.xy / v0.w) > 0) {
         return; // Face is seen from behind, cull it.
     }
+    
+    vec3 d1 = v0.xyz - v1.xyz;
+    vec3 d2 = v0.xyz - v2.xyz;
+    vec3 normal = normalize(cross(d1, d2));
 
     // Just emit the vertex as-is.
     for (int i = 0; i < 3; i++) {
@@ -86,6 +91,7 @@ void main() {
         outData.height = inData[i].height;
         outData.uv = inData[i].uv;
         outData.posInTile = inData[i].posInTile;
+        outData.normal = normal;
         EmitVertex();
     }    
     EndPrimitive();
