@@ -23,7 +23,6 @@ public class Window : GameWindow {
         : base(gameWindowSettings, nativeWindowSettings) {
         this.game = game;
 
-        Profiler.AppInfo("BOTW terrain editor");
     }
 
     // Called from Run() once OpenGL is available

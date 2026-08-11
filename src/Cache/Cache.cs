@@ -18,6 +18,7 @@ public class Cache
     }
     
     public void Load(Game game) {
+        var timer = Stopwatch.StartNew();
         using (Profiler.BeginZone("CacheLoad"))
         {
             for (int i = 0; i < 9; ++i)
@@ -25,6 +26,8 @@ public class Cache
                 _lods[i].Load(game);
             }
         }
+        timer.Stop();
+        Console.WriteLine("Loaded all terrain data in {0}ms", timer.ElapsedMilliseconds);
     }
 
     public IEnumerable<Result<ushort[], ErrorStack>> GetHeightmapForEntireLevel(int level)

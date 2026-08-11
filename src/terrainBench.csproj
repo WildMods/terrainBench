@@ -28,7 +28,13 @@
     </ItemGroup>
 
     <ItemGroup>
-	    <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
+        <PackageReference Include="Avalonia" Version="11.3.4" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.3.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.4" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.4" />
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+
+        <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
 	    <ProjectReference Include="$(LibraryPath)/BfresLibrary/BfresLibrary/BfresLibrary.csproj" />
         <PackageReference Include="YamlDotNet" Version="18.1.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
@@ -45,6 +51,18 @@
         <Content Condition="Exists('$(OeadLibFile).so')" Include="$(OeadLibFile).so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="UI\App.axaml" />
+      <AdditionalFiles Include="UI\Views\MainWindow.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="UI\App.axaml.cs">
+        <DependentUpon>App.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
     </ItemGroup>
 
 

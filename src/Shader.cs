@@ -1,4 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL;
+﻿using OpenTK.Graphics.OpenGL4;
 using SmoothGL.Content;
 using SmoothGL.Graphics.Shader.Internal;
 
@@ -209,15 +209,6 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
                 uniformBlockElements[uniformBlockIndex].Add(new UniformBufferElement(uniformName, uniformType, uniformSize, uniformOffset));
             }
         }
-
-        for (var uniformBlockIndex = 0; uniformBlockIndex < numberOfUniformBlocks; ++uniformBlockIndex) {
-            var uniformBlockName = GL.GetActiveUniformBlockName(programId, uniformBlockIndex);
-            GL.GetActiveUniformBlock(programId, uniformBlockIndex, ActiveUniformBlockParameter.UniformBlockDataSize, out var uniformBlockSize);
-            GL.UniformBlockBinding(programId, uniformBlockIndex, uniformBlockIndex);
-
-            var layout = new UniformBufferLayout(uniformBlockSize, uniformBlockElements[uniformBlockIndex].ToArray());
-            _uniformBlocks.Add(uniformBlockName, new ShaderUniformBlock(uniformBlockName, uniformBlockIndex, layout));
-        }
     }
 
     public void ApplyUniforms() {
@@ -247,7 +238,6 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
             currentProgramId = programId;
         }
 
-        ApplyUniforms();
         foreach (var uniformBlock in UniformBlocks) {
             uniformBlock.Buffer?.Bind(uniformBlock.Location);
         }

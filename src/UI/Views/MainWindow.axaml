@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:terrainBench.UI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:opentk="clr-namespace:terrainBench.UI"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="terrainBench.UI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="AvaloniaOpenTK">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="auto,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,*">
+            <TextBlock 
+                Grid.Column="0" 
+                Margin="5" 
+                Text="{Binding BaseInformation}" 
+                HorizontalAlignment="Left" 
+                VerticalAlignment="Top"
+                FontFamily="Courier New"/>
+            <TextBlock 
+                Grid.Column="1" 
+                Margin="5" 
+                Text="{Binding ControlsInformation}" 
+                HorizontalAlignment="Left" 
+                VerticalAlignment="Top"/>
+        </Grid>
+
+        <Border Grid.Row="1" Background="#777777">
+            <!-- Focusable="True" this is needed or key bindings are not possible -->
+            <opentk:OpenTkControl
+                Margin="10"
+                Focusable="True" />
+        </Border>
+    </Grid>
+
+</Window>

@@ -649,9 +649,9 @@ public struct TerrainRenderer {
     public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
         tessShader.Use();
         // Upload camera state
-        tessShader.Uniform("matView")?.SetValue(viewT);
-        tessShader.Uniform("matProjection")?.SetValue(projT);
-        tessShader.Uniform("matModel")?.SetValue(TerrainCoords.WorldPos.FromTileGridXform());
+        Uniform.Set(tessShader.programId, "matView", viewT);
+        Uniform.Set(tessShader.programId, "matProjection", projT);
+        Uniform.Set(tessShader.programId, "matModel", TerrainCoords.WorldPos.FromTileGridXform());
 
         // We have to upload texture uniforms ourselves, because the terrible
         // SmoothGL wrappers want you to use a cumbersome Sampler2D wrapper
