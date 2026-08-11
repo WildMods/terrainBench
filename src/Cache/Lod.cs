@@ -362,11 +362,10 @@ public class Lod
                 foundHghts[i] = true;
             }
 
-            var data = sarcRes.Unwrap().ToBinary(endian);
-            var compressedData = Yaz0.Compress(data);
-            data.Dispose();
-            File.WriteAllBytes(Path.Combine(tileFolder, name), compressedData);
-            compressedData.Dispose();
+            sarcRes.Unwrap().WriteCompressed(Path.Combine(tileFolder, name), endian);
+            sarcRes.Unwrap().Clear();
+            sarcRes.Unwrap().Close();
+            sarcRes.Unwrap().Dispose();
         });
         
         Parallel.ForEach(mates.Keys, idx => {
@@ -384,11 +383,10 @@ public class Lod
                 foundMates[i] = true;
             }
 
-            var data = sarcRes.Unwrap().ToBinary(endian);
-            var compressedData = Yaz0.Compress(data);
-            data.Dispose();
-            File.WriteAllBytes(Path.Combine(tileFolder, name), compressedData);
-            compressedData.Dispose();
+            sarcRes.Unwrap().WriteCompressed(Path.Combine(tileFolder, name), endian);
+            sarcRes.Unwrap().Clear();
+            sarcRes.Unwrap().Close();
+            sarcRes.Unwrap().Dispose();
         });
     }
 }

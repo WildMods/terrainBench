@@ -113,6 +113,8 @@ public class Dump
         if (decompressedData.Length > 0) {
             span = decompressedData;
         }
+        sarc.Clear();
+        sarc.Close();
 
         return Ok(span);
     }
