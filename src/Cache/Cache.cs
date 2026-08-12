@@ -17,7 +17,7 @@ public class Cache
         }
     }
     
-    public void Load(Game game, AtomicCounter tilesLoadedOut) {
+    public void Load(Game game, ProgressReport tilesLoadedOut) {
         var timer = Stopwatch.StartNew();
         using (Profiler.BeginZone("CacheLoad"))
         {

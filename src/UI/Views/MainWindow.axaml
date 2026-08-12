@@ -40,9 +40,9 @@
                 </MenuItem>
             </Menu>
             <ProgressBar
-                IsIndeterminate="{Binding LoadMaxIsIndeterminate}"
-                Value="{Binding CurrentLoadedTileCount}"
-                Maximum="{Binding TotalTileCount}"
+                IsIndeterminate="{Binding UiLoadIndeterminate}"
+                Value="{Binding UiLoadedTiles}"
+                Maximum="{Binding UiTotalTiles}"
                 ProgressTextFormat="Loaded {0}/{3} tiles ({1:0}%)"
                 ShowProgressText="True"
             />

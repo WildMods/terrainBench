@@ -40,8 +40,9 @@ public sealed class OpenTkControl : OpenTkControlBase {
         
         var vm = (EditorState)DataContext;
         vm.BootProgress = TILES_LOADING;
+        vm.asyncLoadedTiles.Max = 18100;
         Task.Run(delegate {
-            vm.cache.Load(vm.game, vm.LoadedTileCountAsync);
+            vm.cache.Load(vm.game, vm.asyncLoadedTiles);
             vm.BootProgress = SHOW_UPLOAD_MSG;
         });
     }
@@ -108,7 +109,9 @@ public sealed class OpenTkControl : OpenTkControlBase {
     private void DoUpdate(double delta) {
         Debug.Assert(DataContext is EditorState);
         var vm = (EditorState)DataContext;
-        vm.CurrentLoadedTileCount = vm.LoadedTileCountAsync.val;
+        vm.UiLoadedTiles = vm.AsyncLoadedTiles.Value;
+        vm.UiLoadIndeterminate = vm.AsyncLoadedTiles.IsIndeterminate;
+        vm.UiTotalTiles = vm.AsyncLoadedTiles.Max;
         if (input.IsKeyDown(Key.Escape)) {
             // Close();
         }
