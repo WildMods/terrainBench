@@ -4,7 +4,10 @@ using terrainBench;
 namespace terrainBench.UI.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase {
     [ObservableProperty]
-    private string _baseInformation = "Here the base information will be shown";
+    private string _creditInformation = "Written by Torphedo & Ginger Chody";
+    
+    [ObservableProperty]
+    private string _glInformation = "Here the base information will be shown";
 
     [ObservableProperty]
     private string _controlsInformation = "Here the controls information will be shown";

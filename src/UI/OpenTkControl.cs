@@ -233,7 +233,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
         var sb = new StringBuilder();
         sb.AppendLine("OpenGL Version:");
         sb.Append(space).AppendLine(GL.GetString(StringName.Version));
-        vm.BaseInformation = sb.ToString();
+        vm.GlInformation = sb.ToString();
     }
 
     private void WriteControlsInfos() {

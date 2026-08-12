@@ -14,31 +14,39 @@
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
-
+    
     <Grid RowDefinitions="auto,*">
-        <Grid Grid.Row="0" ColumnDefinitions="*,*">
-            <TextBlock 
-                Grid.Column="0" 
-                Margin="5" 
-                Text="{Binding BaseInformation}" 
-                HorizontalAlignment="Left" 
-                VerticalAlignment="Top"
-                FontFamily="Courier New"/>
-            <TextBlock 
-                Grid.Column="1" 
-                Margin="5" 
-                Text="{Binding ControlsInformation}" 
-                HorizontalAlignment="Left" 
-                VerticalAlignment="Top"/>
+        <DockPanel Grid.Row="0" Grid.Column="0">
+            <Menu DockPanel.Dock="Top">
+                <MenuItem Header="_File">
+                    <MenuItem Header="_Open Mod Folder"/>
+                    <MenuItem Header="_Save"/>
+                    <Separator/>
+                    <MenuItem Header="_Quit"/>
+                </MenuItem>
+                <MenuItem Header="_Brush">
+                    <MenuItem Header="Brush size placeholder"/>
+                    <MenuItem Header="Brush type placeholder"/>
+                    <MenuItem Header="Brush falloff placeholder"/>
+                </MenuItem>
+                <MenuItem Header="_Help">
+                    <TextBlock Margin="5" 
+                        Text="{Binding GlInformation}" 
+                        FontFamily="Courier New"/>
+                    <TextBlock Margin="5" 
+                        Text="{Binding ControlsInformation}" />
+                    <TextBlock Margin="5" 
+                        Text="{Binding CreditInformation}" />
+                </MenuItem>
+            </Menu>
             <ProgressBar
-                Grid.Column="0"
                 IsIndeterminate="{Binding LoadMaxIsIndeterminate}"
                 Value="{Binding CurrentLoadedTileCount}"
                 Maximum="{Binding TotalTileCount}"
                 ProgressTextFormat="Loaded {0}/{3} tiles ({1:0}%)"
                 ShowProgressText="True"
             />
-        </Grid>
+        </DockPanel>
 
         <Border Grid.Row="1" Background="#777777">
             <!-- Focusable="True" this is needed or key bindings are not possible -->
