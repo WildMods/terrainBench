@@ -34,7 +34,6 @@ public sealed class OpenTkControl : OpenTkControlBase {
     protected override void Init()
     {
         WriteGLInfo();
-        WriteControlsInfo();
         GL.Enable(EnableCap.DepthTest);
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
@@ -144,8 +143,11 @@ public sealed class OpenTkControl : OpenTkControlBase {
 
     protected override void OnSizeChanged(SizeChangedEventArgs e) {
         base.OnSizeChanged(e);
-        //do something if needed when the control size changes
-        Console.WriteLine("Control was resized");
+        var size = e.NewSize;
+        cam.aspect = (float)(size.Width / size.Height);
+        if (GLinited) {
+            GL.Viewport(0, 0, (int)size.Width, (int)size.Height);
+        }
     }
 
     private void SetWindowTitle(string text) {
@@ -161,23 +163,5 @@ public sealed class OpenTkControl : OpenTkControlBase {
         sb.AppendLine("OpenGL Version:");
         sb.Append(space).AppendLine(GL.GetString(StringName.Version));
         vm.GlInformation = sb.ToString();
-    }
-
-    private void WriteControlsInfo() {
-        if (DataContext is not EditorState vm) return;
-        var space = "        ";
-        var sb = new StringBuilder();
-        sb.AppendLine("Controls: ");
-        sb.Append(space).AppendLine("W, A, S, D");
-        sb.Append(space).Append(space).AppendLine("=> move camera forward, left, backwards, right");
-        sb.Append(space).AppendLine("Space, Shift");
-        sb.Append(space).Append(space).AppendLine("=> move camera up, down");
-        sb.Append(space).AppendLine("Hold right mouse button and move mouse");
-        sb.Append(space).Append(space).AppendLine("=> rotates the camera");
-        sb.Append(space).AppendLine("Mouse wheel");
-        sb.Append(space).Append(space).AppendLine("=> change zoom (orbit mode only)");
-        sb.Append(space).AppendLine("Middle click");
-        sb.Append(space).Append(space).AppendLine("=> Change camera mode");
-        vm.ControlsInformation = sb.ToString();
     }
 }

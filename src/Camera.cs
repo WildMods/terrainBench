@@ -27,6 +27,7 @@ public class Camera {
 
     // Projection settings
     float fov_angle = DegreesToRadians(70.0f);
+    public float aspect = 16f / 9f;
     float near = 0.1f;
     float far = 10000.0f;
 
@@ -145,10 +146,7 @@ public class Camera {
 
     // Get just the projection transform
     public Matrix4 proj_matrix() {
-        float width = 16.0f;
-        float height = 9.0f;
-
-        var projection = Matrix4.CreatePerspectiveFieldOfView(fov_angle, width / height, near, far);
+        var projection = Matrix4.CreatePerspectiveFieldOfView(fov_angle, aspect, near, far);
         return projection;
     }
 

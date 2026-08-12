@@ -17,6 +17,8 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
     private bool _isDragging;
 
     private AvaloniaTkContext? _avaloniaTkContext;
+
+    protected bool GLinited = false;
     
     // Persistent input state, since Avalonia only gives events
     protected InputState input = new();
@@ -55,6 +57,7 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
         // Bind Avalonia's GL context to OpenTK
         _avaloniaTkContext = new(gl);
         GL.LoadBindings(_avaloniaTkContext);
+        GLinited = true;
 
         Init();
     }

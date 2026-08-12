@@ -8,6 +8,20 @@ public partial class EditorState : ObservableObject {
     
     public const string defaultWindowTitle = "Terrain Workbench";
     public const string gpuUploadWindowTitle = "Uploading to GPU...";
+
+    [ObservableProperty]
+    public string _controlsInformation = @"
+W, A, S, D
+   => Move camera forward/left/backwards/right
+Space, Shift
+   => Move camera up/down
+Hold right mouse button & drag
+   => Rotate camera
+Scroll
+   => Change zoom (orbit mode only)
+Middle click
+   => Change camera mode
+            ";
     
     [ObservableProperty]
     private string _creditInformation = "Written by Torphedo & Ginger Chody";
@@ -15,9 +29,6 @@ public partial class EditorState : ObservableObject {
     [ObservableProperty]
     private string _glInformation = "Here the base information will be shown";
 
-    [ObservableProperty]
-    private string _controlsInformation = "Here the controls information will be shown";
-    
     [ObservableProperty]
     private BootState _bootProgress = BootState.INIT;
 
