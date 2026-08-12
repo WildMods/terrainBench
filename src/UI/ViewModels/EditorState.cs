@@ -1,8 +1,14 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-using terrainBench;
 namespace terrainBench.UI.ViewModels;
 public partial class EditorState : ObservableObject {
+    public enum BootState {
+        INIT, TILES_LOADING, SHOW_UPLOAD_MSG, UPLOADING, DONE,
+    }
+    
+    public const string defaultWindowTitle = "Terrain Workbench";
+    public const string gpuUploadWindowTitle = "Uploading to GPU...";
+    
     [ObservableProperty]
     private string _creditInformation = "Written by Torphedo & Ginger Chody";
     
@@ -11,6 +17,9 @@ public partial class EditorState : ObservableObject {
 
     [ObservableProperty]
     private string _controlsInformation = "Here the controls information will be shown";
+    
+    [ObservableProperty]
+    private BootState _bootProgress = BootState.INIT;
 
     public Game game;
     public Cache.Cache cache = new();
@@ -22,8 +31,6 @@ public partial class EditorState : ObservableObject {
     [ObservableProperty] public AtomicCounter loadedTileCountAsync = new(0);
     [ObservableProperty] public int currentLoadedTileCount = 0;
     [ObservableProperty] public int totalTileCount = 18100;
-    [ObservableProperty] public bool cacheLoadFinished = false;
-    [ObservableProperty] public bool gpuLoadFinished = false;
     
     public EditorState(string[] args) {
         var settings = Settings.Settings.Load();

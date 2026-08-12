@@ -5,7 +5,6 @@ using Avalonia.OpenGL.Controls;
 using Avalonia.Rendering;
 using OpenTK.Graphics.OpenGL4;
 using Avalonia.Threading;
-using terrainBench.UI.ViewModels;
 
 namespace terrainBench.UI;
 
@@ -15,9 +14,9 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
     private AvaloniaTkContext? _avaloniaTkContext;
 
     //handles the camera
-    protected readonly Camera Camera = new();
+    protected readonly Camera cam = new();
 
-    protected double Fps = 60.0; // ~60 FPS
+    protected double Fps = 165;
 
     protected abstract void Render();
 
@@ -48,7 +47,7 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
 
     protected sealed override void OnOpenGlInit(GlInterface gl)
     {
-        //bind Avalonia context to OpenGL
+        // Bind Avalonia context to OpenTK
         _avaloniaTkContext = new(gl);
         GL.LoadBindings(_avaloniaTkContext);
 

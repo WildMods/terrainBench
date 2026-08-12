@@ -9,6 +9,7 @@ using System.Text;
 using static terrainBench.TerrainCoords;
 namespace terrainBench.UI;
 using ViewModels;
+using static ViewModels.EditorState.BootState;
 
 public sealed class OpenTkControl : OpenTkControlBase {
     //mouse => see if mouse is clicked and dragged
@@ -31,17 +32,17 @@ public sealed class OpenTkControl : OpenTkControlBase {
     //Initialize all needed resources
     protected override void Init()
     {
+        WriteGLInfo();
+        WriteControlsInfo();
         GL.Enable(EnableCap.DepthTest);
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
         
-        WriteInfos();
-        WriteControlsInfos();
-        
         var vm = (EditorState)DataContext;
-        var t1 = Task.Run(delegate {
+        vm.BootProgress = TILES_LOADING;
+        Task.Run(delegate {
             vm.cache.Load(vm.game, vm.LoadedTileCountAsync);
-            vm.cacheLoadFinished = true;
+            vm.BootProgress = SHOW_UPLOAD_MSG;
         });
     }
 
@@ -54,29 +55,37 @@ public sealed class OpenTkControl : OpenTkControlBase {
     protected override void Render() {
         Debug.Assert(DataContext is EditorState);
         var vm = (EditorState)DataContext;
-        WriteInfos();
         var now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
         var delta = now - _lastFrameTime;
         DoUpdate(delta);
-        if (delta < _frameInterval) // only render if enough time has passed (to limit FPS)
-        {
-            return;
-        }
-        _lastFrameTime = now;
-        if (vm.cacheLoadFinished && !vm.gpuLoadFinished) {
-            // Upload to the GPU
+        
+        switch (vm.BootProgress) {
+        case SHOW_UPLOAD_MSG:
+            SetWindowTitle(EditorState.gpuUploadWindowTitle);
+            vm.BootProgress = UPLOADING;
+            return; // End frame to make sure title is applied
+        case UPLOADING:
+            // Start the GPU uploads 1 frame after title is changed
             using (Profiler.BeginZone("R_LoadTerrainTextures")) {
                 vm.terrain.LoadTerrainTextures(vm.game);
             }
-            
+        
             using (Profiler.BeginZone("R_GLInit")) {
                 vm.brush.GLInit();
                 vm.terrain.GLInit(vm.cache);
             }
 
-            vm.gpuLoadFinished = true;
+            vm.BootProgress = DONE;
+            SetWindowTitle(EditorState.defaultWindowTitle);
+            break;
         }
 
+        if (delta < _frameInterval) // only render if enough time has passed (to limit FPS)
+        {
+            return;
+        }
+        _lastFrameTime = now;
+        
         // set correct viewport size
         var correctRenderSize = GetCorrectRenderSize();
         GL.Viewport(0, 0, correctRenderSize.X, correctRenderSize.Y);
@@ -85,19 +94,15 @@ public sealed class OpenTkControl : OpenTkControlBase {
             GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
         }
 
-        if (vm.gpuLoadFinished) {
+        if (vm.BootProgress == DONE) {
             var projT = vm.cam.proj_matrix();
             var viewT = vm.cam.view_matrix();
             vm.terrain.Render(projT, viewT, new WorldPos(vm.cam.eye()));
             vm.brush.Draw(projT, viewT);
         }
 
-        using (Profiler.BeginZone("SwapBuffers")) {
-            // SwapBuffers();
-        }
+        // TODO: Does it make sense to do SwapBuffers() in Avalonia?
         Profiler.EmitFrameMark();
-
-        DrawScene();
     }
 
     private void DoUpdate(double delta) {
@@ -186,9 +191,6 @@ public sealed class OpenTkControl : OpenTkControlBase {
             Math.Max(1, (int)(Bounds.Height * renderScaling)));
     }
 
-    private void DrawScene() {
-    }
-
     protected override void OnSizeChanged(SizeChangedEventArgs e) {
         base.OnSizeChanged(e);
         //do something if needed when the control size changes
@@ -217,12 +219,12 @@ public sealed class OpenTkControl : OpenTkControlBase {
     }
 
     private void SetWindowTitle(string text) {
-        if (VisualRoot is Window window) {
+        if (VisualRoot is Avalonia.Controls.Window window) {
             window.Title = text;
         }
     }
 
-    private void WriteInfos() {
+    private void WriteGLInfo() {
         if (DataContext is not EditorState vm) return;
         var space = "    ";
         var sb = new StringBuilder();
@@ -231,7 +233,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
         vm.GlInformation = sb.ToString();
     }
 
-    private void WriteControlsInfos() {
+    private void WriteControlsInfo() {
         if (DataContext is not EditorState vm) return;
         var space = "        ";
         var sb = new StringBuilder();

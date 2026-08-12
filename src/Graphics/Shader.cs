@@ -215,7 +215,7 @@ public class Shader : GraphicsResource, IHotSwappable<Shader> {
         foreach (var uniform in _uniforms.Values) {
             try {
                 uniform.Apply();
-            } catch (ShaderUniformException e) {
+            } catch (ShaderUniformException) {
                 // This is non-fatal, don't bail if a uniform hasn't been set
                 // yet (because it may be safely defaulted in the shader)
             }
