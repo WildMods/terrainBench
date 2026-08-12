@@ -1,7 +1,9 @@
 // Created Jul. 16 2026, copied from RenderTron 9000 C++ class
 // @author Torphedo
+
+using Avalonia.Input;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
+using terrainBench.UI;
 using static OpenTK.Mathematics.MathHelper;
 
 namespace terrainBench;
@@ -20,7 +22,7 @@ public class Camera {
     Quaternion orbit_angles = Quaternion.Identity;
     public float radius = 30.0f;
     float move_speed = 500.0f;
-    float mouse_sens = 0.015f;
+    float mouse_sens = 0.05f;
     private float zoom_sense = 10.0f;
 
     // Projection settings
@@ -65,21 +67,22 @@ public class Camera {
     /// @brief Update the camera state (should be called each frame)
     /// @param The camera to modify
     /// @param delta_time Time elapsed since the last call
-    public void update(KeyboardState input, MouseState mouse, double delta_time) {
-        if (mouse.WasButtonDown(MouseButton.Middle) && !mouse.IsButtonDown(MouseButton.Middle)) {
+    public void update(UI.InputState input, double delta_time) {
+        if (input.IsMouseButtonJustReleased(MouseButton.Middle)) {
             set_mode((Mode)(((int)mode + 1) % (int)Mode.MODE_ENUM_MAX));
         }
 
-        Vector2 cursor_delta = get_cursor_delta(mouse);
-        Vector2 scroll_delta = mouse.ScrollDelta;
+        Vector2 cursor_delta = get_cursor_delta(input);
+        // Vector2 scroll_delta = mouse.ScrollDelta;
+        Vector2 scroll_delta = new();
 
         // Save state so we can find the delta next time we're called
 
         float multiplier = (float)delta_time * move_speed;
 
-        float forward  = multiplier * ((input.IsKeyDown(Keys.W) ? 1f : 0f) - (input.IsKeyDown(Keys.S) ? 1f : 0f));
-        float side     = multiplier * ((input.IsKeyDown(Keys.A) ? 1f : 0f) - (input.IsKeyDown(Keys.D) ? 1f : 0f));
-        float vertical = multiplier * ((input.IsKeyDown(Keys.Space) ? 1f : 0f) - (input.IsKeyDown(Keys.LeftShift) ? 1f : 0f));
+        float forward  = multiplier * ((input.IsKeyDown(Key.W) ? 1f : 0f) - (input.IsKeyDown(Key.S) ? 1f : 0f));
+        float side     = multiplier * ((input.IsKeyDown(Key.A) ? 1f : 0f) - (input.IsKeyDown(Key.D) ? 1f : 0f));
+        float vertical = multiplier * ((input.IsKeyDown(Key.Space) ? 1f : 0f) - (input.IsKeyDown(Key.LeftShift) ? 1f : 0f));
 
         Vector3 cam_dir = facing();
 
@@ -163,12 +166,14 @@ public class Camera {
     /// @brief Screenspace cursor movement since last frame.
     ///
     /// This also applies mouse inversion if needed, and the gamepad's right stick.
-    private Vector2 get_cursor_delta(MouseState mouse) {
+    private Vector2 get_cursor_delta(InputState input) {
         // Nullify movement unless click is held
-        if (!mouse.IsButtonDown(MouseButton.Left)) {
+        if (!input.IsMouseButtonDown(MouseButton.Right)) {
             return Vector2.Zero;
         }
-        Vector2 cursor_delta = mouse.Delta * mouse_sens;
+
+        var delta = input.MouseDelta;
+        Vector2 cursor_delta = mouse_sens * new Vector2((float)delta.X, (float)delta.Y);
 
         // Invert sign as needed.
         if (invert_mouse_x) {

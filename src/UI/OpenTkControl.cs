@@ -1,3 +1,5 @@
+// Adapted from:
+// https://github.com/Marco2011T2/AvaloniaOpenTK/blob/main/AvaloniaOpenTK/OpenTK/OpenTkControl.cs
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -6,14 +8,13 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System.Diagnostics;
 using System.Text;
+using CommunityToolkit.HighPerformance;
 using static terrainBench.TerrainCoords;
 namespace terrainBench.UI;
 using ViewModels;
 using static ViewModels.EditorState.BootState;
 
 public sealed class OpenTkControl : OpenTkControlBase {
-    //mouse => see if mouse is clicked and dragged
-    private bool _isDragging;
 
     // Timing - to calculate delta time
     private double _lastFrameTime;
@@ -109,13 +110,12 @@ public sealed class OpenTkControl : OpenTkControlBase {
         Debug.Assert(DataContext is EditorState);
         var vm = (EditorState)DataContext;
         vm.CurrentLoadedTileCount = vm.LoadedTileCountAsync.val;
-        /*
-        if (KeyboardState.IsKeyDown(Keys.Escape)) {
-            Close();
+        if (input.IsKeyDown(Key.Escape)) {
+            // Close();
         }
 
         int MAX_EDIT_RANGE = 32;
-        if (KeyboardState.IsKeyDown(Keys.R)) {
+        if (input.IsKeyDown(Key.R)) {
             WorldPos eyeWorld = new(vm.cam.eye());
             TileGrid8Pos eyeTile = eyeWorld;
             var dir = vm.cam.facing();
@@ -128,60 +128,11 @@ public sealed class OpenTkControl : OpenTkControlBase {
             }
         }
 
-        if (KeyboardState.IsKeyDown(Keys.U)) {
-            var editRangeWorld = ((WorldPos)new TileGrid8Pos(new Vector3(MAX_EDIT_RANGE))).x;
-
-            WorldPos eyeWorld = new(vm.cam.eye());
-            TileGrid8Pos eyeTile = eyeWorld;
-
-            var hght = new UInt16[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
-            var source = new Vector2i((int)eyeTile.x, (int)eyeTile.z);
-            var dir = vm.cam.facing().Xz;
-            foreach (var (cell, uv) in Raycast.Iterate2DLine(source, dir, MAX_EDIT_RANGE)) {
-                if (cell.X >= ZOrder.GRID_SIZE || cell.Y >= ZOrder.GRID_SIZE) {
-                    break;
-                }
-                if (cell.X < 0 || cell.Y < 0) {
-                    break;
-                }
-
-                var idx = ZOrder.Interleave8To16((byte)cell.X, (byte)cell.Y);
-                var tileRes = vm.cache.GetHeightmapTile(8, idx, false);
-                if (tileRes.IsErr()) {
-                    continue;
-                }
-                var tile = tileRes.Unwrap();
-                var startPixel = (Vector2i)(uv * new Vector2(255));
-                var prevPix = startPixel;
-                foreach (var (pixel, subpixel) in Raycast.Iterate2DLine(startPixel, dir, Single.PositiveInfinity))
-                {
-                    if (pixel.X >= ZOrder.GRID_SIZE || pixel.Y >= ZOrder.GRID_SIZE) {
-                        break;
-                    }
-                    if (pixel.X < 0 || pixel.Y < 0) {
-                        break;
-                    }
-
-                    var dist = pixel - prevPix;
-                    if (dist.EuclideanLength > 1.0f) {
-                        Console.WriteLine("Jumped from {0} -> {1}", prevPix, pixel);
-                    }
-
-                    int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
-                    tile[linearIdx] = UInt16.MaxValue;
-                    prevPix = pixel;
-                }
-
-                vm.terrain.ScheduleTileUpdate(idx, 8, tile.AsSpan().AsBytes(), LodComponent.hght);
-            }
+        if (input.IsKeyDown(Key.S) && input.IsKeyDown(Key.LeftCtrl)) {
+            vm.cache.WriteAllTiles(".", false, CsOead.Endianness.Big);
         }
 
-        if (KeyboardState.IsKeyDown(Keys.S) && KeyboardState.IsKeyDown(Keys.LeftControl)) {
-            vm.cache.WriteAllTiles(".", false, Endianness.Big);
-        }
-
-        vm.cam.update(KeyboardState, MouseState, delta);
-        */
+        vm.cam.update(input, delta);
     }
     
     private Vector2i GetCorrectRenderSize() {
@@ -195,27 +146,6 @@ public sealed class OpenTkControl : OpenTkControlBase {
         base.OnSizeChanged(e);
         //do something if needed when the control size changes
         Console.WriteLine("Control was resized");
-    }
-
-    //mouse control - rotate camera by clicking and dragging
-    protected override void OnPointerPressed(PointerPressedEventArgs e) {
-        _isDragging = true;
-        e.Pointer.Capture(this);
-    }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e) {
-        _isDragging = false;
-    }
-
-    protected override void OnPointerMoved(PointerEventArgs e) {
-        if (!_isDragging)
-            return;
-    }
-
-    protected override void OnLostFocus(RoutedEventArgs e) {
-    }
-
-    protected override void OnPointerWheelChanged(PointerWheelEventArgs e) {
     }
 
     private void SetWindowTitle(string text) {
@@ -242,7 +172,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
         sb.Append(space).Append(space).AppendLine("=> move camera forward, left, backwards, right");
         sb.Append(space).AppendLine("Space, Shift");
         sb.Append(space).Append(space).AppendLine("=> move camera up, down");
-        sb.Append(space).AppendLine("Hold left mouse button and move mouse");
+        sb.Append(space).AppendLine("Hold right mouse button and move mouse");
         sb.Append(space).Append(space).AppendLine("=> rotates the camera");
         sb.Append(space).AppendLine("Mouse wheel");
         sb.Append(space).Append(space).AppendLine("=> change zoom (orbit mode only)");

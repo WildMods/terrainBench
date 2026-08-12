@@ -131,7 +131,7 @@ public class Window : GameWindow {
             cache.WriteAllTiles(".", false, Endianness.Big);
         }
 
-        cam.update(KeyboardState, MouseState, e.Time);
+        // cam.update(KeyboardState, MouseState, e.Time);
 
         base.OnUpdateFrame(e);
     }

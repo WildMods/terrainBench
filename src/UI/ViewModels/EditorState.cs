@@ -50,8 +50,5 @@ public partial class EditorState : ObservableObject {
         Console.WriteLine("Update: '{0}'", settings.updateDir);
         Console.WriteLine("DLC: '{0}'", settings.dlcDir);
         game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir);
-        
-        // cache.Load(game);
-        // Console.WriteLine("Finished loading cache.");
     }
 }

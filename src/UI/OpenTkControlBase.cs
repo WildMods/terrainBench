@@ -1,4 +1,6 @@
-﻿using Avalonia;
+﻿// Adapted from:
+// https://github.com/Marco2011T2/AvaloniaOpenTK/blob/main/AvaloniaOpenTK/OpenTK/OpenTkControlBase.cs
+using Avalonia;
 using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
@@ -11,9 +13,14 @@ namespace terrainBench.UI;
 // ICustomHitTest is needed to receive input events
 public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
 {
-    private AvaloniaTkContext? _avaloniaTkContext;
+    // mouse => see if mouse is clicked and dragged
+    private bool _isDragging;
 
-    //handles the camera
+    private AvaloniaTkContext? _avaloniaTkContext;
+    
+    // Persistent input state, since Avalonia only gives events
+    protected InputState input = new();
+
     protected readonly Camera cam = new();
 
     protected double Fps = 165;
@@ -31,23 +38,21 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
             Render();
         }
 
-        //Update last key states AFTER render, so input events are applied during frame
-        //This way inputs like IsKeyJustPressed() work as expected.
-        // InputManager.ResetKeyStates();
+        // Update last key states *after* render, so input events are applied
+        // during frame This way inputs like IsKeyJustPressed() work as expected.
+        input.ResetKeyStates();
 
-        //Schedule next UI update with avalonia
-        //Dispatcher.UIThread.Post(RequestNextFrameRendering, DispatcherPriority.Background);
-        DispatcherTimer.Run(() =>
-        {
+        // Schedule next UI update with avalonia
+        // Dispatcher.UIThread.Post(RequestNextFrameRendering, DispatcherPriority.Background);
+        DispatcherTimer.Run(() => {
             RequestNextFrameRendering();
-            // return false; // run once
-            return true;
+            return false; // run once
         }, TimeSpan.FromSeconds(1.0 / Fps));
     }
 
     protected sealed override void OnOpenGlInit(GlInterface gl)
     {
-        // Bind Avalonia context to OpenTK
+        // Bind Avalonia's GL context to OpenTK
         _avaloniaTkContext = new(gl);
         GL.LoadBindings(_avaloniaTkContext);
 
@@ -64,7 +69,7 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
         if (!IsEffectivelyVisible)
             return;
         
-        // InputManager.SetKey(e.Key, true);
+        input.SetKey(e.Key, true);
     }
     
     protected override void OnKeyUp(KeyEventArgs e)
@@ -72,8 +77,33 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
         if (!IsEffectivelyVisible)
             return;
         
-        // InputManager.SetKey(e.Key, false);
+        input.SetKey(e.Key, false);
     }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e) {
+        input.SetMouseButton(e.GetCurrentPoint(this).Properties.PointerUpdateKind.GetMouseButton(), true);
+
+        _isDragging = true;
+        e.Pointer.Capture(this);
+        input.SetMousePosition(e.GetPosition(this));
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e) {
+        input.SetMousePosition(e.GetPosition(this));
+        input.SetMouseButton(e.GetCurrentPoint(this).Properties.PointerUpdateKind.GetMouseButton(), false);
+
+        _isDragging = false;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e) {
+        input.SetMousePosition(e.GetPosition(this));
+
+        if (!_isDragging)
+            return;
+
+        input.CalcMouseDelta();
+    }
+
 
     public bool HitTest(Point point) => Bounds.Contains(point);
 }
