@@ -36,7 +36,6 @@ public sealed class OpenTkControl : OpenTkControlBase {
     protected override void Init() {
         SetWindowTitle("Terrain Workbench");
         GL.Enable(EnableCap.DepthTest);
-        // VSync = VSyncMode.On;
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
         
@@ -44,19 +43,14 @@ public sealed class OpenTkControl : OpenTkControlBase {
         WriteControlsInfos();
         
         var vm = (MainWindowViewModel)DataContext;
-        var t = Task.Run(delegate {
-            vm.cache.Load(vm.game);
+        var t1 = Task.Run(delegate {
+            vm.cache.Load(vm.game, vm.LoadedTileCountAsync);
+            vm.cacheLoadFinished = true;
         });
         
-        using (Profiler.BeginZone("R_LoadTerrainTextures")) {
-            vm.terrain.LoadTerrainTextures(vm.game);
-        }
-        
-        using (Profiler.BeginZone("R_GLInit")) {
-            vm.brush.GLInit();
-            vm.terrain.GLInit(vm.cache);
-        }
-        t.Wait();
+        var t2 = Task.Run(delegate {
+        });
+        // t.Wait();
     }
 
     protected override void Deinit() {
@@ -74,6 +68,19 @@ public sealed class OpenTkControl : OpenTkControlBase {
             return;
         }
         _lastFrameTime = now;
+        if (vm.cacheLoadFinished && !vm.gpuLoadFinished) {
+            // Upload to the GPU
+            using (Profiler.BeginZone("R_LoadTerrainTextures")) {
+                vm.terrain.LoadTerrainTextures(vm.game);
+            }
+            
+            using (Profiler.BeginZone("R_GLInit")) {
+                vm.brush.GLInit();
+                vm.terrain.GLInit(vm.cache);
+            }
+
+            vm.gpuLoadFinished = true;
+        }
 
         // set correct viewport size
         var correctRenderSize = GetCorrectRenderSize();
@@ -83,10 +90,12 @@ public sealed class OpenTkControl : OpenTkControlBase {
             GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
         }
 
-        var projT = vm.cam.proj_matrix();
-        var viewT = vm.cam.view_matrix();
-        vm.terrain.Render(projT, viewT, new TerrainCoords.WorldPos(vm.cam.eye()));
-        vm.brush.Draw(projT, viewT);
+        if (vm.gpuLoadFinished) {
+            var projT = vm.cam.proj_matrix();
+            var viewT = vm.cam.view_matrix();
+            vm.terrain.Render(projT, viewT, new WorldPos(vm.cam.eye()));
+            vm.brush.Draw(projT, viewT);
+        }
 
         using (Profiler.BeginZone("SwapBuffers")) {
             // SwapBuffers();
@@ -99,6 +108,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
     private void DoUpdate(double delta) {
         Debug.Assert(DataContext is MainWindowViewModel);
         var vm = (MainWindowViewModel)DataContext;
+        vm.CurrentLoadedTileCount = vm.LoadedTileCountAsync.val;
         /*
         if (KeyboardState.IsKeyDown(Keys.Escape)) {
             Close();
@@ -117,13 +127,13 @@ public sealed class OpenTkControl : OpenTkControlBase {
                 vm.brush.modelT = Matrix4.CreateTranslation(wp);
             }
         }
-        
+
         if (KeyboardState.IsKeyDown(Keys.U)) {
             var editRangeWorld = ((WorldPos)new TileGrid8Pos(new Vector3(MAX_EDIT_RANGE))).x;
-            
+
             WorldPos eyeWorld = new(vm.cam.eye());
             TileGrid8Pos eyeTile = eyeWorld;
-            
+
             var hght = new UInt16[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
             var source = new Vector2i((int)eyeTile.x, (int)eyeTile.z);
             var dir = vm.cam.facing().Xz;
@@ -134,7 +144,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
                 if (cell.X < 0 || cell.Y < 0) {
                     break;
                 }
-                
+
                 var idx = ZOrder.Interleave8To16((byte)cell.X, (byte)cell.Y);
                 var tileRes = vm.cache.GetHeightmapTile(8, idx, false);
                 if (tileRes.IsErr()) {
@@ -156,12 +166,12 @@ public sealed class OpenTkControl : OpenTkControlBase {
                     if (dist.EuclideanLength > 1.0f) {
                         Console.WriteLine("Jumped from {0} -> {1}", prevPix, pixel);
                     }
-                    
+
                     int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
                     tile[linearIdx] = UInt16.MaxValue;
                     prevPix = pixel;
                 }
-                
+
                 vm.terrain.ScheduleTileUpdate(idx, 8, tile.AsSpan().AsBytes(), LodComponent.hght);
             }
         }
@@ -233,18 +243,14 @@ public sealed class OpenTkControl : OpenTkControlBase {
         sb.AppendLine("Controls: ");
         sb.Append(space).AppendLine("W, A, S, D");
         sb.Append(space).Append(space).AppendLine("=> move camera forward, left, backwards, right");
-        sb.Append(space).AppendLine("Q, E");
+        sb.Append(space).AppendLine("Space, Shift");
         sb.Append(space).Append(space).AppendLine("=> move camera up, down");
-        sb.Append(space).AppendLine("Y, X");
-        sb.Append(space).Append(space).AppendLine("=> changes camera roll");
-        sb.Append(space).AppendLine("Hold right mouse button and move mouse");
+        sb.Append(space).AppendLine("Hold left mouse button and move mouse");
         sb.Append(space).Append(space).AppendLine("=> rotates the camera");
         sb.Append(space).AppendLine("Mouse wheel");
-        sb.Append(space).Append(space).AppendLine("=> change field of view (fov)");
-        sb.Append(space).AppendLine("+, -");
-        sb.Append(space).Append(space).AppendLine("=> change camera movement speed");
-        sb.Append(space).AppendLine("R");
-        sb.Append(space).Append(space).AppendLine("=> reset camera");
+        sb.Append(space).Append(space).AppendLine("=> change zoom (orbit mode only)");
+        sb.Append(space).AppendLine("Middle click");
+        sb.Append(space).Append(space).AppendLine("=> Change camera mode");
         vm.ControlsInformation = sb.ToString();
     }
 }

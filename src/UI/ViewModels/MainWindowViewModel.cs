@@ -14,6 +14,13 @@ public partial class MainWindowViewModel : ViewModelBase {
     public TerrainRenderer terrain = new();
     public BrushRenderer brush = new();
     public Camera cam = new();
+
+    [ObservableProperty] public bool loadMaxIsIndeterminate = false;
+    [ObservableProperty] public AtomicCounter loadedTileCountAsync = new(0);
+    [ObservableProperty] public int currentLoadedTileCount = 0;
+    [ObservableProperty] public int totalTileCount = 18100;
+    [ObservableProperty] public bool cacheLoadFinished = false;
+    [ObservableProperty] public bool gpuLoadFinished = false;
     
     public MainWindowViewModel(string[] args) {
         var settings = Settings.Settings.Load();

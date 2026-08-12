@@ -17,13 +17,13 @@ public class Cache
         }
     }
     
-    public void Load(Game game) {
+    public void Load(Game game, AtomicCounter tilesLoadedOut) {
         var timer = Stopwatch.StartNew();
         using (Profiler.BeginZone("CacheLoad"))
         {
             for (int i = 0; i < 9; ++i)
             {
-                _lods[i].Load(game);
+                _lods[i].Load(game, tilesLoadedOut);
             }
         }
         timer.Stop();

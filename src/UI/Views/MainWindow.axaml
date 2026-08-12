@@ -30,12 +30,20 @@
                 Text="{Binding ControlsInformation}" 
                 HorizontalAlignment="Left" 
                 VerticalAlignment="Top"/>
+            <ProgressBar
+                Grid.Column="0"
+                IsIndeterminate="{Binding LoadMaxIsIndeterminate}"
+                Value="{Binding CurrentLoadedTileCount}"
+                Maximum="{Binding TotalTileCount}"
+                ProgressTextFormat="Loaded {0}/{3} tiles ({1:0}%)"
+                ShowProgressText="True"
+            />
         </Grid>
 
         <Border Grid.Row="1" Background="#777777">
             <!-- Focusable="True" this is needed or key bindings are not possible -->
             <opentk:OpenTkControl
-                Margin="10"
+                Margin="0"
                 Focusable="True" />
         </Border>
     </Grid>

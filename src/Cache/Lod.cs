@@ -43,14 +43,14 @@ public class Lod
         _dirtyWater = new();
     }
 
-    public void Load(Game game)
+    public void Load(Game game, AtomicCounter tilesLoadedOut)
     {
         var tasks = new List<Task>()
         {
-            LoadHeightmapTiles(game),
-            LoadMaterialTiles(game),
-            LoadGrassTiles(game),
-            LoadWaterTiles(game)
+            LoadHeightmapTiles(game, tilesLoadedOut),
+            LoadMaterialTiles(game, tilesLoadedOut),
+            LoadGrassTiles(game, tilesLoadedOut),
+            LoadWaterTiles(game, tilesLoadedOut)
         };
         Task.WaitAll(tasks);
         loadFinished = true;
@@ -63,7 +63,7 @@ public class Lod
         }
     }
 
-    private async Task LoadHeightmapTiles(Game game)
+    private async Task LoadHeightmapTiles(Game game, AtomicCounter tilesLoadedOut)
     {
         var iter = game.IterLodComponent(_level, LodComponent.hght);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
@@ -84,6 +84,7 @@ public class Lod
                         using (Profiler.BeginZone("HGHT_ToArray")) {
                             _hghts[tileId.Unwrap()] = data.Cast<byte, ushort>().ToArray();
                         }
+                        tilesLoadedOut.Increment();
                     }
                     result.Unwrap().Dispose();
                 }
@@ -93,7 +94,7 @@ public class Lod
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadMaterialTiles(Game game)
+    private async Task LoadMaterialTiles(Game game, AtomicCounter tilesLoadedOut)
     {
         var iter = game.IterLodComponent(_level, LodComponent.mate);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
@@ -115,6 +116,8 @@ public class Lod
                         {
                             _mates[tileId.Unwrap()] = data.Cast<byte, Material>().ToArray();
                         }
+
+                        tilesLoadedOut.Increment();
                     }
                     result.Unwrap().Dispose();
                 }
@@ -124,7 +127,7 @@ public class Lod
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadGrassTiles(Game game)
+    private async Task LoadGrassTiles(Game game, AtomicCounter tilesLoadedOut)
     {
         var iter = game.IterLodComponent(_level, LodComponent.grass);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
@@ -142,6 +145,7 @@ public class Lod
                         var tileId = ZOrder.IndexFromFilename(name);
                         if (tileId.IsErr()) continue;
                         _grass[tileId.Unwrap()] = data.Cast<byte, GrassExtm>().ToArray();
+                        tilesLoadedOut.Increment();
                     }
                     result.Unwrap().Dispose();
                 }
@@ -151,7 +155,7 @@ public class Lod
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadWaterTiles(Game game)
+    private async Task LoadWaterTiles(Game game, AtomicCounter tilesLoadedCount)
     {
         var iter = game.IterLodComponent(_level, LodComponent.water);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
@@ -169,6 +173,7 @@ public class Lod
                         var tileId = ZOrder.IndexFromFilename(name);
                         if (tileId.IsErr()) continue;
                         _water[tileId.Unwrap()] = data.Cast<byte, WaterExtm>().ToArray();
+                        tilesLoadedCount.Increment();
                     }
                     result.Unwrap().Dispose();
                 }

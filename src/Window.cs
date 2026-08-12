@@ -35,7 +35,7 @@ public class Window : GameWindow {
 
         var total = Stopwatch.StartNew();
         var t = Task.Run(delegate {
-            cache.Load(game);
+            cache.Load(game, new(0));
         });
         
         using (Profiler.BeginZone("R_LoadTerrainTextures")) {
