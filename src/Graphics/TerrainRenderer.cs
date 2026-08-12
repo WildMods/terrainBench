@@ -2,12 +2,11 @@ using System.Diagnostics;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System.Collections.Concurrent;
-using SmoothGL.Graphics.Shader;
-using BfresLibrary;
 using static GLUtil;
 using CommunityToolkit.HighPerformance;
 using System.Runtime.InteropServices;
 namespace terrainBench;
+using Graphics;
 
 public struct TerrainRenderer {
     const int HGHT_DIM = 256;
@@ -336,7 +335,7 @@ public struct TerrainRenderer {
             
             GL.BindTextureUnit(0, hghtTex);
             GL.BindTextureUnit(1, mateTex);
-            GL.Uniform1(tilesPerTexLoc, MAX_TILES);
+            Uniform.Set(tilesPerTexLoc, MAX_TILES);
 
             // Cull by distance by filtering the index list
             var temp = new Int32[indices.Count];
@@ -488,7 +487,7 @@ public struct TerrainRenderer {
         GL.DeleteTexture(coverageTex);
         GL.DeleteTexture(terrainTexArray);
         GL.DeleteVertexArray(vaoBlank);
-        tessShader.Dispose();
+        tessShader.FreeResources();
     }
 
     // Create a square GL texture
@@ -649,25 +648,20 @@ public struct TerrainRenderer {
     public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
         tessShader.Use();
         // Upload camera state
-        Uniform.Set(tessShader.programId, "matView", viewT);
-        Uniform.Set(tessShader.programId, "matProjection", projT);
-        Uniform.Set(tessShader.programId, "matModel", TerrainCoords.WorldPos.FromTileGridXform());
+        tessShader.SetUniform("matView", viewT);
+        tessShader.SetUniform("matProjection", projT);
+        tessShader.SetUniform("matModel", TerrainCoords.WorldPos.FromTileGridXform());
 
-        // We have to upload texture uniforms ourselves, because the terrible
-        // SmoothGL wrappers want you to use a cumbersome Sampler2D wrapper
         int indicesLocation = tessShader.GetUniformLocation("indices");
-        int hghtLoc = tessShader.GetUniformLocation("heightTex");
-        int matLoc = tessShader.GetUniformLocation("matTex");
-        int arrayLoc = tessShader.GetUniformLocation("colorTextures");
-        int coverageLoc = tessShader.GetUniformLocation("coverageTex");
         int tilesPerTexLoc = tessShader.GetUniformLocation("tilesPerTex");
+        
         // This is specified in the shader via an extension, but for some reason
         // Nvidia hardware doesn't respect it and assigns locations seemingly at random
-        GL.Uniform1(hghtLoc, 0);
-        GL.Uniform1(matLoc, 1);
-        GL.Uniform1(arrayLoc, 2);
-        GL.Uniform1(coverageLoc, 3);
-
+        tessShader.SetUniform("heightTex", 0);
+        tessShader.SetUniform("matTex", 1);
+        tessShader.SetUniform("colorTextures", 2);
+        tessShader.SetUniform("coverageTex", 3);
+        
         GL.BindTextureUnit(2, terrainTexArray);
         GL.BindTextureUnit(3, coverageTex);
         GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader

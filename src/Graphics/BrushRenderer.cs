@@ -1,8 +1,8 @@
 using OpenTK.Graphics.OpenGL4;
-using SmoothGL.Graphics.Shader;
 using OpenTK.Mathematics;
 
 namespace terrainBench;
+using Graphics;
 
 public class BrushRenderer {
     private Shader? shader = null;
@@ -17,19 +17,24 @@ public class BrushRenderer {
 
         return true;
     }
+    
+    public void GLUninit() {
+        shader.FreeResources();
+        GL.DeleteVertexArray(vaoBlank);
+    }
 
     public void Draw(Matrix4 projT, Matrix4 viewT) {
         const int res = 32;
         const float radius = 10.0f;
-        Uniform.Set(shader.programId, "resolution", res);
-        Uniform.Set(shader.programId, "radius", radius);
+        shader.Use();
+        shader.SetUniform("resolution", res);
+        shader.SetUniform("radius", radius);
         
-        Uniform.Set(shader.programId, "projT", projT);
-        Uniform.Set(shader.programId, "viewT", viewT);
-        Uniform.Set(shader.programId, "modelT", modelT);
+        shader.SetUniform("projT", projT);
+        shader.SetUniform("viewT", viewT);
+        shader.SetUniform("modelT", modelT);
         
         GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
-        shader.Use();
         GL.DrawArrays(PrimitiveType.LineStrip, 0, res + 1);
         GL.BindVertexArray(0);
     }

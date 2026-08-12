@@ -42,7 +42,6 @@
         <ProjectReference Include="$(LibraryPath)/cs-oead/src/CsOead.csproj" />
         <ProjectReference Include="$(LibraryPath)/OperationResult/OperationResult/OperationResult.csproj" />
         <PackageReference Include="OpenTK" Version="4.9.4" />
-        <PackageReference Include="SmoothGL" Version="1.2.0" />
 
         <Content Condition="Exists('$(NIOLibFile).so')" Include="$(NIOLibFile).so" Link="Lib/native_io.so" TargetPath="native_io.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(NIOLibFile).dll')" Include="$(NIOLibFile).dll" Link="Lib/native_io.dll" TargetPath="native_io.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />

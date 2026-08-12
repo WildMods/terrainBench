@@ -51,6 +51,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
         Debug.Assert(DataContext is EditorState);
         var vm = (EditorState)DataContext;
         vm.terrain.GLUninit();
+        vm.brush.GLUninit();
     }
 
     protected override void Render() {
