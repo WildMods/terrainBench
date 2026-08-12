@@ -20,7 +20,7 @@ public class App : Application {
                 Width = 900,
                 Height = 600,
                 Title = "Terrain Workbench",
-                DataContext = new MainWindowViewModel(desktop.Args),
+                DataContext = new EditorState(desktop.Args),
             };
         }
 

@@ -6,15 +6,11 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System.Diagnostics;
 using System.Text;
-using CommunityToolkit.HighPerformance;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 using static terrainBench.TerrainCoords;
 namespace terrainBench.UI;
 using ViewModels;
 
 public sealed class OpenTkControl : OpenTkControlBase {
-    private readonly Color4 _clearColor = new(0.2f, 0.3f, 0.3f, 1.0f);
-
     //mouse => see if mouse is clicked and dragged
     private bool _isDragging;
 
@@ -42,23 +38,22 @@ public sealed class OpenTkControl : OpenTkControlBase {
         WriteInfos();
         WriteControlsInfos();
         
-        var vm = (MainWindowViewModel)DataContext;
+        var vm = (EditorState)DataContext;
         var t1 = Task.Run(delegate {
             vm.cache.Load(vm.game, vm.LoadedTileCountAsync);
             vm.cacheLoadFinished = true;
         });
-        
-        var t2 = Task.Run(delegate {
-        });
-        // t.Wait();
     }
 
     protected override void Deinit() {
+        Debug.Assert(DataContext is EditorState);
+        var vm = (EditorState)DataContext;
+        vm.terrain.GLUninit();
     }
 
     protected override void Render() {
-        Debug.Assert(DataContext is MainWindowViewModel);
-        var vm = (MainWindowViewModel)DataContext;
+        Debug.Assert(DataContext is EditorState);
+        var vm = (EditorState)DataContext;
         WriteInfos();
         var now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
         var delta = now - _lastFrameTime;
@@ -106,8 +101,8 @@ public sealed class OpenTkControl : OpenTkControlBase {
     }
 
     private void DoUpdate(double delta) {
-        Debug.Assert(DataContext is MainWindowViewModel);
-        var vm = (MainWindowViewModel)DataContext;
+        Debug.Assert(DataContext is EditorState);
+        var vm = (EditorState)DataContext;
         vm.CurrentLoadedTileCount = vm.LoadedTileCountAsync.val;
         /*
         if (KeyboardState.IsKeyDown(Keys.Escape)) {
@@ -228,7 +223,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
     }
 
     private void WriteInfos() {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not EditorState vm) return;
         var space = "    ";
         var sb = new StringBuilder();
         sb.AppendLine("OpenGL Version:");
@@ -237,7 +232,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
     }
 
     private void WriteControlsInfos() {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not EditorState vm) return;
         var space = "        ";
         var sb = new StringBuilder();
         sb.AppendLine("Controls: ");

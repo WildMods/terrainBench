@@ -2,7 +2,7 @@
 
 using terrainBench;
 namespace terrainBench.UI.ViewModels;
-public partial class MainWindowViewModel : ViewModelBase {
+public partial class EditorState : ObservableObject {
     [ObservableProperty]
     private string _creditInformation = "Written by Torphedo & Ginger Chody";
     
@@ -25,7 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase {
     [ObservableProperty] public bool cacheLoadFinished = false;
     [ObservableProperty] public bool gpuLoadFinished = false;
     
-    public MainWindowViewModel(string[] args) {
+    public EditorState(string[] args) {
         var settings = Settings.Settings.Load();
         if (!Settings.Settings.Validate(settings)) {
             if (args.Length < 2) {
