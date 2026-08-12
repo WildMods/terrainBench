@@ -51,7 +51,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
         Debug.Assert(DataContext is EditorState);
         var vm = (EditorState)DataContext;
         vm.terrain.GLUninit();
-        vm.brush.GLUninit();
+        vm.brushRenderer.GLUninit();
     }
 
     protected override void Render() {
@@ -73,7 +73,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
             }
         
             using (Profiler.BeginZone("R_GLInit")) {
-                vm.brush.GLInit();
+                vm.brushRenderer.GLInit();
                 vm.terrain.GLInit(vm.cache);
             }
 
@@ -100,7 +100,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
             var projT = vm.cam.proj_matrix();
             var viewT = vm.cam.view_matrix();
             vm.terrain.Render(projT, viewT, new WorldPos(vm.cam.eye()));
-            vm.brush.Draw(projT, viewT);
+            vm.brushRenderer.Draw(projT, viewT);
         }
 
         // TODO: Does it make sense to do SwapBuffers() in Avalonia?
@@ -127,7 +127,11 @@ public sealed class OpenTkControl : OpenTkControlBase {
                 var pp = r.Unwrap();
                 WorldPos wp = pp;
                 wp.y += 8f;
-                vm.brush.modelT = Matrix4.CreateTranslation(wp);
+                
+                // Please note the actual brush uses pixel coordinates, while
+                // the renderer needs the world coordinates
+                vm.brush.center = pp;
+                vm.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
             }
         }
 

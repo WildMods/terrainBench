@@ -35,7 +35,8 @@ Middle click
     public Game game;
     public Cache.Cache cache = new();
     public TerrainRenderer terrain = new();
-    public BrushRenderer brush = new();
+    public Brush brush = new();
+    public BrushRenderer brushRenderer = new();
     public Camera cam = new();
 
     // Asynchronously updated progress data
