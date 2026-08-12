@@ -19,7 +19,7 @@ public class App : Application {
             desktop.MainWindow = new MainWindow {
                 Width = 900,
                 Height = 600,
-                Title = "AvaloniaOpenTK",
+                Title = "Terrain Workbench",
                 DataContext = new MainWindowViewModel(desktop.Args),
             };
         }

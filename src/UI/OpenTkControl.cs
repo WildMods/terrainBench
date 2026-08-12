@@ -33,8 +33,8 @@ public sealed class OpenTkControl : OpenTkControlBase {
     }
 
     //Initialize all needed resources
-    protected override void Init() {
-        SetWindowTitle("Terrain Workbench");
+    protected override void Init()
+    {
         GL.Enable(EnableCap.DepthTest);
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
