@@ -431,6 +431,7 @@ public struct TerrainRenderer {
                 }
             }
             
+            Console.WriteLine("Unable to update tile {0} @ lvl {1}", idx, lod);
             return false;
         }
     }
@@ -447,10 +448,56 @@ public struct TerrainRenderer {
     /// Update a rendered tile.
     /// The render thread streams tiles to the GPU at the start of each frame.
     /// </summary>
-    public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
+    public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type)
+    {
         return ring0.ScheduleTileUpdate(idx, lod, data, type);
     }
-    
+
+    public bool ScheduleTileUpdate(UInt16 idx, byte lod, LodComponent type, Cache.Cache cache)
+    {
+        ReadOnlySpan<byte> data = new();
+        switch (type) {
+            case LodComponent.hght: {
+                var t = cache.GetHeightmapTile(lod, idx, false);
+                if (t.IsErr()) {
+                    Console.WriteLine("Couldn't find tile {0} @ lvl {1}", idx, lod);
+                    return false;
+                }
+                data = t.Unwrap().AsBytes();
+                break;
+            }
+            case LodComponent.mate: {
+                var t = cache.GetMaterialTile(lod, idx, false);
+                if (t.IsErr()) {
+                    Console.WriteLine("Couldn't find tile {0} @ lvl {1}", idx, lod);
+                    return false;
+                }
+                data = t.Unwrap().AsBytes();
+                break;
+            }
+            case LodComponent.water: {
+                var t = cache.GetWaterTile(lod, idx, false);
+                if (t.IsErr()) {
+                    Console.WriteLine("Couldn't find tile {0} @ lvl {1}", idx, lod);
+                    return false;
+                }
+                data = t.Unwrap().AsBytes();
+                break;
+            }
+            case LodComponent.grass: {
+                var t = cache.GetGrassTile(lod, idx);
+                if (t.IsErr()) {
+                    Console.WriteLine("Couldn't find tile {0} @ lvl {1}", idx, lod);
+                    return false;
+                }
+                data = t.Unwrap().AsBytes();
+                break;
+            }
+        }
+
+        return ScheduleTileUpdate(idx, lod, data, type);
+    }
+
     public TerrainRenderer() { }
 
     public bool GLInit(Cache.Cache cache) {

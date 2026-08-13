@@ -216,4 +216,13 @@ public class Cache
         timer.Stop();
         Console.WriteLine("Finished saving all tiles in {0}ms.", timer.ElapsedMilliseconds);
     }
+
+    public bool MakeTileDirty(ushort tileId, LodComponent type, byte lod) {
+        if (lod > ZOrder.MAX_LOD) {
+            return false;
+        }
+
+        _lods[lod].MakeTileDirty(tileId, type);
+        return true;
+    }
 }
