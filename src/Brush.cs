@@ -127,6 +127,8 @@ public struct Brush() {
         var c = new Vector2i((int)center.X, (int)center.Z);
         var min = c - new Vector2i(radius, radius);
         var max = c + new Vector2i(radius, radius);
+        min.X = Math.Max(0, min.X);
+        min.Y = Math.Max(0, min.Y);
 
         for (var x = min.X; x < max.X; x++) {
             for (var y = min.Y; y < max.Y; y++) {
@@ -149,6 +151,7 @@ public struct Brush() {
         HashSet<int> updatedTiles = new();
         
         foreach (var (p, dist) in IterAffectedPixels()) {
+            Debug.Assert(p.X >= 0 && p.Y >= 0);
             TerrainCoords.PixelGrid8Pos pp = new(new Vector3(p.X, 0, p.Y));
             TerrainCoords.TileGrid8Pos tp = pp;
 
@@ -178,8 +181,12 @@ public struct Brush() {
             int linearIdx = posInTile.X * ZOrder.GRID_SIZE + posInTile.Y;
 
             var strength = EvalFalloff(dist) * multiplier;
-            ref var value = ref tile[linearIdx];
-            value = ApplyEditFunc(value, editFunc, strength);
+            try {
+                ref var value = ref tile[linearIdx];
+                value = ApplyEditFunc(value, editFunc, strength);
+            } catch (IndexOutOfRangeException e) {
+                Console.WriteLine("Index {0} @ pos {1} was out-of-bounds, p = {2}", linearIdx, posInTile, p);
+            }
 
             updatedTiles.Add(ZOrder.PackIndex(idx, (byte)lod));
         }
