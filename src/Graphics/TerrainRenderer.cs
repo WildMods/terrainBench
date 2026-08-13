@@ -370,36 +370,16 @@ public struct TerrainRenderer {
     public struct TileRegion {
         public readonly List<CompactTileSheet> sheets = [];
 
-        public TileRegion(byte[] lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+        public TileRegion(Cache.CoverageMap lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
-            var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
-            UInt16 minIdx, maxIdx;
-            {
-                byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
-                byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
-                byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
-                byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
-                minIdx = ZOrder.Interleave8To16(xMin, yMin);
-                maxIdx = ZOrder.Interleave8To16(xMax, yMax);
-            }
+            byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
+            byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
+            byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
+            byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
 
             // Build deduplicated set of packed index values
-            var indices = new HashSet<Int32>();
-            for (UInt16 idx = minIdx; idx < maxIdx; idx++) {
-                ZOrder.Deinterleave16To8(idx, out var x, out var y);
-                var linearIdx = (HGHT_DIM * y + x);
-                var cov = lodCoverage[linearIdx];
-                byte best = ZOrder.MAX_LOD;
-                while ((cov & 0x80) == 0) {
-                    cov <<= 1;
-                    best--;
-                }
-                
-                var lvlDiff = ZOrder.MAX_LOD - best;
-                UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));
-                indices.Add(ZOrder.PackIndex(targetIdx, best));
-            }
+            var indices = lodCoverage.FindAllTilesInSquare(xMin, yMin, xMax, yMax);
             Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
 
             // Build tile atlases and do GPU upload
@@ -440,7 +420,7 @@ public struct TerrainRenderer {
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     int terrainTexArray = 0;
     int coverageTex = 0;
-    byte[] lodCoverage = new byte[HGHT_DIM * HGHT_DIM];
+    private Cache.CoverageMap lodCoverage;
 
     TileRegion ring0;
 
@@ -514,9 +494,9 @@ public struct TerrainRenderer {
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
-        lodCoverage = CreateCoverageTexture(cache);
+        lodCoverage = new(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
-        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage);
+        GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 
         var loadWatch = Stopwatch.StartNew();
         ring0 = new(lodCoverage, cache, 255, 128, 128);
@@ -557,52 +537,6 @@ public struct TerrainRenderer {
         return tex;
     }
 
-    /// <summary>
-    /// Build a buffer with 1 byte per tile in the level 8 grid, indicating the
-    /// highest LOD level that's available to cover that location
-    /// </summary>
-    public static byte[] CreateCoverageTexture(Cache.Cache cache) {
-        var zone = Profiler.BeginZone("R_CreateCoverageTexture");
-        byte[] buf = new byte[HGHT_DIM * HGHT_DIM];
-        
-        for (sbyte lvl = 8; lvl > 0; lvl--) {
-            byte lvlDiff = (byte)(ZOrder.MAX_LOD - lvl);
-            UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
-            int sizeofLevel = (int)((1 << lvl) * (1 << lvl));
-
-            // Index is an int because level 8 uses the whole 16-bit range, so
-            // otherwise the loop will never end
-            int tilesFound = 0;
-            int tilesWritten = 0;
-            for (int idx = 0; idx < sizeofLevel; idx++) {
-                var res = cache.GetHeightmapTile(lvl, (UInt16)idx, false);
-                if (res.IsErr()) {
-                    continue;
-                }
-                tilesFound++;
-
-                // Find the index of this tile's starting point on the level 8 grid
-                UInt16 lvl8Idx = (UInt16)(idx << (2 * lvlDiff));
-                byte val = (byte)(1 << (lvl - 1));
-                for (int i = 0; i < drawSize; i++) {
-                    int targetPos = lvl8Idx + i;
-                    ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
-                    int linearIdx = HGHT_DIM * y + x;
-
-                    // We have 8 bits and 9 detail levels, so exclude level 0.
-                    Debug.Assert(lvl > 0);
-                    // MSB = level 8, LSB = level 1.
-                    buf[linearIdx] |= val;
-                    tilesWritten++;
-                }
-            }
-            Console.WriteLine("Found {0}/{1} level {2} tiles, covering {3} level 8 tiles", tilesFound, sizeofLevel, lvl, tilesWritten);
-        }
-
-        zone.Dispose();
-        return buf;
-    }
-    
     // Load terrain texture array from the game files
     public bool LoadTerrainTextures(Game game) {
         // Texture indices for the terrain texture array. We use this instead of
