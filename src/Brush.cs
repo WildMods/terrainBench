@@ -10,9 +10,9 @@ public struct Brush() {
     
     public enum FalloffFunc {
         LINEAR,         // mx + b
-        INVERSE,        // (1 / mx) + b
+        INVERSE,        // (m / x) + b
         SQUARE,         // mx^2 + b
-        INVERSE_SQUARE, // (1 / (mx^2)) + b
+        INVERSE_SQUARE, // (m / (x^2)) + b
         ENUM_MAX,
     }
     
@@ -38,25 +38,25 @@ public struct Brush() {
     /// The amount the brush strength decreases as it moves away from the center
     /// Implemented as the "m" to plug into the falloff function
     /// </summary>
-    public float falloffStrength = -0.5f;
+    public float falloffStrength = -10f;
 
     /// <summary>
     /// The power of the brush before any falloff is applied.
     /// Implemented as the "b" to plug into the falloff function
     /// </summary>
-    public float baseStrength = 50f;
+    public float baseStrength = 20f;
 
     /// <summary>
     /// Calculates the result of a falloff function
     /// </summary>
-    public static float EvalFalloff(FalloffFunc func, float m, float x, float b)
+    public static float ApplyFalloffFunc(FalloffFunc func, float m, float x, float b)
     {
         Debug.Assert((int)func < (int)FalloffFunc.ENUM_MAX);
         var result = func switch {
             FalloffFunc.LINEAR  => m * x + b,
-            FalloffFunc.INVERSE => (1f / (m * x)) + b,
+            FalloffFunc.INVERSE => (m / x) + b,
             FalloffFunc.SQUARE  => m * (x * x) + b,
-            FalloffFunc.INVERSE_SQUARE => 1f / (m * (x * x)) + b,
+            FalloffFunc.INVERSE_SQUARE => m / (x * x) + b,
         };
         return Math.Max(0, result);
     }
@@ -75,7 +75,7 @@ public struct Brush() {
 
         float dist = type switch {
             DistanceType.EUCLIDEAN => Vector3.Distance(a, b),
-            DistanceType.MANHATTAN => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) + Math.Abs(a.Z - b.Z),
+            DistanceType.MANHATTAN => Vector3.ManhattanDistance(a, b),
         };
 
         return dist;
@@ -110,7 +110,7 @@ public struct Brush() {
     /// <param name="x">The distance from the brush's center</param>
     /// <returns></returns>
     public float EvalFalloff(float x) {
-        return Brush.EvalFalloff(func, falloffStrength, x, baseStrength);
+        return Brush.ApplyFalloffFunc(func, falloffStrength, x, baseStrength);
     }
     
     public float EvalBrushStrength(Vector3 pos) {
@@ -180,7 +180,7 @@ public struct Brush() {
 
             int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
 
-            var strength = EvalFalloff(dist) * multiplier;
+            var strength = EvalFalloff(dist / radius) * multiplier;
             try {
                 ref var value = ref tile[linearIdx];
                 value = ApplyEditFunc(value, editFunc, strength);
