@@ -178,7 +178,7 @@ public struct Brush() {
             posInTile.X %= ZOrder.GRID_SIZE;
             posInTile.Y %= ZOrder.GRID_SIZE;
 
-            int linearIdx = posInTile.X * ZOrder.GRID_SIZE + posInTile.Y;
+            int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
 
             var strength = EvalFalloff(dist) * multiplier;
             try {
