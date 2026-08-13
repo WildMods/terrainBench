@@ -25,9 +25,34 @@
                     <MenuItem Header="_Quit"/>
                 </MenuItem>
                 <MenuItem Header="_Brush">
-                    <MenuItem Header="Brush size placeholder"/>
                     <MenuItem Header="Brush type placeholder"/>
-                    <MenuItem Header="Brush falloff placeholder"/>
+                    <ComboBox ItemsSource="{Binding brushFalloffTypes}"
+                              SelectedItem="{Binding brushFalloff}">
+                    </ComboBox>
+                    
+                    <TextBlock>
+                        <Run Text="Brush size: "/>
+                        <Run Text="{Binding #brushSizeSlider.Value}"/>
+                    </TextBlock>
+                    <Slider Minimum="1" Maximum="200" Name="brushSizeSlider"
+                            Margin="0" Padding="0" MaxHeight="40"
+                            Value="{Binding brushRadius}"/>
+                    
+                    <TextBlock>
+                        <Run Text="Brush strength: "/>
+                        <Run Text="{Binding #brushSTRSlider.Value}"/>
+                    </TextBlock>
+                    <Slider Minimum="1" Maximum="200" Name="brushSTRSlider"
+                            Margin="0" Padding="0" MaxHeight="40"
+                            Value="{Binding brushBaseStrength}"/>
+                    
+                    <TextBlock>
+                        <Run Text="Falloff strength: "/>
+                        <Run Text="{Binding #brushFalloffSlider.Value}"/>
+                    </TextBlock>
+                    <Slider Minimum="1" Maximum="50" Name="brushFalloffSlider"
+                            Margin="0" Padding="0" MaxHeight="40"
+                            Value="{Binding brushFalloffStrength}"/>
                 </MenuItem>
                 <MenuItem Header="_Help">
                     <TextBlock Margin="5" 

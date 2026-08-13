@@ -35,9 +35,24 @@ Middle click
     public Game game;
     public Cache.Cache cache = new();
     public TerrainRenderer terrain = new();
-    public Brush brush = new();
+    [ObservableProperty] public Brush brush = new();
     public BrushRenderer brushRenderer = new();
     public Camera cam = new();
+
+    public float brushBaseStrength {
+        get => brush.baseStrength; set =>  brush.baseStrength = value;
+    }
+    public float brushFalloffStrength {
+        get => brush.falloffStrength; set =>  brush.falloffStrength = value;
+    }
+    public int brushRadius {
+        get => brush.radius; set =>  brush.radius = value;
+    }
+    public Brush.FalloffFunc[] brushFalloffTypes { get; } = Enum.GetValues<Brush.FalloffFunc>();
+    
+    public Brush.FalloffFunc brushFalloff {
+        get => brush.func; set =>  brush.func = value;
+    }
 
     // Asynchronously updated progress data
     [ObservableProperty] public ProgressReport asyncLoadedTiles = new();
