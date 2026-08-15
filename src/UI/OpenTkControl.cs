@@ -144,7 +144,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
         }
 
         if (input.IsKeyDown(Key.S) && input.IsKeyDown(Key.LeftCtrl)) {
-            vm.cache.WriteAllTiles(".", false, CsOead.Endianness.Big);
+            vm.cache.WriteAllTiles(".", true, CsOead.Endianness.Big);
         }
 
         vm.cam.update(input, delta);
