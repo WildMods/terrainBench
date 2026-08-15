@@ -263,6 +263,36 @@ public class Lod
         _dirtyWater[tileId] = data;
     }
 
+    public void MakeTileDirty(ushort tileId, LodComponent type) {
+        WaitForLoad();
+        switch (type) {
+        case LodComponent.hght: {
+            if (_hghts.Remove(tileId, out var tile)) {
+                InsertTile(tileId, tile);
+            }
+            break;
+        }
+        case LodComponent.mate: {
+            if (_mates.Remove(tileId, out var tile)) {
+                InsertTile(tileId, tile);
+            }
+            break;
+        }
+        case LodComponent.water: {
+            if (_water.Remove(tileId, out var tile)) {
+                InsertTile(tileId, tile);
+            }
+            break;
+        }
+        case LodComponent.grass: {
+            if (_grass.Remove(tileId, out var tile)) {
+                InsertTile(tileId, tile);
+            }
+            break;
+        }
+        }
+    }
+
     /// <summary>
     /// Build a SARC containing all the tiles adjacent to the given index.
     /// The "STERA" name is not a typo, since the first S in "SSTERA" indicates
