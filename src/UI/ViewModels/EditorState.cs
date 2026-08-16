@@ -70,6 +70,7 @@ Middle click
     [ObservableProperty] public int uiTotalTiles = 18100;
     
     public EditorState(string[] args) {
+        string modPath = "./TerrainMod";
         var settings = Settings.Settings.Load();
         if (!Settings.Settings.Validate(settings)) {
             if (args.Length < 2) {
@@ -81,11 +82,17 @@ Middle click
             settings.updateDir = args[1];
             settings.dlcDir = args.Length > 2 ? args[2] : "";
             settings.Save();
+
+            if (args.Length > 3) {
+                modPath = args[3];
+            }
         }
+
+        Directory.CreateDirectory(modPath);
         
         Console.WriteLine("Base: '{0}'", settings.gameDir);
         Console.WriteLine("Update: '{0}'", settings.updateDir);
         Console.WriteLine("DLC: '{0}'", settings.dlcDir);
-        game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir);
+        game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir, modPath);
     }
 }
