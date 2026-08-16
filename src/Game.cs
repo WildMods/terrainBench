@@ -92,13 +92,14 @@ public class Game
     }
 
     public void IndexDefaultPaths() {
-        const string terrainFolder = "Terrain/A/MainField";
-        
-        IndexPath("Model", Section.Base);
-        IndexPath("Pack/TitleBG.pack", Section.Base);
-        IndexPath(terrainFolder, Section.Base);
-        IndexPath(terrainFolder, Section.Update);
-        IndexPath(terrainFolder, Section.Mod);
+        string[] paths = { "Terrain/A/MainField", "Model", "Pack/TitleBG.pack" };
+
+        foreach (var p in paths) {
+            IndexPath(p, Section.Base);
+            IndexPath(p, Section.Update);
+            IndexPath(p, Section.DLC);
+            IndexPath(p, Section.Mod);
+        }
     }
 
     /// <summary>
