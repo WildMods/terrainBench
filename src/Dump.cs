@@ -11,12 +11,6 @@ namespace terrainBench;
 /// </summary>
 public class Dump
 {
-    private string _path;
-
-    public Dump(string path) {
-        _path = path;
-    }
-
     /// <summary>
     /// Open a game file for writing
     /// </summary>
@@ -37,50 +31,18 @@ public class Dump
     }
 
     /// <summary>
-    /// Read and decompress a loose file
-    /// </summary>
-    public Result<Native.IO.Handles.DataMarshal, ErrorStack> GetDecompressed(string loose)
-    {
-        string path = Path.Combine(_path, loose);
-        var data = Yaz0.DecompressFile(path);
-        if (data.AsSpan().Length == 0) {
-            return Err(new ErrorStack($"Unable to map & decompress '{path}'"));
-        }
-        return data;
-    }
-
-    /// <summary>
-    /// Read a loose file
-    /// </summary>
-    public RefResult<Span<byte>, ErrorStack> GetFile(string loose)
-    {
-        if (loose.Contains("//"))
-        {
-            return Err(new ErrorStack($"loose path must be loose file. Use GetNestedFile for nested files: {loose}"));
-        }
-        var path = Path.Combine(_path, loose);
-        if (!File.Exists(path))
-        {
-            return Err(new ErrorStack($"Loose file not found: {loose}"));
-        }
-
-        Span<byte> span = File.ReadAllBytes(path);
-        return Yaz0.TryDecompress(span, out var data) ? Ok(data!.AsSpan()) : Ok(span);
-    }
-
-    /// <summary>
     /// Read a file inside a SARC. The path to the SARC is specified normally,
     /// but folders inside the SARC use a double slash.
     /// e.g. "Pack/TitleBG.pack//Model//Link.sbfres"
     /// </summary>
-    public RefResult<Span<byte>, ErrorStack> GetNestedFile(string relative)
+    public static RefResult<Span<byte>, ErrorStack> GetNestedFile(string sectionPath, string relative)
     {
         string[] parts = relative.Split("//", 2);
         if (parts.Length == 1)
         {
             return Err(new ErrorStack($"relative path must be nested file. Use GetFile for loose files: {relative}"));
         }
-        string loose = Path.Combine(_path, parts[0]);
+        string loose = Path.Combine(sectionPath, parts[0]);
         if (!File.Exists(loose))
         {
             return Err(new ErrorStack($"Loose file not found: {loose}"));
@@ -117,19 +79,5 @@ public class Dump
         sarc.Close();
 
         return Ok(span);
-    }
-
-    public IEnumerable<string> GlobFilesInFolder(string folder, string pattern)
-    {
-        var _files = Directory.EnumerateFiles(Path.Join(_path, folder), pattern, SearchOption.AllDirectories);
-        foreach (var file in _files)
-        {
-            yield return file;
-        }
-    }
-
-    public IEnumerable<string> GetAllFilesInFolder(string folder)
-    {
-        return GlobFilesInFolder(folder, "*");
     }
 }
