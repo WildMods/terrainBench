@@ -1,12 +1,10 @@
 <ContentPage xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="terrainBench.UI.OpenGlLeasePage"
-             xmlns:ui="clr-namespace:terrainBench.UI"
              xmlns:vm="clr-namespace:terrainBench.UI.ViewModels"
              x:DataType="vm:EditorState"
              >
     <Grid>
         <Control x:Name="Viewport" AttachedToVisualTree="ViewportAttachedToVisualTree" DetachedFromVisualTree="ViewportDetachedFromVisualTree"/>
-        <ui:GlOverlay x:Name="Knobs"/>
     </Grid>
 </ContentPage>
