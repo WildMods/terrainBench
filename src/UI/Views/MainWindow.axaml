@@ -123,7 +123,7 @@
                 IsIndeterminate="{Binding UiLoadIndeterminate}"
                 Value="{Binding UiLoadedTiles}"
                 Maximum="{Binding UiTotalTiles}"
-                ProgressTextFormat="Loaded {0}/{3} tiles ({1:0}%)"
+                ProgressTextFormat="{Binding UiProgressText}"
                 ShowProgressText="True"
             />
         </DockPanel>

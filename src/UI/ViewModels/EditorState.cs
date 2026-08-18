@@ -91,6 +91,8 @@ Middle click
     [ObservableProperty] public int uiLoadedTiles = 0;
     [ObservableProperty] public int uiTotalTiles = 18100;
     
+    [ObservableProperty] public string uiProgressText = "Loaded {0}/{3} tiles ({1:0}%)";
+    
     public EditorState(string[] args) {
         string modPath = "./TerrainMod";
         var settings = Settings.Settings.Load();

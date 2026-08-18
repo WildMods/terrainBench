@@ -113,6 +113,17 @@ public sealed class OpenTkControl : OpenTkControlBase {
         vm.UiLoadedTiles = vm.AsyncLoadedTiles.Value;
         vm.UiLoadIndeterminate = vm.AsyncLoadedTiles.IsIndeterminate;
         vm.UiTotalTiles = vm.AsyncLoadedTiles.Max;
+
+        // Just do the progress text ourselves instead of letting Avalonia do it.
+        // This is the only practical way to get progress in GB.
+        // Pixels can be 2 or 4 bytes, so we use an average of 3 bytes
+        var bytesPerTile = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE * 3;
+        var bytesPerGB = (long)Math.Pow(1000, 3);
+        var loadedGB = ((long)vm.uiLoadedTiles * bytesPerTile) / (float)bytesPerGB;
+        var totalGB = ((long)vm.uiTotalTiles * bytesPerTile) / (float)bytesPerGB;
+        var percent = (float)vm.uiLoadedTiles / vm.uiTotalTiles * 100f;
+        vm.UiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
+        
         if (input.IsKeyDown(Key.Escape)) {
             // Close();
         }
