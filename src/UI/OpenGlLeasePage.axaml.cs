@@ -1,3 +1,5 @@
+// Adapted from Avalonia samples:
+// https://github.com/AvaloniaUI/Avalonia/blob/main/samples/ControlCatalog/Pages/OpenGl/OpenGlLeasePage.xaml.cs
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
@@ -7,7 +9,6 @@ using Avalonia.Media;
 using Avalonia.OpenGL;
 using Avalonia.Rendering.Composition;
 using Avalonia.Skia;
-using Avalonia.Threading;
 using OpenTK.Graphics.OpenGL4;
 using SkiaSharp;
 using terrainBench.UI.ViewModels;
@@ -37,7 +38,6 @@ public partial class OpenGlLeasePage : ContentPage {
             _input = input;
         }
 
-
         public override void OnAnimationFrameUpdate() {
             Invalidate();
             base.OnAnimationFrameUpdate();
@@ -50,11 +50,12 @@ public partial class OpenGlLeasePage : ContentPage {
             if (size.Width < 1 || size.Height < 1)
                 return;
             
-            if(drawingContext.TryGetFeature<ISkiaSharpApiLeaseFeature>(out var skiaFeature)) {
+            if (drawingContext.TryGetFeature<ISkiaSharpApiLeaseFeature>(out var skiaFeature)) {
                 using var skiaLease = skiaFeature.Lease();
                 var grContext = skiaLease.GrContext;
                 if (grContext == null)
                     return;
+                // Borrow the graphics API context
                 SKImage? snapshot;
                 using (var platformApiLease = skiaLease.TryLeasePlatformGraphicsApi()) {
                     if (platformApiLease?.Context is not IGlContext glContext)
@@ -66,10 +67,12 @@ public partial class OpenGlLeasePage : ContentPage {
                         _fbo = null;
                         _contentInitialized = false;
                         _gl = glContext;
+                        // Hook up OpenTK to our context
                         AvaloniaTkContext avaCtx = new(gl);
                         GL.LoadBindings(avaCtx);
                     }
 
+                    // Render to a new framebuffer
                     gl.GetIntegerv(GL_FRAMEBUFFER_BINDING, out var oldFb);
 
                     _fbo ??= new OpenGlFbo(glContext, grContext);
@@ -87,20 +90,17 @@ public partial class OpenGlLeasePage : ContentPage {
                     _content.OnOpenGlRender(gl, _fbo.Fbo, size, _editorState, _input);
                     _input.ResetKeyStates();
 
+                    // Have the rendered frame copied to a presentable texture
                     snapshot = _fbo.Snapshot();
                     gl.BindFramebuffer(GL_FRAMEBUFFER, oldFb);
                 }
 
+                // Present the image normally
                 using(snapshot)
                     if (snapshot != null)
                         skiaLease.SkCanvas.DrawImage(snapshot, new SKRect(0, 0,
                             (float)bounds.Width, (float)bounds.Height));
             }
-            
-            DispatcherTimer.Run(() => {
-                OnRender(drawingContext);
-                return true; // run once
-            }, TimeSpan.FromSeconds(1.0 / 165.0));
         }
 
         public override void OnMessage(object message) {
@@ -122,8 +122,10 @@ public partial class OpenGlLeasePage : ContentPage {
 
                     _gl = null;
                 }
+            } else {
+                RegisterForNextAnimationFrameUpdate();
+                
             }
-            RegisterForNextAnimationFrameUpdate();
 
             base.OnMessage(message);
         }
@@ -164,16 +166,14 @@ public partial class OpenGlLeasePage : ContentPage {
         base.OnDetachedFromVisualTree(e);
     }
     
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
+    protected override void OnKeyDown(KeyEventArgs e) {
         if (!IsEffectivelyVisible)
             return;
         
         input.SetKey(e.Key, true);
     }
     
-    protected override void OnKeyUp(KeyEventArgs e)
-    {
+    protected override void OnKeyUp(KeyEventArgs e) {
         if (!IsEffectivelyVisible)
             return;
         
