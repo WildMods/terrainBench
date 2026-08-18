@@ -11,7 +11,7 @@ namespace terrainBench;
 public class Camera {
     public enum Mode {
         ORBIT, // 3rd-person dual-stick style
-        POV, // POV Minecraft-style
+        MINECRAFT, // POV Minecraft-style
         FLY, // Flying (freecam style, like Source Engine spectator)
         MODE_ENUM_MAX,
     };
@@ -21,56 +21,56 @@ public class Camera {
     Vector3 pos = new Vector3(0, 200, 0); // Position of the viewer
     Quaternion orbit_angles = Quaternion.Identity;
     public float radius = 30.0f;
-    float move_speed = 500.0f;
-    float mouse_sens = 0.05f;
+    public float move_speed = 500.0f;
+    public float mouse_sens = 0.05f;
     private float zoom_sense = 10.0f;
 
     // Projection settings
-    float fov_angle = DegreesToRadians(70.0f);
-    public float aspect = 16f / 9f;
-    float near = 0.1f;
-    float far = 10000.0f;
+    public float fov_angle = DegreesToRadians(70.0f);
 
-    bool invert_mouse_x = true;
-    bool invert_mouse_y = false;
-    Mode mode = Mode.ORBIT;
-
-    /// @brief Updates the camera mode.
-    ///
-    /// Use this instead of accessing the field directly, otherwise it may break.
-    /// @param cam The camera to modify
-    /// @param new_mode The new mode to use
-    public void set_mode(Mode new_mode) {
-        if (new_mode == mode) {
-            return; // Nothing to do.
-        }
-
-        if (new_mode == Mode.ORBIT)
-        {
-            mouse_sens *= (float)Math.PI;
-        } else if (mode == Mode.ORBIT) {
-            mouse_sens /= (float)Math.PI;
-        }
-        
-        // If entering or leaving orbit mode, the target will be swapped with the
-        // camera. We need to face the opposite direction to correct for the change
-        bool needs_view_flip = (mode == Mode.ORBIT || new_mode == Mode.ORBIT);
-
-        var flip_rot = new Quaternion(new Vector3(DegreesToRadians(180.0f), DegreesToRadians(180.0f), 0));
-        if (needs_view_flip) {
-            orbit_angles *= flip_rot;
-        }
-        
-        // Set mode
-        mode = new_mode;
+    public float fov_degrees {
+        get => RadiansToDegrees(fov_angle);
+        set =>  fov_angle = DegreesToRadians(value);
     }
+    public float aspect = 16f / 9f;
+    public float near = 0.1f;
+    public float far = 10000.0f;
+
+    public bool invert_mouse_x = true;
+    public bool invert_mouse_y = false;
+
+    public Mode mode { get;
+        set {
+            if (value == mode) {
+                return; // Nothing to do.
+            }
+
+            if (value == Mode.ORBIT) {
+                mouse_sens *= (float)Math.PI;
+            } else if (mode == Mode.ORBIT) {
+                mouse_sens /= (float)Math.PI;
+            }
+        
+            // If entering or leaving orbit mode, the target will be swapped with the
+            // camera. We need to face the opposite direction to correct for the change
+            bool needs_view_flip = (mode == Mode.ORBIT || value == Mode.ORBIT);
+
+            var flip_rot = new Quaternion(new Vector3(DegreesToRadians(180.0f), DegreesToRadians(180.0f), 0));
+            if (needs_view_flip) {
+                orbit_angles *= flip_rot;
+            }
+        
+            // Set mode
+            field = value;
+        }
+    } = Mode.ORBIT;
 
     /// @brief Update the camera state (should be called each frame)
     /// @param The camera to modify
     /// @param delta_time Time elapsed since the last call
     public void update(UI.InputState input, double delta_time) {
         if (input.IsMouseButtonJustReleased(MouseButton.Middle)) {
-            set_mode((Mode)(((int)mode + 1) % (int)Mode.MODE_ENUM_MAX));
+            mode = (Mode)(((int)mode + 1) % (int)Mode.MODE_ENUM_MAX);
         }
 
         Vector2 cursor_delta = get_cursor_delta(input);

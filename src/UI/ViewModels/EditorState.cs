@@ -39,6 +39,11 @@ Middle click
     public BrushRenderer brushRenderer = new();
     public Camera cam = new();
 
+    // I couldn't get Avalonia to access public fields of objects on this class,
+    // so I'm forced to use wrapper properties to access them in XAML.
+    // Sorry for all this useless wrapper code. -- torf
+    
+    // Brush settings access
     public float brushBaseStrength {
         get => brush.baseStrength; set =>  brush.baseStrength = value;
     }
@@ -49,10 +54,27 @@ Middle click
         get => brush.radius; set =>  brush.radius = value;
     }
     public Brush.FalloffFunc[] brushFalloffTypes { get; } = Enum.GetValues<Brush.FalloffFunc>();
+    public Brush.EditFunc[] brushEditTypes { get; } = Enum.GetValues<Brush.EditFunc>();
+    public Brush.DistanceType[] brushDistanceTypes { get; } = Enum.GetValues<Brush.DistanceType>();
     
     public Brush.FalloffFunc brushFalloff {
         get => brush.func; set =>  brush.func = value;
     }
+    public Brush.EditFunc brushEditType {
+        get => brush.editFunc; set =>  brush.editFunc = value;
+    }
+    public Brush.DistanceType brushDistanceType {
+        get => brush.falloffShape; set =>  brush.falloffShape = value;
+    }
+    
+    // Camera settings access
+    public float camSpeed { get => cam.move_speed; set => cam.move_speed = value; }
+    public float camFOV { get => cam.fov_degrees; set => cam.fov_degrees = value; }
+    public float camMouseSens { get => cam.mouse_sens; set => cam.mouse_sens = value; }
+    public bool camInvertX { get => cam.invert_mouse_x; set => cam.invert_mouse_x = value; }
+    public bool camInvertY { get => cam.invert_mouse_y; set => cam.invert_mouse_y = value; }
+    public Camera.Mode[] camModes { get; } = { Camera.Mode.ORBIT, Camera.Mode.MINECRAFT, Camera.Mode.FLY };
+    public Camera.Mode camMode { get => cam.mode; set => cam.mode = value; }
 
     // Asynchronously updated progress data
     [ObservableProperty] public ProgressReport asyncLoadedTiles = new();

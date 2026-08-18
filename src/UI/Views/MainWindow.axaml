@@ -17,53 +17,108 @@
     
     <Grid RowDefinitions="auto,*">
         <DockPanel Grid.Row="0" Grid.Column="0">
-            <Menu DockPanel.Dock="Top">
-                <MenuItem Header="_File">
-                    <MenuItem Header="_Open Mod Folder"/>
-                    <MenuItem Header="_Save"/>
-                    <Separator/>
-                    <MenuItem Header="_Quit"/>
-                </MenuItem>
-                <MenuItem Header="_Brush">
-                    <MenuItem Header="Brush type placeholder"/>
-                    <ComboBox ItemsSource="{Binding brushFalloffTypes}"
-                              SelectedItem="{Binding brushFalloff}">
-                    </ComboBox>
+            <Button Content="File">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8">
+                            <Button Content="_Open Mod Folder"/>
+                            <Button Content="_Save"/>
+                            <Separator/>
+                            <Button Content="_Quit"/>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+            <Button Content="Brush">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8">
+                            <TextBlock>Falloff type</TextBlock>
+                            <ComboBox ItemsSource="{Binding brushFalloffTypes}"
+                                      SelectedItem="{Binding brushFalloff}"/>
                     
-                    <TextBlock>
-                        <Run Text="Brush size: "/>
-                        <Run Text="{Binding #brushSizeSlider.Value}"/>
-                    </TextBlock>
-                    <Slider Minimum="1" Maximum="200" Name="brushSizeSlider"
-                            Margin="0" Padding="0" MaxHeight="40"
-                            Value="{Binding brushRadius}"/>
+                            <TextBlock>Edit function</TextBlock>
+                            <ComboBox ItemsSource="{Binding brushEditTypes}"
+                                      SelectedItem="{Binding brushEditType}"/>
+                            <TextBlock>Distance type</TextBlock>
+                            <ComboBox ItemsSource="{Binding brushDistanceTypes}"
+                                      SelectedItem="{Binding brushDistanceType}"/>
                     
-                    <TextBlock>
-                        <Run Text="Brush strength: "/>
-                        <Run Text="{Binding #brushSTRSlider.Value}"/>
-                    </TextBlock>
-                    <Slider Minimum="1" Maximum="200" Name="brushSTRSlider"
-                            Margin="0" Padding="0" MaxHeight="40"
-                            Value="{Binding brushBaseStrength}"/>
+                            <TextBlock>
+                                <Run Text="Brush strength: "/>
+                                <Run Text="{Binding #brushSTRSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="1" Maximum="200" Name="brushSTRSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding brushBaseStrength}"/>
                     
-                    <TextBlock>
-                        <Run Text="Falloff strength: "/>
-                        <Run Text="{Binding #brushFalloffSlider.Value}"/>
-                    </TextBlock>
-                    <Slider Minimum="1" Maximum="50" Name="brushFalloffSlider"
-                            Margin="0" Padding="0" MaxHeight="40"
-                            Value="{Binding brushFalloffStrength}"/>
-                </MenuItem>
-                <MenuItem Header="_Help">
-                    <TextBlock Margin="5" 
-                        Text="{Binding GlInformation}" 
-                        FontFamily="Courier New"/>
-                    <TextBlock Margin="5" 
-                        Text="{Binding ControlsInformation}" />
-                    <TextBlock Margin="5" 
-                        Text="{Binding CreditInformation}" />
-                </MenuItem>
-            </Menu>
+                            <TextBlock>
+                                <Run Text="Brush size: "/>
+                                <Run Text="{Binding #brushSizeSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="1" Maximum="200" Name="brushSizeSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding brushRadius}"/>
+                            <TextBlock>
+                                <Run Text="Falloff strength: "/>
+                                <Run Text="{Binding #brushFalloffSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="1" Maximum="50" Name="brushFalloffSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding brushFalloffStrength}"/>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+            <Button Content="Camera">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8">
+                            <TextBlock>Mode</TextBlock>
+                            <ComboBox ItemsSource="{Binding camModes}"
+                                      SelectedItem="{Binding camMode}"/>
+                            <TextBlock>
+                                <Run Text="Camera speed: "/>
+                                <Run Text="{Binding #camSpeedSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="1" Maximum="1000" Name="camSpeedSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding camSpeed}"/>
+                            <TextBlock>
+                                <Run Text="FOV: "/>
+                                <Run Text="{Binding #camFOVSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="1" Maximum="120" Name="camFOVSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding camFOV}"/>
+                            <TextBlock>
+                                <Run Text="Mouse sensitivity: "/>
+                                <Run Text="{Binding #camMouseSensSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="0" Maximum="1" Name="camMouseSensSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding camMouseSens}"/>
+                            <CheckBox Content="Invert Mouse X" IsChecked="{Binding camInvertX}"/>
+                            <CheckBox Content="Invert Mouse Y" IsChecked="{Binding camInvertY}"/>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+            <Button Content="Help">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8">
+                            <TextBlock Margin="5" 
+                                       Text="{Binding GlInformation}" 
+                                       FontFamily="Courier New"/>
+                            <TextBlock Margin="5" 
+                                       Text="{Binding ControlsInformation}" />
+                            <TextBlock Margin="5" 
+                                       Text="{Binding CreditInformation}" />
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
             <ProgressBar
                 IsIndeterminate="{Binding UiLoadIndeterminate}"
                 Value="{Binding UiLoadedTiles}"

@@ -13,7 +13,6 @@ public struct Brush() {
         INVERSE,        // (m / x) + b
         SQUARE,         // mx^2 + b
         INVERSE_SQUARE, // (m / (x^2)) + b
-        ENUM_MAX,
     }
     
     public enum DistanceType {
@@ -51,12 +50,12 @@ public struct Brush() {
     /// </summary>
     public static float ApplyFalloffFunc(FalloffFunc func, float m, float x, float b)
     {
-        Debug.Assert((int)func < (int)FalloffFunc.ENUM_MAX);
         var result = func switch {
             FalloffFunc.LINEAR  => m * x + b,
             FalloffFunc.INVERSE => (m / x) + b,
             FalloffFunc.SQUARE  => m * (x * x) + b,
             FalloffFunc.INVERSE_SQUARE => m / (x * x) + b,
+            _ => 0,
         };
         return Math.Max(0, result);
     }
