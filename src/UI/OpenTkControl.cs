@@ -171,7 +171,7 @@ public sealed class OpenTkControl : OpenTkControlBase {
     protected override void OnSizeChanged(SizeChangedEventArgs e) {
         base.OnSizeChanged(e);
         var size = e.NewSize;
-        cam.aspect = (float)(size.Width / size.Height);
+        // cam.aspect = (float)(size.Width / size.Height);
         if (GLinited) {
             GL.Viewport(0, 0, (int)size.Width, (int)size.Height);
         }

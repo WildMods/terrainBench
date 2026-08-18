@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="terrainBench.UI.GlOverlay"
+             >
+    <Grid>
+        <Grid ColumnDefinitions="*,Auto" Margin="20">
+            <StackPanel Grid.Column="1" MinWidth="300">
+                <TextBlock>Yaw</TextBlock>
+                <TextBlock>Pitch</TextBlock>
+                <TextBlock>Roll</TextBlock>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock FontWeight="Bold" Foreground="#C000C0">D</TextBlock>
+                    <TextBlock FontWeight="Bold" Foreground="#00C090">I</TextBlock>
+                    <TextBlock FontWeight="Bold" Foreground="#90C000">S</TextBlock>
+                    <TextBlock FontWeight="Bold" Foreground="#C09000">C</TextBlock>
+                    <TextBlock FontWeight="Bold" Foreground="#00C090">O</TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -3,7 +3,7 @@
         xmlns:vm="using:terrainBench.UI.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:opentk="clr-namespace:terrainBench.UI"
+        xmlns:ui="clr-namespace:terrainBench.UI"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="terrainBench.UI.Views.MainWindow"
         x:DataType="vm:EditorState"
@@ -145,7 +145,7 @@
 
         <Border Grid.Row="1" Background="#777777">
             <!-- Focusable="True" this is needed or key bindings are not possible -->
-            <opentk:OpenTkControl
+            <ui:OpenGlLeasePage
                 Margin="0"
                 Focusable="True" />
         </Border>

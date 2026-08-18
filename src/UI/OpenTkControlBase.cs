@@ -23,8 +23,6 @@ public abstract class OpenTkControlBase : OpenGlControlBase, ICustomHitTest
     // Persistent input state, since Avalonia only gives events
     protected InputState input = new();
 
-    protected readonly Camera cam = new();
-
     protected double Fps = 165;
 
     protected abstract void Render();
