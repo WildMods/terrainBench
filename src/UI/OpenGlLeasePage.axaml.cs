@@ -37,6 +37,12 @@ public partial class OpenGlLeasePage : ContentPage {
             _input = input;
         }
 
+
+        public override void OnAnimationFrameUpdate() {
+            Invalidate();
+            base.OnAnimationFrameUpdate();
+        }
+
         public override void OnRender(ImmediateDrawingContext drawingContext) {
             RegisterForNextAnimationFrameUpdate();
             var bounds = GetRenderBounds();
@@ -78,7 +84,6 @@ public partial class OpenGlLeasePage : ContentPage {
                         _contentInitialized = true;
                     }
 
-                    Console.WriteLine("Rendering a frame!");
                     _content.OnOpenGlRender(gl, _fbo.Fbo, size, _editorState, _input);
                     _input.ResetKeyStates();
 

@@ -19,20 +19,13 @@ internal class OpenGlContent {
     // Timing - to calculate delta time
     private double _lastFrameTime;
     private readonly double _frameInterval; // target 60 FPS or any other FPS, see ctor and Fps constant
-    public OpenGlContent() { }
 
-    private static void CheckError(GlInterface gl) {
-        int err;
-        while ((err = gl.GetError()) != GL_NO_ERROR)
-            Console.WriteLine(err);
-    }
-    
     public void Init(GlInterface gl, GlVersion version, EditorState vm) {
-        vm.BootProgress = EditorState.BootState.TILES_LOADING;
+        vm.BootProgress = TILES_LOADING;
         vm.asyncLoadedTiles.Max = 18100;
         Task.Run(delegate {
             vm.cache.Load(vm.game, vm.asyncLoadedTiles);
-            vm.BootProgress = EditorState.BootState.SHOW_UPLOAD_MSG;
+            vm.BootProgress = SHOW_UPLOAD_MSG;
         });
     }
 
@@ -73,15 +66,18 @@ internal class OpenGlContent {
         }
         _lastFrameTime = now;
         
+        gl.Viewport(0, 0, size.Width, size.Height);
+        gl.ClearDepth(1);
         gl.Enable(GL_DEPTH_TEST);
         gl.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        // GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
+        gl.DepthFunc(GL_LESS);
+        gl.DepthMask(1);
         
         using (Profiler.BeginZone("GLClear")) {
             gl.Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         }
 
-        if (vm.BootProgress == EditorState.BootState.DONE) {
+        if (vm.BootProgress == DONE) {
             var projT = vm.cam.proj_matrix();
             var viewT = vm.cam.view_matrix();
             vm.terrain.Render(projT, viewT, new TerrainCoords.WorldPos(vm.cam.eye()));
