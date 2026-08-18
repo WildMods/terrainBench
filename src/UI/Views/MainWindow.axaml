@@ -104,6 +104,21 @@
                     </Flyout>
                 </Button.Flyout>
             </Button>
+            <Button Content="Render">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8">
+                            <TextBlock>
+                                <Run Text="Render distance: "/>
+                                <Run Text="{Binding #renderDistSlider.Value}"/>
+                            </TextBlock>
+                            <Slider Minimum="1" Maximum="128" Name="renderDistSlider"
+                                    Margin="0" Padding="0" MaxHeight="40"
+                                    Value="{Binding renderDistance}"/>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
             <Button Content="Help">
                 <Button.Flyout>
                     <Flyout>

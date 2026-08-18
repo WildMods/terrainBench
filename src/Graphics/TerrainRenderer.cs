@@ -423,6 +423,7 @@ public struct TerrainRenderer {
     private Cache.CoverageMap lodCoverage;
 
     TileRegion ring0;
+    public int renderRadius = 32;
 
     /// <summary>
     /// Update a rendered tile.
@@ -649,7 +650,7 @@ public struct TerrainRenderer {
 
         var eyeTile = (TerrainCoords.TileGrid8Pos)eyeWorld;
         var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);
-        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, 32, center);
+        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, renderRadius, center);
 
         GL.BindVertexArray(0);
     }

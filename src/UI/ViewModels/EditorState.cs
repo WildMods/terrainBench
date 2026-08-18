@@ -43,6 +43,9 @@ Middle click
     // so I'm forced to use wrapper properties to access them in XAML.
     // Sorry for all this useless wrapper code. -- torf
     
+    // Render settings
+    public int renderDistance { get => terrain.renderRadius; set => terrain.renderRadius = value; }
+    
     // Brush settings access
     public float brushBaseStrength {
         get => brush.baseStrength; set =>  brush.baseStrength = value;
