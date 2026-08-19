@@ -206,10 +206,12 @@ public struct TerrainRenderer {
                     int rowSize = MAX_SIZE * 2;
                     int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 2;
                     
+                    var z2 = Profiler.BeginZone("UploadHGHT");
                     for (int row = 0; row < HGHT_DIM; row++) {
                         GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Red, PixelType.UnsignedShort, linearIdx);
                         linearIdx += rowSize;
                     }
+                    z2.Dispose();
                 }
                 hghtUpdates.Clear();
             }
@@ -228,10 +230,12 @@ public struct TerrainRenderer {
                     int rowSize = MAX_SIZE * 4;
                     int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 4;
                     
+                    var z2 = Profiler.BeginZone("UploadMATE");
                     for (int row = 0; row < HGHT_DIM; row++) {
                         GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Rgba, PixelType.UnsignedByte, linearIdx);
                         linearIdx += rowSize;
                     }
+                    z2.Dispose();
                 }
                 mateUpdates.Clear();
             }
@@ -331,6 +335,7 @@ public struct TerrainRenderer {
         }
 
         public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
+            var z = Profiler.BeginZone("R_DrawTileSheet");
             ProcessTileUpdates();
             
             GL.BindTextureUnit(0, hghtTex);
@@ -338,6 +343,7 @@ public struct TerrainRenderer {
             Uniform.Set(tilesPerTexLoc, MAX_TILES);
 
             // Cull by distance by filtering the index list
+            var z2 = Profiler.BeginZone("R_BuildTileIndices");
             var temp = new Int32[indices.Count];
             Array.Fill(temp, -1); // Skip everything unless we explicitly copy the value over
             for (int i = 0; i < temp.Length; i++) {
@@ -351,9 +357,11 @@ public struct TerrainRenderer {
                     temp[i] = val; // In range, use this index
                 }
             }
+            z2.Dispose();
             
             GL.Uniform1(indicesLocation, temp.Length, temp);
             GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, temp.Length);
+            z.Dispose();
         }
 
         public void GLUninit() {
@@ -632,6 +640,7 @@ public struct TerrainRenderer {
     }
 
     public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
+        var z = Profiler.BeginZone("R_RenderTerrain");
         tessShader.Use();
         // Upload camera state
         tessShader.SetUniform("matView", viewT);
@@ -657,5 +666,6 @@ public struct TerrainRenderer {
         ring0.Draw(tilesPerTexLoc, indicesLocation, 0, renderRadius, center);
 
         GL.BindVertexArray(0);
+        z.Dispose();
     }
 }

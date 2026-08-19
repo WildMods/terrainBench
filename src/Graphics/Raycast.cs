@@ -24,8 +24,8 @@ public static class Raycast {
         var startCell = (Vector2i)start;
         Vector2 uvOffset = start - startCell;
         if (dir == Vector2.Zero) {
-            yield return (startCell, uvOffset.Yx);
             z.Dispose();
+            yield return (startCell, uvOffset.Yx);
             yield break;
         }
         
@@ -35,12 +35,16 @@ public static class Raycast {
 
         float t = 0;
         var dt = (tile + tileOffset - startCell) / dir;
+        z.Dispose();
         while (t <= maxDist)
         {
+            z = Profiler.BeginZone("Iterate2DLine");
             Vector2 uv = t * dir * dirSign;
             uv -= uv.Truncate(); // Get only the fractional part, i.e. the
                                  // offset within the tile we hit.
+            z.Dispose();
             yield return (tile, uv);
+            z = Profiler.BeginZone("Iterate2DLine");
 
             if (dt.X < dt.Y) {
                 tile.X += dirSign.X;
@@ -54,12 +58,13 @@ public static class Raycast {
                 dt.X -= dt.Y;
                 dt.Y = dirSign.Y / dir.Y;
             }
+            z.Dispose();
         }
-        z.Dispose();
     }
 
     public static Result<PixelGrid8Pos, ErrorStack> RaycastTerrain(Cache.Cache cache, TileGrid8Pos startPos, Vector3 dir, float rangeTiles)
     {
+        var z = Profiler.BeginZone("RaycastTerrain");
         var source = new Vector2(startPos.x, startPos.z);
         WorldPos worldDir = new(dir);
         Vector2 tileDir = worldDir.ToTileDir().xz.Normalized();
@@ -119,11 +124,13 @@ public static class Raycast {
                 if (normalizedHeight >= hitPos.y) {
                     // Ray has gone under the terrain, it's a hit
                     hitPos.y = normalizedHeight; // Snap to terrain
+                    z.Dispose();
                     return (PixelGrid8Pos)(TileGrid8Pos)hitPos;
                 }
             }
         }
         
+        z.Dispose();
         return Err(new ErrorStack("No ray collision found."));
     }
 }

@@ -38,12 +38,14 @@ internal class OpenGlContent {
     public void OnOpenGlRender(GlInterface gl, int fb, PixelSize size, EditorState vm, InputState input) {
         var now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
         var delta = now - _lastFrameTime;
+        var z = Profiler.BeginZone("AvaloniaRender");
         DoUpdate(delta, vm, input);
         
         switch (vm.BootProgress) {
             case SHOW_UPLOAD_MSG:
                 // SetWindowTitle(EditorState.gpuUploadWindowTitle);
                 vm.BootProgress = UPLOADING;
+                z.Dispose();
                 return; // End frame to make sure title is applied
             case UPLOADING:
                 // Start the GPU uploads 1 frame after title is changed
@@ -63,6 +65,7 @@ internal class OpenGlContent {
 
         if (delta < _frameInterval) // only render if enough time has passed (to limit FPS)
         {
+            z.Dispose();
             return;
         }
         _lastFrameTime = now;
@@ -85,6 +88,7 @@ internal class OpenGlContent {
             vm.brushRenderer.Draw(projT, viewT);
         }
 
+        z.Dispose();
         Profiler.EmitFrameMark();
     }
     
