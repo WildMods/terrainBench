@@ -140,6 +140,7 @@ public struct TerrainRenderer {
 
             // Ensure the buffer is actually mapped and available
             pboMapLock.WaitOne();
+            MapPBOs(true);
             nint buf;
             int pixelSize;
             List<int> updateList;
@@ -163,6 +164,7 @@ public struct TerrainRenderer {
             updateList.Add(pos);
             UpdatePBOTile(pos, data, buf, pixelSize);
             z.Dispose();
+            MapPBOs(false);
             pboMapLock.ReleaseMutex();
             return true;
         }
@@ -236,7 +238,6 @@ public struct TerrainRenderer {
 
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
             GL.BindTexture(TextureTarget.Texture2D, 0);
-            MapPBOs(true); // Allow updates again
             z.Dispose();
             pboMapLock.ReleaseMutex();
         }
@@ -323,7 +324,6 @@ public struct TerrainRenderer {
 
             GL.InvalidateBufferData(pboHght);
             GL.InvalidateBufferData(pboMate);
-            MapPBOs(true);
             zUpload.Dispose();
             
             Console.WriteLine("Found {0}/{1} tiles", tilesFound, tilesTried);
