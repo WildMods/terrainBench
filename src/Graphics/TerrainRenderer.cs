@@ -420,7 +420,7 @@ public struct TerrainRenderer {
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     int terrainTexArray = 0;
     int coverageTex = 0;
-    private Cache.CoverageMap lodCoverage;
+    public Cache.CoverageMap lodCoverage;
 
     TileRegion ring0;
     public int renderRadius = 32;

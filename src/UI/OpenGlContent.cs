@@ -126,7 +126,7 @@ internal class OpenGlContent {
         }
 
         if (input.IsKeyDown(Key.O)) {
-            var updatedTiles = vm.brush.ApplyToTiles(vm.cache, 1f);
+            var updatedTiles = vm.brush.ApplyToTiles(vm.cache, vm.terrain.lodCoverage, 1f);
             foreach (var packed in updatedTiles) {
                 ZOrder.UnpackIndex(packed, out var idx, out var lod);
                 vm.terrain.ScheduleTileUpdate(idx, lod, LodComponent.hght, vm.cache);

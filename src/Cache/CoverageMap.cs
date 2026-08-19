@@ -74,10 +74,10 @@ public class CoverageMap {
     /// <returns>A set of packed tile IDs, to be unpacked with ZOrder.UnpackIndex().</returns>
     public HashSet<Int32> FindAllTilesInSquare(byte minX, byte minY, byte maxX, byte maxY) {
         var indices = new HashSet<Int32>();
-        for (var x = minX; x < maxX; x++) {
-            for (var y = minY; y < maxY; y++) {
-                byte best = FindBestLOD(x, y);
-                var idx = ZOrder.Interleave8To16(x, y);
+        for (short x = minX; x <= maxX; x++) {
+            for (short y = minY; y <= maxY; y++) {
+                byte best = FindBestLOD((byte)x, (byte)y);
+                var idx = ZOrder.Interleave8To16((byte)x, (byte)y);
                 
                 var lvlDiff = ZOrder.MAX_LOD - best;
                 UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));

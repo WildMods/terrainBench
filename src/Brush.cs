@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Mathematics;
+using terrainBench.Cache;
 
 namespace terrainBench;
 
@@ -121,75 +122,77 @@ public struct Brush() {
     /// Iterate over all pixels that will be affected by the brush, based on its
     /// current settings
     /// </summary>
-    /// <returns>The point and its distance from the brush center</returns>
-    public IEnumerable<(Vector2i, float)> IterAffectedPixels() {
+    /// <returns>The packed tile index/LOD, the pixel coordinate in the tile,
+    /// and its distance from the brush center in level 8 pixel space</returns>
+    public IEnumerable<(Int32, Vector2i, float)> IterAffectedPixels(CoverageMap coverage) {
         var c = new Vector2i((int)center.X, (int)center.Z);
         var min = c - new Vector2i(radius, radius);
         var max = c + new Vector2i(radius, radius);
-        min.X = Math.Max(0, min.X);
-        min.Y = Math.Max(0, min.Y);
+        min.X = Math.Clamp(min.X, 0, UInt16.MaxValue);
+        min.Y = Math.Clamp(min.Y, 0, UInt16.MaxValue);
+        max.X = Math.Clamp(max.X, 0, UInt16.MaxValue);
+        max.Y = Math.Clamp(max.Y, 0, UInt16.MaxValue);
 
-        for (var x = min.X; x < max.X; x++) {
-            for (var y = min.Y; y < max.Y; y++) {
-                Vector2i p = new(x, y);
-                var dist = EvalDistance2D(p, c, falloffShape);
-                if (shape == Shape.SQUARE) {
-                    // The point is always within the radius
-                    yield return (p, dist);
-                }
+        var minTile = min / ZOrder.GRID_SIZE;
+        var maxTile = max / ZOrder.GRID_SIZE;
+        Debug.Assert(minTile.X < ZOrder.GRID_SIZE && minTile.Y < ZOrder.GRID_SIZE);
+        Debug.Assert(maxTile.X < ZOrder.GRID_SIZE && maxTile.Y < ZOrder.GRID_SIZE);
 
-                if (dist > radius) {
-                    continue; // Pixel out of range
+        foreach (var packed in coverage.FindAllTilesInSquare((byte)minTile.X, (byte)minTile.Y, (byte)maxTile.X, (byte)maxTile.Y)) {
+            ZOrder.UnpackIndex(packed, out var idx, out byte lod);
+            var lvlDiff = ZOrder.MAX_LOD - lod;
+            var lvl8Idx = idx <<= lvlDiff * 2; // Convert to level 8 tile index
+            ZOrder.Deinterleave16To8(lvl8Idx, out var tileX, out var tileY);
+            TerrainCoords.TileGrid8Pos tp = new(new Vector3(tileX, 0, tileY));
+            var pp = (TerrainCoords.PixelGrid8Pos)tp;
+
+            var pixelSize = 1 << lvlDiff;
+            
+            for (var x = 0; x < ZOrder.GRID_SIZE; x++) {
+                for (var y = 0; y < ZOrder.GRID_SIZE; y++) {
+                    Vector2i p = (Vector2i)pp.xz + new Vector2i(x, y) * pixelSize;
+                    var dist = EvalDistance2D(p, c, falloffShape);
+                    if (shape == Shape.SQUARE) {
+                        // The point is always within the radius
+                        yield return (packed, p, dist);
+                    }
+
+                    if (dist > radius) {
+                        continue; // Pixel out of range
+                    }
+                    yield return (packed, new Vector2i(x, y), dist);
                 }
-                yield return (p, dist);
             }
         }
     }
 
-    public HashSet<int> ApplyToTiles(Cache.Cache cache, float multiplier) {
+    public HashSet<int> ApplyToTiles(Cache.Cache cache, CoverageMap coverage, float multiplier) {
+        var z = Profiler.BeginZone("Brush.ApplyToTiles");
         HashSet<int> updatedTiles = new();
         
-        foreach (var (p, dist) in IterAffectedPixels()) {
+        foreach (var (packed, p, dist) in IterAffectedPixels(coverage)) {
             Debug.Assert(p.X >= 0 && p.Y >= 0);
-            TerrainCoords.PixelGrid8Pos pp = new(new Vector3(p.X, 0, p.Y));
-            TerrainCoords.TileGrid8Pos tp = pp;
-
-            var idx = ZOrder.Interleave8To16((byte)tp.x, (byte)tp.z);
-            var tile = Array.Empty<ushort>();
-            sbyte lod = -1;
-            for (int i = ZOrder.MAX_LOD; i >= 0; i--) {
-                var tileRes = cache.GetHeightmapTile(i, idx, false);
-                if (tileRes.IsOk()) {
-                    cache.MakeTileDirty(idx, LodComponent.hght, (byte)i);
-                    tileRes = cache.GetHeightmapTile(i, idx, false);
-                    tile = tileRes.Unwrap();
-                    lod = (sbyte)i;
-                    break;
-                }
-                idx >>= 2;
-            }
-
-            if (lod < 0) {
-                break; // Couldn't find tile
-            }
-
-            var posInTile = (Vector2i)pp.xz;
-            posInTile.X %= ZOrder.GRID_SIZE;
-            posInTile.Y %= ZOrder.GRID_SIZE;
-
-            int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
+            ZOrder.UnpackIndex(packed, out var idx, out var lod);
+            
+            var posInTile = p;
+            cache.MakeTileDirty(idx, LodComponent.hght, lod);
+            var tileRes = cache.GetHeightmapTile(lod, idx, false);
+            var tile = tileRes.Unwrap();
+            
+            int linearIdx = p.Y * ZOrder.GRID_SIZE + p.X;
 
             var strength = EvalFalloff(dist / radius) * multiplier;
             try {
                 ref var value = ref tile[linearIdx];
                 value = ApplyEditFunc(value, editFunc, strength);
             } catch (IndexOutOfRangeException e) {
-                Console.WriteLine("Index {0} @ pos {1} was out-of-bounds, p = {2}", linearIdx, posInTile, p);
+                Console.WriteLine("Index {0} @ pos {1} was out-of-bounds", linearIdx, posInTile);
             }
 
-            updatedTiles.Add(ZOrder.PackIndex(idx, (byte)lod));
+            updatedTiles.Add(packed);
         }
 
+        z.Dispose();
         return updatedTiles;
     }
 }
