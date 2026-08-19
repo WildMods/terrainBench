@@ -175,7 +175,7 @@ public struct TerrainRenderer {
             var z = Profiler.BeginZone("ProcessTileUpdates");
             bool hghtDirty = hghtUpdates.Count > 0;
             bool mateDirty = mateUpdates.Count > 0;
-            if (!hghtDirty && mateDirty) {
+            if (!hghtDirty && !mateDirty) {
                 z.Dispose();
                 pboMapLock.ReleaseMutex();
                 return; // Nothing to do.
