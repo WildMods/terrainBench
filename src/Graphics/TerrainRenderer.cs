@@ -481,7 +481,7 @@ public struct TerrainRenderer {
 
     public TerrainRenderer() { }
 
-    public bool GLInit(Cache.Cache cache) {
+    public bool GLInit() {
         var zone = Profiler.BeginZone("R_GLInit");
         string vert = GetEmbeddedText("terrainBench.Shaders.terrain.vert.glsl");
         string tcs =  GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
@@ -495,6 +495,11 @@ public struct TerrainRenderer {
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
 
+        zone.Dispose();
+        return true;
+    }
+
+    public bool LoadTerrainTiles(Cache.Cache cache) {
         lodCoverage = new(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
@@ -504,7 +509,6 @@ public struct TerrainRenderer {
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
-        zone.Dispose();
         return true;
     }
 

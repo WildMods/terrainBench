@@ -23,6 +23,7 @@ internal class OpenGlContent {
     public void Init(GlInterface gl, GlVersion version, EditorState vm) {
         vm.BootProgress = TILES_LOADING;
         vm.asyncLoadedTiles.Max = 18100;
+        vm.terrain.GLInit();
         Task.Run(delegate {
             vm.cache.Load(vm.game, vm.asyncLoadedTiles);
             vm.BootProgress = SHOW_UPLOAD_MSG;
@@ -52,7 +53,7 @@ internal class OpenGlContent {
         
                 using (Profiler.BeginZone("R_GLInit")) {
                     vm.brushRenderer.GLInit();
-                    vm.terrain.GLInit(vm.cache);
+                    vm.terrain.LoadTerrainTiles(vm.cache);
                 }
 
                 vm.BootProgress = DONE;
@@ -84,7 +85,6 @@ internal class OpenGlContent {
             vm.brushRenderer.Draw(projT, viewT);
         }
 
-        // TODO: Does it make sense to do SwapBuffers() in Avalonia?
         Profiler.EmitFrameMark();
     }
     

@@ -1,5 +1,8 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using Native.IO.Handles;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using OperationResult;
+using static OperationResult.Helpers;
 using terrainBench;
 
 namespace terrainBench.Graphics;
@@ -183,10 +186,28 @@ public class Shader {
         if (compiled == 0) {
             var message = GL.GetShaderInfoLog(shaderId);
             GL.DeleteShader(shaderId);
-            throw new Exception($"Failed to compile {shaderType} shader: '{message}'");
+            throw new Exception($"Failed to compile {shaderType}: '{message}'");
         }
 
         return shaderId;
+    }
+
+    public static Result<int, ErrorStack> ProgramFromSingleStage(ShaderType stageType, string source) {
+        var idList = new int[1];
+        try {
+            int shader = CompileShader(stageType, source);
+            idList[0] = shader;
+        } catch (Exception e) {
+            return Err(new ErrorStack($"Failed to compile {stageType} shader", e));
+        }
+        
+        try {
+            int program = LinkProgram(idList);
+            GL.DeleteShader(idList[0]);
+            return program;
+        } catch (Exception e) {
+            return Err(new ErrorStack($"Failed to link program from the {stageType}", e));
+        }
     }
 
     public int GetUniformLocation(string name) {
