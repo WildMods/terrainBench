@@ -425,6 +425,7 @@ public struct TerrainRenderer {
     }
     
     Shader tessShader;
+    private int mipmapShader;
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     int terrainTexArray = 0;
     int coverageTex = 0;
@@ -496,9 +497,17 @@ public struct TerrainRenderer {
         string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
         string geom = GetEmbeddedText("terrainBench.Shaders.terrain.geom.glsl");
         string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
+        string comp = GetEmbeddedText("terrainBench.Shaders.mipmapGen.comp.glsl");
 
         using (Profiler.BeginZone("R_ShaderCompile")) {
             tessShader = new Shader(vert, tcs, tess, geom, frag);
+            var compShader = Shader.ProgramFromSingleStage(ShaderType.ComputeShader, comp);
+            if (compShader.IsErr()) {
+                var err = compShader.Err();
+                Console.WriteLine($"Failed to compile mipmap compute shader: \n{err}");
+            } else {
+                mipmapShader = compShader.Unwrap();
+            }
         }
         vaoBlank = GL.GenVertexArray();
         GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
@@ -631,7 +640,34 @@ public struct TerrainRenderer {
         }
         bfresUpload.Dispose();
         Console.WriteLine("Generating mipmaps...");
+#if true
+        GL.UseProgram(mipmapShader);
+        var values = new int[2];
+        GL.GetTextureParameter(terrainTexArray, GetTextureParameter.ImageFormatCompatibilityType, values);
+        GL.BindTexture(TextureTarget.Texture2DArray, terrainTexArray);
+        var formats = new long[1];
+        GL.GetInternalformat(ImageTarget.Texture2DArray, dxt1, InternalFormatParameter.ImagePixelFormat, 1, formats);
+        Console.WriteLine("Equivalent format: {0} Equivalent class: {1} pixel format: {2}", values[0], values[1], formats[0]);
+        
+        GL.CreateTextures(TextureTarget.Texture2DArray, 1, out int baseArray);
+        GL.CreateTextures(TextureTarget.Texture2DArray, 1, out int mipArray);
+        GL.TextureView(baseArray, TextureTarget.Texture2DArray, terrainTexArray, PixelInternalFormat.CompressedRgbaS3tcDxt1Ext, 0, 1, 0, order.Length);
+        GL.TextureView(mipArray, TextureTarget.Texture2DArray, terrainTexArray, PixelInternalFormat.CompressedRgbaS3tcDxt1Ext, 0, 2, 0, order.Length);
+        
+        var sizedFmt = SizedInternalFormat.CompressedRgbaS3tcDxt1Ext;
+        Uniform.Set(mipmapShader, "baseArray", 0);
+        Uniform.Set(mipmapShader, "mipArray", 1);
+        GL.BindImageTexture(0, baseArray, 0, true, 0, TextureAccess.ReadOnly, sizedFmt);
+        GL.BindImageTexture(1, mipArray, 1, true, 0, TextureAccess.WriteOnly, sizedFmt);
+        GL.DispatchCompute(width / 8, height / 8, order.Length / 8);
+        GL.BindImageTexture(0, 0, 0, false, 0,  TextureAccess.ReadOnly, sizedFmt);
+        GL.BindImageTexture(1, 0, 0, false, 0,  TextureAccess.ReadOnly, sizedFmt);
+        GL.DeleteTexture(baseArray);
+        GL.DeleteTexture(mipArray);
+        GL.UseProgram(0);
+#else
         GL.GenerateTextureMipmap(terrainTexArray);
+#endif
 
         total.Stop();
         Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
@@ -641,6 +677,27 @@ public struct TerrainRenderer {
 
     public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
         var z = Profiler.BeginZone("R_RenderTerrain");
+        
+#if true
+        GL.UseProgram(mipmapShader);
+        GL.CreateTextures(TextureTarget.Texture2DArray, 1, out int baseArray);
+        GL.CreateTextures(TextureTarget.Texture2DArray, 1, out int mipArray);
+        GL.TextureView(baseArray, TextureTarget.Texture2DArray, terrainTexArray, PixelInternalFormat.CompressedRgbaS3tcDxt1Ext, 0, 10, 0, 88);
+        GL.TextureView(mipArray, TextureTarget.Texture2DArray, terrainTexArray, PixelInternalFormat.CompressedRgbaS3tcDxt1Ext, 0, 10, 0, 88);
+        
+        var sizedFmt = SizedInternalFormat.CompressedRgbaS3tcDxt1Ext;
+        Uniform.Set(mipmapShader, "baseArray", 0);
+        Uniform.Set(mipmapShader, "mipArray", 1);
+        GL.BindImageTexture(0, baseArray, 0, true, 0, TextureAccess.ReadOnly, sizedFmt);
+        GL.BindImageTexture(1, mipArray, 1, true, 0, TextureAccess.WriteOnly, sizedFmt);
+        GL.DispatchCompute(1024 / 8, 1024 / 8, 88 / 8);
+        GL.BindImageTexture(0, 0, 0, false, 0,  TextureAccess.ReadOnly, sizedFmt);
+        GL.BindImageTexture(1, 0, 0, false, 0,  TextureAccess.ReadOnly, sizedFmt);
+        GL.DeleteTexture(baseArray);
+        GL.DeleteTexture(mipArray);
+        GL.UseProgram(tessShader.programId);
+#endif
+        
         tessShader.Use();
         // Upload camera state
         tessShader.SetUniform("matView", viewT);

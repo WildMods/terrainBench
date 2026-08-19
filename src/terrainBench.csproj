@@ -25,6 +25,7 @@
 
         <EmbeddedResource Include="Shaders/brush.vert.glsl" />
         <EmbeddedResource Include="Shaders/brush.frag.glsl" />
+        <EmbeddedResource Include="Shaders/mipmapGen.comp.glsl" />
     </ItemGroup>
 
     <ItemGroup>
