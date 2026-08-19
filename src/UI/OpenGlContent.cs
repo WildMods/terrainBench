@@ -111,22 +111,20 @@ internal class OpenGlContent {
             // Close();
         }
 
-        int MAX_EDIT_RANGE = 32;
-        if (input.IsKeyDown(Key.R)) {
-            TerrainCoords.WorldPos eyeWorld = new(vm.cam.eye());
-            TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
-            var dir = vm.cam.facing();
-            var r = Raycast.RaycastTerrain(vm.cache, eyeTile, dir, MAX_EDIT_RANGE);
-            if (r.IsOk()) {
-                var pp = r.Unwrap();
-                TerrainCoords.WorldPos wp = pp;
-                wp.y += 8f;
-                
-                // Please note the actual brush uses pixel coordinates, while
-                // the renderer needs the world coordinates
-                vm.brush.center = pp;
-                vm.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
-            }
+        int MAX_EDIT_RANGE = vm.terrain.renderRadius;
+        TerrainCoords.WorldPos eyeWorld = new(vm.cam.eye());
+        TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
+        var dir = vm.cam.facing();
+        var r = Raycast.RaycastTerrain(vm.cache, eyeTile, dir, MAX_EDIT_RANGE);
+        if (r.IsOk()) {
+            var pp = r.Unwrap();
+            TerrainCoords.WorldPos wp = pp;
+            wp.y += 8f;
+            
+            // Please note the actual brush uses pixel coordinates, while
+            // the renderer needs the world coordinates
+            vm.brush.center = pp;
+            vm.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
         }
 
         if (input.IsKeyDown(Key.O)) {

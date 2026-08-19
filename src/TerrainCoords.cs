@@ -73,6 +73,9 @@ public static class TerrainCoords {
             return new(new Vector3(position.X * mult, position.Y, position.Z * mult));
         }
         
+        public static implicit operator WorldPos(Vector2 v) {
+            return new(new Vector3(v.X, 0, v.Y));
+        }
     }
 
     public class TileGrid8Pos(Vector3 position) : Vec3Base(position) {
@@ -82,6 +85,10 @@ public static class TerrainCoords {
         }
         public static implicit operator TileGrid8Pos(PixelGrid8Pos p) {
             return new(new Vector3(p.x / 256, p.y, p.z / 256));
+        }
+        
+        public static implicit operator TileGrid8Pos(Vector2 v) {
+            return new(new Vector3(v.X, 0, v.Y));
         }
     }
     
@@ -96,6 +103,10 @@ public static class TerrainCoords {
         }
         public static PixelGrid8Pos operator-(PixelGrid8Pos p1, PixelGrid8Pos p2) {
             return new(p1.position - p2.position);
+        }
+        
+        public static implicit operator PixelGrid8Pos(Vector2 v) {
+            return new(new Vector3(v.X, 0, v.Y));
         }
     }
 }

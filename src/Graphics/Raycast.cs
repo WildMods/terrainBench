@@ -14,7 +14,7 @@ public static class Raycast {
     /// <param name="dir">The ray's direction vector</param>
     /// <param name="maxDist">The distance at which to stop iterating</param>
     /// <returns>The grid position, and the exact collision point along the edge of the cell</returns>
-    public static IEnumerable<(Vector2i cell, Vector2 uv)> Iterate2DLine(Vector2 start, Vector2 dir, float maxDist)
+    public static IEnumerable<(Vector2i cell, Vector2 uv, float t)> Iterate2DLine(Vector2 start, Vector2 dir, float maxDist)
     {
         var z = Profiler.BeginZone("Iterate2DLine");
         // Algorithm adapted from John Amanatides & Andrew Woo, via Joel Schumacher:
@@ -25,13 +25,13 @@ public static class Raycast {
         Vector2 uvOffset = start - startCell;
         if (dir == Vector2.Zero) {
             z.Dispose();
-            yield return (startCell, uvOffset.Yx);
+            yield return (startCell, uvOffset.Yx, 0f);
             yield break;
         }
         
         var dirSign = new Vector2i(dir.X > 0 ? 1 : -1, dir.Y > 0 ? 1 : -1);
         var tileOffset = new Vector2i(dir.X > 0 ? 1 : 0, dir.Y > 0 ? 1 : 0);
-        var tile = startCell;
+        var tile = start;
 
         float t = 0;
         var dt = (tile + tileOffset - startCell) / dir;
@@ -39,12 +39,16 @@ public static class Raycast {
         while (t <= maxDist)
         {
             z = Profiler.BeginZone("Iterate2DLine");
-            Vector2 uv = t * dir * dirSign;
-            uv -= uv.Truncate(); // Get only the fractional part, i.e. the
-                                 // offset within the tile we hit.
+            Vector2 uv = tile;
+            var tileOut = (Vector2i)uv.Truncate();
+            uv -= tileOut; // Get only the fractional part, i.e. the
+                              // offset within the tile we hit.
             z.Dispose();
-            yield return (tile, uv);
+            yield return (tileOut, uv, t);
             z = Profiler.BeginZone("Iterate2DLine");
+
+            dt.X = Math.Abs(dt.X);
+            dt.Y = Math.Abs(dt.Y);
 
             if (dt.X < dt.Y) {
                 tile.X += dirSign.X;
@@ -69,7 +73,7 @@ public static class Raycast {
         WorldPos worldDir = new(dir);
         Vector2 tileDir = worldDir.ToTileDir().xz.Normalized();
         Vector2 pixelDir = new PixelGrid8Pos(new Vector3(tileDir.X, 0, tileDir.Y)).xz.Normalized();
-        foreach (var (cell, uvInitial) in Iterate2DLine(source, tileDir, rangeTiles))
+        foreach (var (cell, uvInitial, tTile) in Iterate2DLine(source, tileDir, rangeTiles))
         {
             // Bounds check
             bool oobHigh = (cell.X >= ZOrder.GRID_SIZE || cell.Y >= ZOrder.GRID_SIZE);
@@ -91,8 +95,15 @@ public static class Raycast {
                 }
 
                 // Convert coordinates to the lower LOD level
-                idx >>= 2;
                 uv /= 2;
+                if ((idx & 0b01) != 0) {
+                    uv.X += 0.5f;
+                }
+                if ((idx & 0b10) != 0) {
+                    uv.Y += 0.5f;
+                }
+                
+                idx >>= 2;
             }
             int lodDiff = ZOrder.MAX_LOD - lod;
 
@@ -103,7 +114,7 @@ public static class Raycast {
             var tile = tileRes.Unwrap();
             var tp = new TileGrid8Pos(new Vector3(cell.X, 0, cell.Y));
             var startPixel = (Vector2i)(uv * new Vector2(255));
-            foreach (var (pixel, subpixel) in Iterate2DLine(startPixel, pixelDir, Single.PositiveInfinity))
+            foreach (var (pixel, subpixel, tPixel) in Iterate2DLine(startPixel, pixelDir, Single.PositiveInfinity))
             {
                 bool oobHighPixel = (pixel.X >= ZOrder.GRID_SIZE || pixel.Y >= ZOrder.GRID_SIZE);
                 bool oobLowPixel = (pixel.X < 0 || pixel.Y < 0);
@@ -112,13 +123,13 @@ public static class Raycast {
                 }
                 int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
                 var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * WORLD_HEIGHT;
-                var pixel8 = pixel * 2 * lodDiff;
 
-                PixelGrid8Pos pp = new(new Vector3(pixel8.X, 0, pixel8.Y));
-                WorldPos wp = pp + tp;
+                Vector2 tileOffset = (tTile + (tPixel / 255)) * tileDir;
+                TileGrid8Pos hitTilePos = startPos.xz + tileOffset;
+                WorldPos wp =  hitTilePos;
                 
                 var worldDist = ((Vector3)(wp - startPos)).Xz; // Make sure only 2D is considered
-                float t = worldDist.Length / Vector2.Dot(Vector2.Normalize(worldDist), ((Vector3)worldDir).Xz);
+                float t = worldDist.Length / Vector2.Dot(worldDist.Normalized(), worldDir.xz);
                 WorldPos hitPos = new((WorldPos)startPos + (Vector3)worldDir * t);
                 
                 if (normalizedHeight >= hitPos.y) {
