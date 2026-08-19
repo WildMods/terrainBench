@@ -111,6 +111,11 @@ internal class OpenGlContent {
             // Close();
         }
 
+        if (vm.BootProgress != DONE) {
+            // Everything beyond this point relies on terrain data being loaded
+            return;
+        }
+        
         int MAX_EDIT_RANGE = vm.terrain.renderRadius;
         TerrainCoords.WorldPos eyeWorld = new(vm.cam.eye());
         TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
