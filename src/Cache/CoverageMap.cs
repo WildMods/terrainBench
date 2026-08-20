@@ -87,4 +87,38 @@ public class CoverageMap {
 
         return indices;
     }
+
+    public HashSet<Int32> FindAllTilesInRadius(byte xCenter, byte yCenter, ushort sizeTiles) {
+        byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
+        byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
+        byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
+        byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
+        return FindAllTilesInSquare(xMin, yMin, xMax, yMax);
+    }
+    
+    public HashSet<Int32> FindAllTilesInManhattanRadius(byte xCenter, byte yCenter, ushort sizeTiles) {
+        byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
+        byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
+        byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
+        byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
+        
+        var indices = new HashSet<Int32>();
+        for (short x = xMin; x <= xMax; x++) {
+            for (short y = yMin; y <= yMax; y++) {
+                var d = Math.Abs(xCenter - x) +  Math.Abs(yCenter - y);
+                if (d > sizeTiles) {
+                    continue;
+                }
+                
+                byte best = FindBestLOD((byte)x, (byte)y);
+                var idx = ZOrder.Interleave8To16((byte)x, (byte)y);
+                
+                var lvlDiff = ZOrder.MAX_LOD - best;
+                UInt16 targetIdx = (UInt16)(idx >> (2 * lvlDiff));
+                indices.Add(ZOrder.PackIndex(targetIdx, best));
+            }
+        }
+
+        return indices;
+    }
 }

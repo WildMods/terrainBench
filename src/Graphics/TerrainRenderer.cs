@@ -23,7 +23,7 @@ public struct TerrainRenderer {
         private int hghtTex = 0;
         private int mateTex = 0;
         // The packed index + LOD values to be used by the shader
-        List<Int32> indices = new();
+        public List<Int32> indices = new();
         Int32[] drawIndices = Array.Empty<Int32>();
 
         // CPU-mapped GL buffers for async texture uploading
@@ -122,13 +122,7 @@ public struct TerrainRenderer {
             return true;
         }
 
-        
-        /// <summary>
-        /// Update a rendered tile.
-        /// The render thread streams tiles to the GPU at the start of each frame.
-        /// </summary>
-        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type)
-        {
+        public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
             var z = Profiler.BeginZone("ScheduleTileUpdate");
             var z2 = Profiler.BeginZone("ScheduleTileUpdateFindIdx");
             Int32 packed = ZOrder.PackIndex(idx, lod);
@@ -138,6 +132,16 @@ public struct TerrainRenderer {
                 z.Dispose();
                 return false;
             }
+
+            return ScheduleTileUpdate(pos, data, type);
+        }
+        
+        /// <summary>
+        /// Update a rendered tile.
+        /// The render thread streams tiles to the GPU at the start of each frame.
+        /// </summary>
+        public bool ScheduleTileUpdate(int pos, ReadOnlySpan<byte> data, LodComponent type) {
+            var z = Profiler.BeginZone("ScheduleTileUpdate");
 
             // Ensure the buffer is actually mapped and available
             pboMapLock.WaitOne();
@@ -168,6 +172,23 @@ public struct TerrainRenderer {
             MapPBOs(false);
             pboMapLock.ReleaseMutex();
             return true;
+        }
+
+        public List<int> GetStaleTiles(int minDist, int maxDist, ushort centerTile) {
+            List<int> result = new();
+            for (int i = 0; i < indices.Count; i++) {
+                var packed = indices[i];
+                ZOrder.UnpackIndex(packed, out var idx, out var lod);
+                var lvlDiff = ZOrder.MAX_LOD - lod;
+                idx <<= 2 * lvlDiff;
+                
+                var d = ZOrder.ManhattanDist(centerTile, idx);
+                if (d < minDist || d > maxDist) {
+                    result.Add(i); // Out of range, can be overwritten
+                }
+            }
+
+            return result;
         }
         
         /// <summary>
@@ -245,6 +266,12 @@ public struct TerrainRenderer {
             GL.BindTexture(TextureTarget.Texture2D, 0);
             z.Dispose();
             pboMapLock.ReleaseMutex();
+        }
+
+        public void RemovePresentIDs(HashSet<int> set) {
+            foreach (var packed in indices) {
+                set.Remove(packed);
+            }
         }
         
         /// <summary>
@@ -344,25 +371,9 @@ public struct TerrainRenderer {
             GL.BindTextureUnit(1, mateTex);
             Uniform.Set(tilesPerTexLoc, MAX_TILES);
 
-            // Cull by distance by filtering the index list
-            var z2 = Profiler.BeginZone("R_BuildTileIndices");
-            var temp = drawIndices;
-            Array.Fill(temp, -1); // Skip everything unless we explicitly copy the value over
-            for (int i = 0; i < temp.Length; i++) {
-                var val = indices[i];
-                ZOrder.UnpackIndex(val, out var idx, out var lod);
-                var lvlDiff = ZOrder.MAX_LOD - lod;
-                idx <<= 2 * lvlDiff;
-                
-                var d = ZOrder.ManhattanDist(centerTile, idx);
-                if (d >= minDist && d <= maxDist) {
-                    temp[i] = val; // In range, use this index
-                }
-            }
-            z2.Dispose();
-            
-            GL.Uniform1(indicesLocation, temp.Length, temp);
-            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, temp.Length);
+            var temp = indices;
+            GL.Uniform1(indicesLocation, temp.Count, temp.ToArray());
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, temp.Count);
             z.Dispose();
         }
 
@@ -383,13 +394,9 @@ public struct TerrainRenderer {
         public TileRegion(Cache.CoverageMap lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
-            byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
-            byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
-            byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
-            byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
 
             // Build deduplicated set of packed index values
-            var indices = lodCoverage.FindAllTilesInSquare(xMin, yMin, xMax, yMax);
+            var indices = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
             Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
 
             // Build tile atlases and do GPU upload
@@ -407,6 +414,43 @@ public struct TerrainRenderer {
         public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
             foreach (var lvl in sheets) {
                 lvl.Draw(tilesPerTexLoc, indicesLocation, minDist, maxDist, centerTile);
+            }
+        }
+
+        public void UploadNewTiles(Cache.CoverageMap lodCoverage, Cache.Cache cache, byte xCenter, byte yCenter, byte sizeTiles) {
+            // Build deduplicated set of packed index values
+            var indices = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
+            // Build the list of IDs that aren't currently in VRAM
+            foreach (var s in sheets) {
+                s.RemovePresentIDs(indices);
+            }
+
+            if (indices.Count == 0) {
+                return; // Nothing to update.
+            }
+
+            Console.WriteLine("Uploading {0} new tiles", indices.Count);
+
+            var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
+            ConcurrentQueue<int> idxQ = new(indices);
+            foreach (var sheet in sheets) {
+                foreach (var slot in sheet.GetStaleTiles(0, sizeTiles, centerIdx)) {
+                    if (!idxQ.TryDequeue(out var packed)) {
+                        break;
+                    }
+                    
+                    ZOrder.UnpackIndex(packed, out var idx, out var lod);
+                    var hghtRes = cache.GetHeightmapTile(lod, idx, false);
+                    var mateRes = cache.GetMaterialTile(lod, idx, false);
+                    if (hghtRes.IsErr() || mateRes.IsErr()) {
+                        continue; // Tile doesn't exist
+                    }
+
+                    // Overwrite the stale tiles with newly in range ones
+                    sheet.ScheduleTileUpdate(slot, hghtRes.Unwrap().AsBytes(), LodComponent.hght);
+                    sheet.ScheduleTileUpdate(slot, mateRes.Unwrap().AsBytes(), LodComponent.mate);
+                    sheet.indices[slot] = packed;
+                }
             }
         }
 
@@ -515,7 +559,7 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(lodCoverage, cache, 255, 128, 128);
+        ring0 = new(lodCoverage, cache, 32, 128, 128);
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
@@ -639,6 +683,10 @@ public struct TerrainRenderer {
         Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
 
         return true;
+    }
+
+    public void UpdateGPUTiles(Cache.Cache cache, Vector2i eyeTile) {
+        ring0.UploadNewTiles(lodCoverage, cache, (byte)eyeTile.X, (byte)eyeTile.Y, (byte)renderRadius);
     }
 
     public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
