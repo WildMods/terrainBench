@@ -78,7 +78,7 @@ internal class OpenGlContent {
         if (vm.BootProgress == DONE) {
             var eyeWorld = new TerrainCoords.WorldPos(vm.cam.eye());
             TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
-            vm.terrain.UpdateGPUTiles(vm.cache, (Vector2i)eyeTile.xz);
+            vm.terrain.UpdateGPUTiles(vm.cache, (Vector2i)eyeTile.xz.Truncate());
 
             var projT = vm.cam.proj_matrix();
             var viewT = vm.cam.view_matrix();

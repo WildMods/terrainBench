@@ -92,12 +92,12 @@ public struct TerrainRenderer {
         /// <param name="data">The tile data to upload</param>
         /// <param name="buf">The pixel buffer object to copy data to</param>
         /// <param name="pixelSize">The size in bytes of each pixel in the tile</param>
-        private static bool UpdatePBOTile(int posInTexture, ReadOnlySpan<byte> data, nint buf, int pixelSize) {
+        private static bool CopyTileToPBO(int posInTexture, ReadOnlySpan<byte> data, nint buf, int pixelSize) {
             if (buf == 0 || pixelSize < 2) {
                 return false;
             }
 
-            var z = Profiler.BeginZone("UpdatePBOTile");
+            var z = Profiler.BeginZone("CopyTileToPBO");
             int linearIdx = GetLinearIndex(posInTexture) * pixelSize;
             
             // Copy 1 row of data at a time
@@ -167,28 +167,20 @@ public struct TerrainRenderer {
             }
 
             updateList.Add(pos);
-            UpdatePBOTile(pos, data, buf, pixelSize);
+            CopyTileToPBO(pos, data, buf, pixelSize);
             z.Dispose();
             MapPBOs(false);
             pboMapLock.ReleaseMutex();
             return true;
         }
 
-        public List<int> GetStaleTiles(int minDist, int maxDist, ushort centerTile) {
-            List<int> result = new();
+        public IEnumerable<int> GetStaleTiles(HashSet<int> inGroup) {
             for (int i = 0; i < indices.Count; i++) {
                 var packed = indices[i];
-                ZOrder.UnpackIndex(packed, out var idx, out var lod);
-                var lvlDiff = ZOrder.MAX_LOD - lod;
-                idx <<= 2 * lvlDiff;
-                
-                var d = ZOrder.ManhattanDist(centerTile, idx);
-                if (d < minDist || d > maxDist) {
-                    result.Add(i); // Out of range, can be overwritten
+                if (!inGroup.Contains(packed)) {
+                    yield return i;
                 }
             }
-
-            return result;
         }
         
         /// <summary>
@@ -269,9 +261,7 @@ public struct TerrainRenderer {
         }
 
         public void RemovePresentIDs(HashSet<int> set) {
-            foreach (var packed in indices) {
-                set.Remove(packed);
-            }
+            set.ExceptWith(indices);
         }
         
         /// <summary>
@@ -332,8 +322,8 @@ public struct TerrainRenderer {
                 int pos = Interlocked.Increment(ref posInTexture) - 1;
 
                 // Copy the tile data
-                UpdatePBOTile(pos, hghtData.AsSpan().AsBytes(), hghtBuf, 2);
-                UpdatePBOTile(pos, mateData.AsSpan().AsBytes(), mateBuf, 4);
+                CopyTileToPBO(pos, hghtData.AsSpan().AsBytes(), hghtBuf, 2);
+                CopyTileToPBO(pos, mateData.AsSpan().AsBytes(), mateBuf, 4);
 
                 idxList[pos] = val;
             });
@@ -418,23 +408,25 @@ public struct TerrainRenderer {
         }
 
         public void UploadNewTiles(Cache.CoverageMap lodCoverage, Cache.Cache cache, byte xCenter, byte yCenter, byte sizeTiles) {
-            // Build deduplicated set of packed index values
-            var indices = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
-            // Build the list of IDs that aren't currently in VRAM
+            var z = Profiler.BeginZone("R_FindNewTiles");
+            // The set of tiles in the draw radius (i.e. that should be in VRAM)
+            var inGroup = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
+            // The set of tiles that should be in VRAM, but aren't yet
+            var missingGroup = new HashSet<int>(inGroup);
+            
             foreach (var s in sheets) {
-                s.RemovePresentIDs(indices);
+                s.RemovePresentIDs(missingGroup);
             }
+            z.Dispose();
 
-            if (indices.Count == 0) {
+            if (missingGroup.Count == 0) {
                 return; // Nothing to update.
             }
-
-            Console.WriteLine("Uploading {0} new tiles", indices.Count);
-
-            var centerIdx = ZOrder.Interleave8To16(xCenter, yCenter);
-            ConcurrentQueue<int> idxQ = new(indices);
+            
+            var uploadZone = Profiler.BeginZone("UploadNewTiles");
+            ConcurrentQueue<int> idxQ = new(missingGroup);
             foreach (var sheet in sheets) {
-                foreach (var slot in sheet.GetStaleTiles(0, sizeTiles, centerIdx)) {
+                foreach (var slot in sheet.GetStaleTiles(inGroup)) {
                     if (!idxQ.TryDequeue(out var packed)) {
                         break;
                     }
@@ -452,6 +444,7 @@ public struct TerrainRenderer {
                     sheet.indices[slot] = packed;
                 }
             }
+            uploadZone.Dispose();
         }
 
         /// <summary>

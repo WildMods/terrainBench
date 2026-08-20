@@ -102,7 +102,7 @@ public class CoverageMap {
         byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
         byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
         
-        var indices = new HashSet<Int32>();
+        var indices = new HashSet<Int32>((sizeTiles * 2) * (sizeTiles * 2));
         for (short x = xMin; x <= xMax; x++) {
             for (short y = yMin; y <= yMax; y++) {
                 var d = Math.Abs(xCenter - x) +  Math.Abs(yCenter - y);
