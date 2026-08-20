@@ -37,11 +37,6 @@ public static class Program
         return AppBuilder.Configure<terrainBench.UI.App>()
             .UsePlatformDetect()
             .WithInterFont()
-            // Use WGL to allow OpenTK to interop with Avalonia's GL context.
-            // Use AngleEgl with OpenGL ES
-            // modern OpenGL
-            .With(new Win32PlatformOptions
-                { RenderingMode = new List<Win32RenderingMode> { Win32RenderingMode.Wgl } })
             .LogToTrace();
     }
 

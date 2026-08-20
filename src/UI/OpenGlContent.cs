@@ -18,7 +18,6 @@ using static EditorState.BootState;
 internal class OpenGlContent {
     // Timing - to calculate delta time
     private double _lastFrameTime;
-    private readonly double _frameInterval; // target 60 FPS or any other FPS, see ctor and Fps constant
 
     public void Init(GlInterface gl, GlVersion version, EditorState vm) {
         vm.BootProgress = TILES_LOADING;
@@ -38,9 +37,10 @@ internal class OpenGlContent {
     public void OnOpenGlRender(GlInterface gl, int fb, PixelSize size, EditorState vm, InputState input) {
         var now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
         var delta = now - _lastFrameTime;
+        _lastFrameTime = now;
+        
         var z = Profiler.BeginZone("AvaloniaRender");
         DoUpdate(delta, vm, input);
-        
         switch (vm.BootProgress) {
             case SHOW_UPLOAD_MSG:
                 // SetWindowTitle(EditorState.gpuUploadWindowTitle);
@@ -63,12 +63,6 @@ internal class OpenGlContent {
                 break;
         }
 
-        if (delta < _frameInterval) // only render if enough time has passed (to limit FPS)
-        {
-            z.Dispose();
-            return;
-        }
-        _lastFrameTime = now;
         
         gl.Viewport(0, 0, size.Width, size.Height);
         gl.ClearDepth(1);
@@ -89,7 +83,6 @@ internal class OpenGlContent {
         }
 
         z.Dispose();
-        Profiler.EmitFrameMark();
     }
     
     private void DoUpdate(double delta, EditorState vm, InputState input) {

@@ -69,6 +69,7 @@ internal class OpenGlFbo : IDisposable {
     public int Fbo => _fbo;
 
     public SKImage? Snapshot() {
+        var z = Profiler.BeginZone("OpenGlFbo.Snapshot");
         Gl.Flush();
         _grContext.ResetContext();
         
@@ -87,6 +88,7 @@ internal class OpenGlFbo : IDisposable {
         using (surf)
             rv = surf?.Snapshot();
         _grContext.Flush();
+        z.Dispose();
         return rv;
         /*
         var target = new GRBackendRenderTarget(_size.Width, _size.Height, 0, 0,

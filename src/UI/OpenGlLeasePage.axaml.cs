@@ -44,6 +44,8 @@ public partial class OpenGlLeasePage : ContentPage {
         }
 
         public override void OnRender(ImmediateDrawingContext drawingContext) {
+            Profiler.EmitFrameMark();
+            var z = Profiler.BeginZone("OpenGlLeasePage.OnRender");
             RegisterForNextAnimationFrameUpdate();
             var bounds = GetRenderBounds();
             var size = PixelSize.FromSize(bounds.Size, 1);
@@ -87,6 +89,7 @@ public partial class OpenGlLeasePage : ContentPage {
                         _contentInitialized = true;
                     }
 
+                    z.Dispose();
                     _content.OnOpenGlRender(gl, _fbo.Fbo, size, _editorState, _input);
                     _input.ResetKeyStates();
 
@@ -95,11 +98,13 @@ public partial class OpenGlLeasePage : ContentPage {
                     gl.BindFramebuffer(GL_FRAMEBUFFER, oldFb);
                 }
 
+                var presentZone = Profiler.BeginZone("OnRender Present");
                 // Present the image normally
                 using(snapshot)
                     if (snapshot != null)
                         skiaLease.SkCanvas.DrawImage(snapshot, new SKRect(0, 0,
                             (float)bounds.Width, (float)bounds.Height));
+                presentZone.Dispose();
             }
         }
 
