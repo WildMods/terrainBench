@@ -89,7 +89,7 @@ public struct TerrainRenderer {
         /// <param name="data">The tile data to upload</param>
         /// <param name="buf">The pixel buffer object to copy data to</param>
         /// <param name="pixelSize">The size in bytes of each pixel in the tile</param>
-        private static bool CopyTileToPBO(int posInTexture, ReadOnlySpan<byte> data, nint buf, int pixelSize) {
+        private static bool CopyTileToPBOByRow(int posInTexture, ReadOnlySpan<byte> data, nint buf, int pixelSize) {
             if (buf == 0 || pixelSize < 2) {
                 return false;
             }
@@ -118,7 +118,7 @@ public struct TerrainRenderer {
             z.Dispose();
             return true;
         }
-
+        
         public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type) {
             var z = Profiler.BeginZone("ScheduleTileUpdate");
             var z2 = Profiler.BeginZone("ScheduleTileUpdateFindIdx");
@@ -163,7 +163,7 @@ public struct TerrainRenderer {
             }
 
             updateList.Add(pos);
-            CopyTileToPBO(pos, data, buf, pixelSize);
+            CopyTileToPBOByRow(pos, data, buf, pixelSize);
             z.Dispose();
             pboMapLock.ReleaseMutex();
             return true;
@@ -201,8 +201,8 @@ public struct TerrainRenderer {
             // we would need the entire tile to be contiguous to upload the tile
             // in 1 call.
             // 
-            // TODO: Treat the PBO as tile-contiguous after initialization
             // TODO: Write a helper method to eliminate this code duplication
+            GL.PixelStore(PixelStoreParameter.UnpackRowLength, MAX_SIZE);
             if (hghtDirty) {
                 Console.WriteLine("Processing {0} HGHT updates", hghtUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, hghtTex);
@@ -215,13 +215,10 @@ public struct TerrainRenderer {
                         yTarget = HGHT_DIM * (UInt16)y;
                     }
                     int rowSize = MAX_SIZE * 2;
-                    int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 2;
+                    int linearIdx = GetLinearIndex(pos) * 2;
                     
                     var z2 = Profiler.BeginZone("UploadHGHT");
-                    for (int row = 0; row < HGHT_DIM; row++) {
-                        GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Red, PixelType.UnsignedShort, linearIdx);
-                        linearIdx += rowSize;
-                    }
+                    GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedShort, linearIdx);
                     z2.Dispose();
                 }
                 hghtUpdates.Clear();
@@ -231,7 +228,6 @@ public struct TerrainRenderer {
                 Console.WriteLine("Processing {0} MATE updates", mateUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, mateTex);
                 GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate[inactivePBO]);
-                GL.PixelStore(PixelStoreParameter.UnpackRowLength, MAX_SIZE);
                 foreach (var pos in mateUpdates) {
                     int xTarget, yTarget;
                     {
@@ -240,17 +236,15 @@ public struct TerrainRenderer {
                         yTarget = HGHT_DIM * (UInt16)y;
                     }
                     int rowSize = MAX_SIZE * 4;
-                    int linearIdx = (xTarget + (yTarget * MAX_SIZE)) * 4;
+                    int linearIdx = GetLinearIndex(pos) * 4;
                     
                     var z2 = Profiler.BeginZone("UploadMATE");
-                    for (int row = 0; row < HGHT_DIM; row++) {
-                        GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget + row, HGHT_DIM, 1, PixelFormat.Rgba, PixelType.UnsignedByte, linearIdx);
-                        linearIdx += rowSize;
-                    }
+                    GL.TexSubImage2D(TextureTarget.Texture2D, 0, xTarget, yTarget, HGHT_DIM, HGHT_DIM, PixelFormat.Rgba, PixelType.UnsignedByte, linearIdx);
                     z2.Dispose();
                 }
                 mateUpdates.Clear();
             }
+            GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
 
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
             GL.BindTexture(TextureTarget.Texture2D, 0);
@@ -322,8 +316,8 @@ public struct TerrainRenderer {
                 int pos = Interlocked.Increment(ref posInTexture) - 1;
 
                 // Copy the tile data
-                CopyTileToPBO(pos, hghtData.AsSpan().AsBytes(), hghtBuf, 2);
-                CopyTileToPBO(pos, mateData.AsSpan().AsBytes(), mateBuf, 4);
+                CopyTileToPBOByRow(pos, hghtData.AsSpan().AsBytes(), hghtBuf, 2);
+                CopyTileToPBOByRow(pos, mateData.AsSpan().AsBytes(), mateBuf, 4);
 
                 idxList[pos] = val;
             });
