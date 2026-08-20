@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.OpenGL;
+using Avalonia.Threading;
 using OpenTK.Mathematics;
 using terrainBench.UI.ViewModels;
 using static Avalonia.OpenGL.GlConsts;
@@ -18,6 +19,7 @@ using static EditorState.BootState;
 internal class OpenGlContent {
     // Timing - to calculate delta time
     private double _lastFrameTime;
+    private bool running = true;
 
     public void Init(GlInterface gl, GlVersion version, EditorState vm) {
         vm.BootProgress = TILES_LOADING;
@@ -30,8 +32,18 @@ internal class OpenGlContent {
     }
 
     public void Deinit(GlInterface GL, EditorState vm) {
+        running = false;
         vm.terrain.GLUninit();
         vm.brushRenderer.GLUninit();
+    }
+
+    public void RendererUploadThread(EditorState vm) {
+        while (running) {
+            var eyeWorld = new TerrainCoords.WorldPos(vm.cam.eye());
+            TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
+            vm.terrain.UpdateGPUTiles(vm.cache, (Vector2i)eyeTile.xz.Truncate());
+            Thread.Sleep(1);
+        }
     }
 
     public void OnOpenGlRender(GlInterface gl, int fb, PixelSize size, EditorState vm, InputState input) {
@@ -52,13 +64,15 @@ internal class OpenGlContent {
                 using (Profiler.BeginZone("R_LoadTerrainTextures")) {
                     vm.terrain.LoadTerrainTextures(vm.game);
                 }
-        
+
                 using (Profiler.BeginZone("R_GLInit")) {
                     vm.brushRenderer.GLInit();
                     vm.terrain.LoadTerrainTiles(vm.cache);
                 }
 
                 vm.BootProgress = DONE;
+                Task.Run(() => RendererUploadThread(vm));
+
                 // SetWindowTitle(EditorState.defaultWindowTitle);
                 break;
         }
@@ -78,7 +92,6 @@ internal class OpenGlContent {
         if (vm.BootProgress == DONE) {
             var eyeWorld = new TerrainCoords.WorldPos(vm.cam.eye());
             TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
-            vm.terrain.UpdateGPUTiles(vm.cache, (Vector2i)eyeTile.xz.Truncate());
 
             var projT = vm.cam.proj_matrix();
             var viewT = vm.cam.view_matrix();
