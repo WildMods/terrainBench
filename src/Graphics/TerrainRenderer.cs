@@ -27,8 +27,11 @@ public struct TerrainRenderer {
         Int32[] drawIndices = Array.Empty<Int32>();
 
         // CPU-mapped GL buffers for async texture uploading
-        private int pboHght = 0;
-        private int pboMate = 0;
+        private int[] pboHght = new int[2];
+        private int[] pboMate = new int[2];
+
+        private int activePBO = 0;
+        private int inactivePBO => activePBO == 0 ? 1 : 0;
 
         // Controls access to all PBO mapping state
         private Mutex pboMapLock = new();
@@ -49,24 +52,18 @@ public struct TerrainRenderer {
         /// Please lock the mapping mutex before calling this, to make sure other
         /// threads don't try to use a newly unmapped buffer or miss a newly mapped buffer.
         /// </summary>
-        private void MapPBOs(bool mapState) {
-            if (mapped == mapState) {
-                return; // No change needed
-            }
+        private void SwapPBOs() {
+            pboMapLock.WaitOne();
+            var z = Profiler.BeginZone("SwapPBOs");
+            z.EmitText($"Active = {activePBO}");
             
-            var z = Profiler.BeginZone("MapPBOs");
-            z.EmitText(mapState.ToString());
-            if (mapState) {
-                hghtBuf = GL.MapNamedBuffer(pboHght, BufferAccess.WriteOnly);
-                mateBuf = GL.MapNamedBuffer(pboMate, BufferAccess.WriteOnly);
-            } else {
-                GL.UnmapNamedBuffer(pboHght);
-                GL.UnmapNamedBuffer(pboMate);
-                hghtBuf = 0;
-                mateBuf = 0;
-            }
-            mapped = mapState;
+            hghtBuf = GL.MapNamedBuffer(pboHght[inactivePBO], BufferAccess.WriteOnly);
+            mateBuf = GL.MapNamedBuffer(pboMate[inactivePBO], BufferAccess.WriteOnly);
+            GL.UnmapNamedBuffer(pboHght[activePBO]);
+            GL.UnmapNamedBuffer(pboMate[activePBO]);
+            activePBO = inactivePBO;
             z.Dispose();
+            pboMapLock.ReleaseMutex();
         }
         
         /// <summary>
@@ -145,7 +142,6 @@ public struct TerrainRenderer {
 
             // Ensure the buffer is actually mapped and available
             pboMapLock.WaitOne();
-            MapPBOs(true);
             nint buf;
             int pixelSize;
             List<int> updateList;
@@ -169,7 +165,6 @@ public struct TerrainRenderer {
             updateList.Add(pos);
             CopyTileToPBO(pos, data, buf, pixelSize);
             z.Dispose();
-            MapPBOs(false);
             pboMapLock.ReleaseMutex();
             return true;
         }
@@ -196,7 +191,9 @@ public struct TerrainRenderer {
                 pboMapLock.ReleaseMutex();
                 return; // Nothing to do.
             }
-            MapPBOs(false); // Buffers can't be bound while mapped
+            
+            // Make the PBO that was being edited inactive so we can upload from it
+            SwapPBOs();
 
             // Tile uploads are done 1 row at a time, because OpenGL expects to
             // find contiguous image data at whatever resolution we specify. The
@@ -209,7 +206,7 @@ public struct TerrainRenderer {
             if (hghtDirty) {
                 Console.WriteLine("Processing {0} HGHT updates", hghtUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, hghtTex);
-                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght);
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght[inactivePBO]);
                 foreach (var pos in hghtUpdates) {
                     int xTarget, yTarget;
                     {
@@ -233,7 +230,8 @@ public struct TerrainRenderer {
             if (mateDirty) {
                 Console.WriteLine("Processing {0} MATE updates", mateUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, mateTex);
-                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate);
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate[inactivePBO]);
+                GL.PixelStore(PixelStoreParameter.UnpackRowLength, MAX_SIZE);
                 foreach (var pos in mateUpdates) {
                     int xTarget, yTarget;
                     {
@@ -281,12 +279,14 @@ public struct TerrainRenderer {
             // GL-controlled buffer. Then the driver can upload on its own time.
 
             // Setup buffers to copy pixels into
-            pboHght = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
-            pboMate = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
+            pboHght[0] = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
+            pboMate[0] = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
+            pboHght[1] = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
+            pboMate[1] = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
             
             // Map the pixel buffers into CPU address space
             var zMap = Profiler.BeginZone("R_MapTileBuffer");
-            MapPBOs(true);
+            SwapPBOs(); // We don't really need a swap but this will map them
             zMap.Dispose();
             if (this.hghtBuf == 0 || this.mateBuf == 0) {
                 Console.WriteLine("Unable to map buffer(s)!");
@@ -330,23 +330,23 @@ public struct TerrainRenderer {
             zCopy.Dispose();
             
             var zUpload = Profiler.BeginZone("R_UploadTile");
-            MapPBOs(false);
+            SwapPBOs(); // Unmap the buffer we were using so we can upload from it
             
             // Tell the driver to upload our buffers as textures on its own time
             // This returns more or less immediately (compared to a normal texture upload)
             GL.BindTexture(TextureTarget.Texture2D, hghtTex);
-            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght);
+            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght[inactivePBO]);
             GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, MAX_SIZE, MAX_SIZE, PixelFormat.Red, PixelType.UnsignedShort, 0);
             
             GL.BindTexture(TextureTarget.Texture2D, mateTex);
-            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate);
+            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate[inactivePBO]);
             GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, MAX_SIZE, MAX_SIZE, PixelFormat.Rgba, PixelType.UnsignedByte, 0);
             
             GL.BindTexture(TextureTarget.Texture2D, 0);
             GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
 
-            GL.InvalidateBufferData(pboHght);
-            GL.InvalidateBufferData(pboMate);
+            GL.InvalidateBufferData(pboHght[inactivePBO]);
+            GL.InvalidateBufferData(pboMate[inactivePBO]);
             zUpload.Dispose();
             
             Console.WriteLine("Found {0}/{1} tiles", tilesFound, tilesTried);
@@ -368,8 +368,10 @@ public struct TerrainRenderer {
         }
 
         public void GLUninit() {
-            GL.DeleteBuffer(pboHght);
-            GL.DeleteBuffer(pboMate);
+            GL.DeleteBuffer(pboHght[0]);
+            GL.DeleteBuffer(pboMate[0]);
+            GL.DeleteBuffer(pboHght[1]);
+            GL.DeleteBuffer(pboMate[1]);
             GL.DeleteTexture(hghtTex);
             GL.DeleteTexture(mateTex);
         }
