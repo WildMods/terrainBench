@@ -24,6 +24,7 @@ public struct TerrainRenderer {
         private int mateTex = 0;
         // The packed index + LOD values to be used by the shader
         List<Int32> indices = new();
+        Int32[] drawIndices = Array.Empty<Int32>();
 
         // CPU-mapped GL buffers for async texture uploading
         private int pboHght = 0;
@@ -256,6 +257,7 @@ public struct TerrainRenderer {
 
             // Reserve space for all our indices
             CollectionsMarshal.SetCount(indices, MAX_TILES * MAX_TILES);
+            drawIndices = new Int32[MAX_TILES * MAX_TILES];
 
             // To avoid the GL driver having to synchronously copy all our texture
             // data to GL-controlled memory, we copy tiles directly into a
@@ -344,7 +346,7 @@ public struct TerrainRenderer {
 
             // Cull by distance by filtering the index list
             var z2 = Profiler.BeginZone("R_BuildTileIndices");
-            var temp = new Int32[indices.Count];
+            var temp = drawIndices;
             Array.Fill(temp, -1); // Skip everything unless we explicitly copy the value over
             for (int i = 0; i < temp.Length; i++) {
                 var val = indices[i];
