@@ -16,7 +16,6 @@ public static class Raycast {
     /// <returns>The grid position, and the exact collision point along the edge of the cell</returns>
     public static IEnumerable<(Vector2i cell, Vector2 uv, float t)> Iterate2DLine(Vector2 start, Vector2 dir, float maxDist)
     {
-        var z = Profiler.BeginZone("Iterate2DLine");
         // Algorithm adapted from John Amanatides & Andrew Woo, via Joel Schumacher:
         // https://joelschumacher.de/posts/ray-casting-in-2d-grids
         // http://www.cse.yorku.ca/~amana/research/grid.pdf
@@ -24,7 +23,6 @@ public static class Raycast {
         var startCell = (Vector2i)start;
         Vector2 uvOffset = start - startCell;
         if (dir == Vector2.Zero) {
-            z.Dispose();
             yield return (startCell, uvOffset.Yx, 0f);
             yield break;
         }
@@ -35,17 +33,13 @@ public static class Raycast {
 
         float t = 0;
         var dt = (tile + tileOffset - startCell) / dir;
-        z.Dispose();
         while (t <= maxDist)
         {
-            z = Profiler.BeginZone("Iterate2DLine");
             Vector2 uv = tile;
             var tileOut = (Vector2i)uv.Truncate();
             uv -= tileOut; // Get only the fractional part, i.e. the
                               // offset within the tile we hit.
-            z.Dispose();
             yield return (tileOut, uv, t);
-            z = Profiler.BeginZone("Iterate2DLine");
 
             dt.X = Math.Abs(dt.X);
             dt.Y = Math.Abs(dt.Y);
@@ -62,7 +56,6 @@ public static class Raycast {
                 dt.X -= dt.Y;
                 dt.Y = dirSign.Y / dir.Y;
             }
-            z.Dispose();
         }
     }
 
