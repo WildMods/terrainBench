@@ -15,21 +15,6 @@ public static class Program
 
     public static void Main(string[] args)
     {
-        var settings = Settings.Load();
-        if (!Settings.Validate(settings))
-        {
-            if (args.Length < 2)
-            {
-                printUsage();
-                return;
-            }
-
-            settings.gameDir = args[0];
-            settings.updateDir = args[1];
-            settings.dlcDir = args.Length > 2 ? args[2] : "";
-            settings.Save();
-        }
-
         bool isDebug = false;
 #if DEBUG
             isDebug = true;

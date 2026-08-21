@@ -43,7 +43,7 @@ public class Game
     private readonly string _basePath;
     private readonly string _updatePath;
     private readonly string _dlcPath;
-    public readonly string modPath;
+    public string modPath;
     
     public Game(string basePath, string updatePath, string dlcPath, string modPath)
     {

@@ -21,8 +21,10 @@
                 <Button.Flyout>
                     <Flyout>
                         <StackPanel Spacing="8">
-                            <Button Content="_Open Mod Folder"/>
-                            <Button Content="_Save"/>
+                            <Button Content="_Open Mod Folder" Click="PickModFolder"/>
+                            <Button Content="_Save"
+                                    Command="{Binding SaveCommand}"
+                            />
                             <Separator/>
                             <Button Content="_Quit"/>
                         </StackPanel>

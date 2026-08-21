@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace terrainBench.UI.ViewModels;
 public partial class EditorState : ObservableObject {
@@ -95,9 +96,13 @@ Middle click
     [ObservableProperty] public int uiTotalTiles = 18100;
     
     [ObservableProperty] public string uiProgressText = "Loaded {0}/{3} tiles ({1:0}%)";
+
+    [RelayCommand]
+    private void Save() {
+        cache.WriteAllTiles(game.modPath, true, CsOead.Endianness.Big);
+    }
     
     public EditorState(string[] args) {
-        string modPath = "./TerrainMod";
         var settings = Settings.Settings.Load();
         if (!Settings.Settings.Validate(settings)) {
             if (args.Length < 2) {
@@ -108,18 +113,17 @@ Middle click
             settings.gameDir = args[0];
             settings.updateDir = args[1];
             settings.dlcDir = args.Length > 2 ? args[2] : "";
+            settings.modDir =  args.Length > 3 ? args[3] : "";
             settings.Save();
 
-            if (args.Length > 3) {
-                modPath = args[3];
-            }
         }
 
-        Directory.CreateDirectory(modPath);
+        Directory.CreateDirectory(settings.modDir);
         
         Console.WriteLine("Base: '{0}'", settings.gameDir);
         Console.WriteLine("Update: '{0}'", settings.updateDir);
         Console.WriteLine("DLC: '{0}'", settings.dlcDir);
-        game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir, modPath);
+        Console.WriteLine("Mod folder: '{0}'", settings.modDir);
+        game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir, settings.modDir);
     }
 }
