@@ -6,6 +6,8 @@ using terrainBench.Settings;
 
 public static class Program
 {
+    const bool overrideEnableTracyProfiler = false;
+
     public static void printUsage()
     {
         Console.WriteLine("Usage: terrainBench [base game folder] [update folder] [dlc folder (optional)]");
@@ -27,6 +29,15 @@ public static class Program
             settings.dlcDir = args.Length > 2 ? args[2] : "";
             settings.Save();
         }
+
+        bool isDebug = false;
+#if DEBUG
+            isDebug = true;
+#endif
+        if (!isDebug && !overrideEnableTracyProfiler) {
+            Profiler.tracyDisabled = true;
+        }
+        
         Profiler.AppInfo("BOTW terrain editor");
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

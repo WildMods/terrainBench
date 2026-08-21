@@ -10,6 +10,8 @@ public static class Profiler
     // Plot names need to be cached for the lifetime of the program
     // seealso Tracy docs section 3.1
     private static readonly Dictionary<string, CString> PlotNameCache = new Dictionary<string, CString>();
+    
+    public static bool tracyDisabled = false;
 
     /// <summary>
     /// Begins a new <see cref="ProfilerZone"/> and returns the handle to that zone. Time
@@ -43,6 +45,7 @@ public static class Profiler
         [CallerFilePath] string filePath = null,
         [CallerMemberName] string memberName = null)
     {
+        if (tracyDisabled) return new();
         using var filestr = GetCString(filePath, out var fileln);
         using var memberstr = GetCString(memberName, out var memberln);
         using var namestr = GetCString(zoneName, out var nameln);
@@ -78,6 +81,7 @@ public static class Profiler
     /// </param>
     public static void PlotConfig(string name, PlotType type = PlotType.Number, bool step = false, bool fill = true, uint color = 0)
     {
+        if (tracyDisabled) return;
         var namestr = GetPlotCString(name);
         TracyEmitPlotConfig(namestr, (int)type, step ? 1 : 0, fill ? 1 : 0, color);
     }
@@ -87,6 +91,7 @@ public static class Profiler
     /// </summary>
     public static void Plot(string name, double val)
     {
+        if (tracyDisabled) return;
         var namestr = GetPlotCString(name);
         TracyEmitPlot(namestr, val);
     }
@@ -96,6 +101,7 @@ public static class Profiler
     /// </summary>
     public static void Plot(string name, int val)
     {
+        if (tracyDisabled) return;
         var namestr = GetPlotCString(name);
         TracyEmitPlotInt(namestr, val);
     }
@@ -105,12 +111,14 @@ public static class Profiler
     /// </summary>
     public static void Plot(string name, float val)
     {
+        if (tracyDisabled) return;
         var namestr = GetPlotCString(name);
         TracyEmitPlotFloat(namestr, val);
     }
 
     private static CString GetPlotCString(string name)
     {
+        if (tracyDisabled) return new();
         if(!PlotNameCache.TryGetValue(name, out var plotCString))
         {
             plotCString = CString.FromString(name);
@@ -127,6 +135,7 @@ public static class Profiler
     /// </remarks>
     public static void AppInfo(string appInfo)
     {
+        if (tracyDisabled) return;
         using var infostr = GetCString(appInfo, out var infoln);
         TracyEmitMessageAppinfo(infostr, infoln);
     }
@@ -140,17 +149,20 @@ public static class Profiler
     /// </remarks>
     public static void EmitFrameMark()
     {
+        if (tracyDisabled) return;
         TracyEmitFrameMark(null);
     }
     
     public static void EmitFrameMarkStart(string name)
     {
+        if (tracyDisabled) return;
         using var nameStr = GetCString(name, out var namelen);
         TracyEmitFrameMarkStart(nameStr);
     }
 
     public static void EmitFrameMarkEnd(string name)
     {
+        if (tracyDisabled) return;
         using var nameStr = GetCString(name, out var namelen);
         TracyEmitFrameMarkEnd(nameStr);
     }
@@ -170,6 +182,10 @@ public static class Profiler
     /// </summary>
     public static CString GetCString(string? fromString, out ulong clength)
     {
+        if (tracyDisabled) {
+            clength = 0;
+            return new();
+        }
         if (fromString == null)
         {
             clength = 0;
