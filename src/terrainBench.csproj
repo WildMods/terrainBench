@@ -12,8 +12,9 @@
 
     <PropertyGroup>
         <LibraryPath>$(MSBuildProjectDirectory)/../lib</LibraryPath>
-        <OeadLibFile>$(LibraryPath)/cs-oead/native/build/cs_oead</OeadLibFile>
-        <NIOLibFile>$(LibraryPath)/cs-oead/lib/Native.IO/native/build/native_io</NIOLibFile>
+        <BinaryPath>$(MSBuildProjectDirectory)/../bin</BinaryPath>
+        <OeadLibFile>$(BinaryPath)/cs_oead</OeadLibFile>
+        <NIOLibFile>$(BinaryPath)/native_io</NIOLibFile>
     </PropertyGroup>
 
     <ItemGroup>
