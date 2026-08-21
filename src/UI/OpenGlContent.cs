@@ -136,9 +136,8 @@ internal class OpenGlContent {
             TerrainCoords.WorldPos wp = pp;
             wp.y += 8f;
             
-            // Please note the actual brush uses pixel coordinates, while
-            // the renderer needs the world coordinates
             vm.brush.center = pp;
+            vm.brushRenderer.radius = vm.brush.radius * TerrainCoords.PixelToWorldScale;
             vm.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
         }
 

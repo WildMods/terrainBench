@@ -6,15 +6,23 @@ namespace terrainBench;
 
 // Convert between various terrain coordinate systems
 public static class TerrainCoords {
+    
     // See https://zeldamods.org/wiki/TSCB#Parameters
     // The tile entry for the level 0 tile has area_size = 32.
     // tile_size = 32 and world_scale = 500.
     // Plugging into the equation on the wiki:
     //    (32 / 32 * 500) * 20 = 10000
     public const int WORLD_SIZE = 10000;
-    public const float TILE_TO_WORLD_HEIGHT = WORLD_SIZE / (float)ZOrder.GRID_SIZE;
     // Taken from the vanilla TSCB header
     public const float WORLD_HEIGHT = 800;
+
+    public static float WorldToTileScale => (float)ZOrder.GRID_SIZE / WORLD_SIZE;
+    public static float TileToWorldScale => WORLD_SIZE / (float)ZOrder.GRID_SIZE;
+    public static float TileToPixelScale => ZOrder.GRID_SIZE;
+    public static float PixelToTileScale => 1f / TileToPixelScale;
+    public static float PixelToWorldScale => PixelToTileScale * TileToWorldScale;
+    public static float WorldToPixelScale => WorldToTileScale * TileToPixelScale;
+    
     
     public class Vec3Base(Vector3 position) {
         protected Vector3 position = position;
@@ -33,24 +41,24 @@ public static class TerrainCoords {
         public static implicit operator Vector3(WorldPos w) => w.position;
 
         public static Matrix4 FromTileGridXform() {
-            var scale = Matrix4.CreateScale(TILE_TO_WORLD_HEIGHT, 1, TILE_TO_WORLD_HEIGHT);
+            var scale = Matrix4.CreateScale(TileToWorldScale, 1, TileToWorldScale);
             var offset = Matrix4.CreateTranslation(-WORLD_SIZE / 2, 0, -WORLD_SIZE / 2);
             return scale * offset;
         }
 
         public static implicit operator WorldPos(TileGrid8Pos p) {
             var offset = new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
-            var mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            var mult = TileToWorldScale;
             Vector3 wp = p;
-            wp.X /= mult;
-            wp.Z /= mult;
+            wp.X *= mult;
+            wp.Z *= mult;
             wp -= offset;
             return new(wp);
         }
         
         public static implicit operator TileGrid8Pos(WorldPos wp) {
             var offset = new Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
-            var mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            var mult = WorldToTileScale;
             Vector3 tp = wp + offset;
             tp.X *= mult;
             tp.Z *= mult;
@@ -69,7 +77,7 @@ public static class TerrainCoords {
         /// Only use this with direction vectors, not positions.
         /// </summary>
         public TileGrid8Pos ToTileDir() {
-            const float mult = ((float)ZOrder.GRID_SIZE / WORLD_SIZE);
+            float mult = WorldToTileScale;
             return new(new Vector3(position.X * mult, position.Y, position.Z * mult));
         }
         
@@ -84,7 +92,7 @@ public static class TerrainCoords {
             return new(new Vector3(p.x * 256, p.y, p.z * 256));
         }
         public static implicit operator TileGrid8Pos(PixelGrid8Pos p) {
-            return new(new Vector3(p.x / 256, p.y, p.z / 256));
+            return new(new Vector3(p.x * PixelToTileScale, p.y, p.z * PixelToTileScale));
         }
         
         public static implicit operator TileGrid8Pos(Vector2 v) {

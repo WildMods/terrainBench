@@ -7,6 +7,7 @@ using Graphics;
 public class BrushRenderer {
     private Shader? shader = null;
     public Matrix4 modelT = Matrix4.Identity;
+    public float radius = 50f;
     int vaoBlank;
 
     public bool GLInit() {
@@ -25,7 +26,6 @@ public class BrushRenderer {
 
     public void Draw(Matrix4 projT, Matrix4 viewT) {
         const int res = 32;
-        const float radius = 10.0f;
         shader.Use();
         shader.SetUniform("resolution", res);
         shader.SetUniform("radius", radius);
