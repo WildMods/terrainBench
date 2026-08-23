@@ -1,16 +1,11 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.OpenGL;
-using Avalonia.Threading;
 using OpenTK.Mathematics;
 using terrainBench.UI.ViewModels;
 using static Avalonia.OpenGL.GlConsts;
+
 // ReSharper disable StringLiteralTypo
 
 namespace terrainBench.UI;
@@ -25,6 +20,7 @@ internal class OpenGlContent {
         vm.BootProgress = TILES_LOADING;
         vm.asyncLoadedTiles.Max = 18100;
         vm.terrain.GLInit();
+        vm.brushRenderer.GLInit();
         Task.Run(delegate {
             vm.cache.Load(vm.game, vm.asyncLoadedTiles);
             vm.BootProgress = SHOW_UPLOAD_MSG;
@@ -52,7 +48,7 @@ internal class OpenGlContent {
         _lastFrameTime = now;
         
         var z = Profiler.BeginZone("AvaloniaRender");
-        DoUpdate(delta, vm, input);
+        DoUpdate(delta, vm, input, size);
         switch (vm.BootProgress) {
             case SHOW_UPLOAD_MSG:
                 // SetWindowTitle(EditorState.gpuUploadWindowTitle);
@@ -66,7 +62,6 @@ internal class OpenGlContent {
                 }
 
                 using (Profiler.BeginZone("R_GLInit")) {
-                    vm.brushRenderer.GLInit();
                     vm.terrain.LoadTerrainTiles(vm.cache);
                 }
 
@@ -102,7 +97,7 @@ internal class OpenGlContent {
         z.Dispose();
     }
     
-    private void DoUpdate(double delta, EditorState vm, InputState input) {
+    private void DoUpdate(double delta, EditorState vm, InputState input, PixelSize viewportSize) {
         vm.UiLoadedTiles = vm.AsyncLoadedTiles.Value;
         vm.UiLoadIndeterminate = vm.AsyncLoadedTiles.IsIndeterminate;
         vm.UiTotalTiles = vm.AsyncLoadedTiles.Max;
@@ -125,11 +120,19 @@ internal class OpenGlContent {
             // Everything beyond this point relies on terrain data being loaded
             return;
         }
+
+        vm.cam.aspect = (float)viewportSize.AspectRatio;
+
+        var fbSize = new Vector2(viewportSize.Width, viewportSize.Height);
+        var mouseVec = new Vector2((float)input.MousePosition.X, (float)input.MousePosition.Y);
+        mouseVec.Y = fbSize.Y - mouseVec.Y; // Invert Y axis
+        
+        var ray = Raycast.ScreenToRay(mouseVec, vm.cam.proj_matrix(), vm.cam.view_matrix(), fbSize, new());
         
         int MAX_EDIT_RANGE = vm.terrain.renderRadius;
         TerrainCoords.WorldPos eyeWorld = new(vm.cam.eye());
         TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
-        var dir = vm.cam.facing();
+        var dir = ray.Dir;
         var r = Raycast.RaycastTerrain(vm.cache, eyeTile, dir, MAX_EDIT_RANGE);
         if (r.IsOk()) {
             var pp = r.Unwrap();

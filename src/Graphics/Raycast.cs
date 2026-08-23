@@ -137,4 +137,43 @@ public static class Raycast {
         z.Dispose();
         return Err(new ErrorStack("No ray collision found."));
     }
+
+    public struct Ray(Vector3 origin, Vector3 dir) {
+        public Vector3 Origin = origin, Dir = dir;
+    }
+    
+    /// <summary>
+    /// Calculate the world space direction that the mouse position points in.
+    /// i.e. if you drew a line from the pixel the mouse is on straight "into"
+    /// the screen, this gives that vector in world space.
+    /// </summary>
+    /// <param name="mousePos">The mouse position in pixel coordinates</param>
+    /// <param name="projT">Your projection matrix</param>
+    /// <param name="viewT">Your view matrix</param>
+    /// <param name="fbSize">The size (in pixels) of the framebuffer</param>
+    /// <param name="fbStart">The position (in pixels) of the framebuffer's origin.
+    /// If your framebuffer takes up the whole screen or your mouse coordinates are
+    /// already relative to its origin, this is just (0, 0).</param>
+    /// <returns>The normalized world space direction vector, and the ray's origin</returns>
+    public static Ray ScreenToRay(Vector2 mousePos, Matrix4 projT, Matrix4 viewT, Vector2 fbSize, Vector2 fbStart) {
+        // Map to NDC (-1 to 1)
+        var mouseNDC = ((mousePos - fbStart) / fbSize) * 2 - new Vector2(1, 1);
+        
+        // The near/far planes become the -1 / 1 edges of NDC.
+        Vector3 nearScreen = new(mouseNDC.X, mouseNDC.Y, -1f);
+        Vector3 farScreen = new(mouseNDC.X, mouseNDC.Y, 1f);
+        
+        Matrix4 invProj = projT.Inverted();
+        Matrix4 invView = viewT.Inverted();
+
+        // Calculate the world coordinates of the mouse at the near & far planes
+        var nearWorld = new Vector4(nearScreen, 1f) * invProj * invView;
+        var farWorld = new Vector4(farScreen, 1f) * invProj * invView;
+        nearWorld /= nearWorld.W;
+        farWorld /= farWorld.W;
+
+        // The direction is the vector from the near to the far plane
+        var ray = new Ray(nearWorld.Xyz, (farWorld.Xyz - nearWorld.Xyz).Normalized());
+        return ray;
+    }
 }
