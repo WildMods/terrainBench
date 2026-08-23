@@ -69,7 +69,7 @@ public class Camera {
     /// @param The camera to modify
     /// @param delta_time Time elapsed since the last call
     public void update(UI.InputState input, double delta_time) {
-        if (input.IsMouseButtonJustReleased(MouseButton.Middle)) {
+        if (input.IsKeyJustPressed(Key.M)) {
             mode = (Mode)(((int)mode + 1) % (int)Mode.MODE_ENUM_MAX);
         }
 
@@ -166,7 +166,7 @@ public class Camera {
     /// This also applies mouse inversion if needed, and the gamepad's right stick.
     private Vector2 get_cursor_delta(InputState input) {
         // Nullify movement unless click is held
-        if (!input.IsMouseButtonDown(MouseButton.Right)) {
+        if (!input.IsMouseButtonDown(MouseButton.Middle)) {
             return Vector2.Zero;
         }
 

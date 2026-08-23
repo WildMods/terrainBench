@@ -16,11 +16,11 @@ W, A, S, D
    => Move camera forward/left/backwards/right
 Space, Shift
    => Move camera up/down
-Hold right mouse button & drag
+Hold Middle mouse button & drag
    => Rotate camera
 Scroll
    => Change zoom (orbit mode only)
-Middle click
+M
    => Change camera mode
             ";
     
@@ -28,7 +28,7 @@ Middle click
     private string _creditInformation = "Written by Torphedo & Ginger Chody";
     
     [ObservableProperty]
-    private string _glInformation = "Here the base information will be shown";
+    private string _glInformation = "Graphics API info placeholder"; // Filled @ runtime
 
     [ObservableProperty]
     private BootState _bootProgress = BootState.INIT;
