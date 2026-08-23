@@ -46,25 +46,20 @@
                             <ComboBox ItemsSource="{Binding brushDistanceTypes}"
                                       SelectedItem="{Binding brushDistanceType}"/>
                     
-                            <TextBlock>
-                                <Run Text="Brush strength: "/>
-                                <Run Text="{Binding #brushSTRSlider.Value}"/>
-                            </TextBlock>
+                            <TextBlock Text="{Binding #brushSTRSlider.Value,
+                                       StringFormat='Brush strength: {0:F1} pixels'}"/>
                             <Slider Minimum="1" Maximum="200" Name="brushSTRSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding brushBaseStrength}"/>
                     
-                            <TextBlock>
-                                <Run Text="Brush size: "/>
-                                <Run Text="{Binding #brushSizeSlider.Value}"/>
-                            </TextBlock>
+                            <TextBlock Text="{Binding #brushSizeSlider.Value,
+                                       StringFormat='Brush size: {0:F1} pixels'}"/>
                             <Slider Minimum="1" Maximum="200" Name="brushSizeSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding brushRadius}"/>
-                            <TextBlock>
-                                <Run Text="Falloff strength: "/>
-                                <Run Text="{Binding #brushFalloffSlider.Value}"/>
-                            </TextBlock>
+                            
+                            <TextBlock Text="{Binding #brushFalloffSlider.Value,
+                                       StringFormat='Brush falloff: {0:F1}x'}"/>
                             <Slider Minimum="1" Maximum="50" Name="brushFalloffSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding brushFalloffStrength}"/>
@@ -79,24 +74,21 @@
                             <TextBlock>Mode</TextBlock>
                             <ComboBox ItemsSource="{Binding camModes}"
                                       SelectedItem="{Binding camMode}"/>
-                            <TextBlock>
-                                <Run Text="Camera speed: "/>
-                                <Run Text="{Binding #camSpeedSlider.Value}"/>
-                            </TextBlock>
+                            
+                            <TextBlock Text="{Binding #camSpeedSlider.Value,
+                                       StringFormat='Camera speed: {0:F1}'}"/>
                             <Slider Minimum="1" Maximum="1000" Name="camSpeedSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding camSpeed}"/>
-                            <TextBlock>
-                                <Run Text="FOV: "/>
-                                <Run Text="{Binding #camFOVSlider.Value}"/>
-                            </TextBlock>
+                            
+                            <TextBlock Text="{Binding #camFOVSlider.Value,
+                                       StringFormat='FOV: {0:F1}'}"/>
                             <Slider Minimum="1" Maximum="120" Name="camFOVSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding camFOV}"/>
-                            <TextBlock>
-                                <Run Text="Mouse sensitivity: "/>
-                                <Run Text="{Binding #camMouseSensSlider.Value}"/>
-                            </TextBlock>
+                            
+                            <TextBlock Text="{Binding #camMouseSensSlider.Value,
+                                       StringFormat='Mouse sensitivity: {0:F3}'}"/>
                             <Slider Minimum="0" Maximum="1" Name="camMouseSensSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding camMouseSens}"/>
