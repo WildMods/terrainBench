@@ -48,7 +48,7 @@
                     
                             <TextBlock Text="{Binding #brushSTRSlider.Value,
                                        StringFormat='Brush strength: {0:F1} pixels'}"/>
-                            <Slider Minimum="1" Maximum="200" Name="brushSTRSlider"
+                            <Slider Minimum="0" Maximum="200" Name="brushSTRSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding brushBaseStrength}"/>
                     
@@ -60,7 +60,7 @@
                             
                             <TextBlock Text="{Binding #brushFalloffSlider.Value,
                                        StringFormat='Brush falloff: {0:F1}x'}"/>
-                            <Slider Minimum="1" Maximum="50" Name="brushFalloffSlider"
+                            <Slider Minimum="0" Maximum="50" Name="brushFalloffSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding brushFalloffStrength}"/>
                         </StackPanel>

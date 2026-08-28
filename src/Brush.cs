@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using OpenTK.Mathematics;
 using terrainBench.Cache;
+using terrainBench.LodComponents;
 
 namespace terrainBench;
 
@@ -33,6 +34,9 @@ public struct Brush() {
 
     public FalloffFunc func = FalloffFunc.LINEAR;
     public DistanceType falloffShape = DistanceType.EUCLIDEAN;
+
+    public LodComponent target = LodComponent.mate;
+    public int[] textureIndices = { 0, 1 };
     
     /// <summary>
     /// The amount the brush strength decreases as it moves away from the center
@@ -93,7 +97,7 @@ public struct Brush() {
         };
     }
 
-    public static ushort ApplyEditFunc(ushort x, EditFunc func, float strength) {
+    public static ushort ApplyEditFunc16(ushort x, EditFunc func, float strength) {
         var result = func switch {
             EditFunc.ADD       => x + (ushort)strength,
             EditFunc.SUBTRACT  => x - (ushort)strength,
@@ -102,6 +106,17 @@ public struct Brush() {
             EditFunc.OVERWRITE => (int)strength,
         };
         return (ushort)result;
+    }
+    
+    public static byte ApplyEditFunc8(byte x, EditFunc func, float strength) {
+        var result = func switch {
+            EditFunc.ADD       => x + (int)strength,
+            EditFunc.SUBTRACT  => x - (int)strength,
+            EditFunc.MULTIPLY  => (int)(x * strength),
+            EditFunc.DIVIDE    => (int)(x / strength),
+            EditFunc.OVERWRITE => (int)strength,
+        };
+        return (byte)Math.Min(result, byte.MaxValue);
     }
 
     /// <summary>
@@ -143,8 +158,11 @@ public struct Brush() {
         }
     }
 
-    public List<int> ApplyToTiles(Cache.Cache cache, CoverageMap coverage, float multiplier) {
+    public List<int> ApplyToTiles(Cache.Cache cache, CoverageMap coverage, float multiplier, int component = 0) {
         var z = Profiler.BeginZone("Brush.ApplyToTiles");
+        if (target == LodComponent.hght) {
+            component = 0; // This is the only usable component for HGHT
+        }
         List<int> updatedTiles = new();
         var c = new Vector2i((int)center.X, (int)center.Z);
         
@@ -154,8 +172,6 @@ public struct Brush() {
             
             updatedTiles.Add(packed);
             cache.MakeTileDirty(idx, LodComponent.hght, lod);
-            var tileRes = cache.GetHeightmapTile(lod, idx, false);
-            var tile = tileRes.Unwrap();
             
             var lvlDiff = ZOrder.MAX_LOD - lod;
             var lvl8Idx = idx << lvlDiff * 2; // Convert to level 8 tile index
@@ -166,6 +182,9 @@ public struct Brush() {
             var pixelSize = 1 << lvlDiff;
             tileOps.Dispose();
 
+            var hghtTile = cache.GetHeightmapTile(lod, idx, false).Unwrap();
+            var mateTile = cache.GetMaterialTile(lod, idx, false).Unwrap();
+            
             var applyPixels = Profiler.BeginZone("BrushApplyPixels");
 
             for (int x = 0; x < ZOrder.GRID_SIZE; x++) {
@@ -182,9 +201,22 @@ public struct Brush() {
 
                     int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
                     var strength = EvalFalloff(dist / radius) * multiplier;
+                    
                     try {
-                        ref var value = ref tile[linearIdx];
-                        value = ApplyEditFunc(value, editFunc, strength);
+                        if (target == LodComponent.hght) {
+                            ref var value = ref hghtTile[linearIdx];
+                            value = ApplyEditFunc16(value, editFunc, strength);
+                        } else if (target == LodComponent.mate) {
+                            if (component < textureIndices.Length) {
+                                // It doesn't make sense to do falloff on a
+                                // texture index. Force overwrite with the active value
+                                strength = textureIndices[component];
+                            }
+                            ref var pixel = ref mateTile[linearIdx];
+                            var val = pixel.GetComponent(component);
+                            val = ApplyEditFunc8(val, editFunc, strength);
+                            pixel.SetComponent(val, component);
+                        }
                     } catch (IndexOutOfRangeException e) {
                         Console.WriteLine("Index {0} @ pos {1} was out-of-bounds", linearIdx, posInTile);
                     }

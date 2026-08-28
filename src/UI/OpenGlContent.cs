@@ -144,11 +144,26 @@ internal class OpenGlContent {
             vm.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
         }
 
-        if (input.IsKeyDown(Key.O)) {
-            var updatedTiles = vm.brush.ApplyToTiles(vm.cache, vm.terrain.lodCoverage, 1f);
+        bool leftPress = input.IsMouseButtonDown(MouseButton.Left);
+        bool rightPress = input.IsMouseButtonDown(MouseButton.Right);
+        if (leftPress || rightPress) {
+            var tempBrush = vm.brush;
+            int component = 0;
+            if (input.IsKeyDown(Key.LeftShift)) {
+                component = (int)LodComponents.Material.Component.BlendWeight; // Edit the texture blend
+            } else if (leftPress) {
+                component = (int)LodComponents.Material.Component.Material0; // Edit texture A
+                tempBrush.editFunc = Brush.EditFunc.OVERWRITE;
+            } else if (rightPress) {
+                component = (int)LodComponents.Material.Component.Material1; // Edit texture B
+                tempBrush.editFunc = Brush.EditFunc.OVERWRITE;
+            }
+            
+            var updatedTiles = tempBrush.ApplyToTiles(vm.cache, vm.terrain.lodCoverage, 1f, component);
             foreach (var packed in updatedTiles) {
                 ZOrder.UnpackIndex(packed, out var idx, out var lod);
                 vm.terrain.ScheduleTileUpdate(idx, lod, LodComponent.hght, vm.cache);
+                vm.terrain.ScheduleTileUpdate(idx, lod, LodComponent.mate, vm.cache);
             }
         }
 
