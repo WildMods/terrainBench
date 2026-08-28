@@ -97,26 +97,23 @@ public struct Brush() {
         };
     }
 
-    public static ushort ApplyEditFunc16(ushort x, EditFunc func, float strength) {
-        var result = func switch {
-            EditFunc.ADD       => x + (ushort)strength,
-            EditFunc.SUBTRACT  => x - (ushort)strength,
-            EditFunc.MULTIPLY  => (int)(x * strength),
-            EditFunc.DIVIDE    => (int)(x / strength),
-            EditFunc.OVERWRITE => (int)strength,
-        };
-        return (ushort)result;
-    }
-    
-    public static byte ApplyEditFunc8(byte x, EditFunc func, float strength) {
-        var result = func switch {
+    public static int ApplyEditFunc(int x, EditFunc func, float strength) {
+        return func switch {
             EditFunc.ADD       => x + (int)strength,
             EditFunc.SUBTRACT  => x - (int)strength,
             EditFunc.MULTIPLY  => (int)(x * strength),
             EditFunc.DIVIDE    => (int)(x / strength),
             EditFunc.OVERWRITE => (int)strength,
         };
-        return (byte)Math.Min(result, byte.MaxValue);
+    }
+    public static ushort ApplyEditFunc16(ushort x, EditFunc func, float strength) {
+        var result = ApplyEditFunc(x, func, strength);
+        return (ushort)Math.Clamp(result, ushort.MinValue, ushort.MaxValue - 1);
+    }
+    
+    public static byte ApplyEditFunc8(byte x, EditFunc func, float strength) {
+        var result = ApplyEditFunc(x, func, strength);
+        return (byte)Math.Clamp(result, byte.MinValue, byte.MaxValue - 1);
     }
 
     /// <summary>
