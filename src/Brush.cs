@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using Avalonia.Input;
 using OpenTK.Mathematics;
 using terrainBench.Cache;
 using terrainBench.LodComponents;
+using terrainBench.UI;
 
 namespace terrainBench;
 
@@ -30,6 +32,7 @@ public struct Brush() {
     public int radius = 50;
     public float pressure = 1f;
     public float effectiveRadius => radius * pressure;
+    public int component = 0; // The component index in a pixel to edit
     
     public Shape shape = Shape.CIRCLE;
     public bool isDistance3D = false;
@@ -38,7 +41,7 @@ public struct Brush() {
     public FalloffFunc func = FalloffFunc.LINEAR;
     public DistanceType falloffShape = DistanceType.EUCLIDEAN;
 
-    public LodComponent target = LodComponent.mate;
+    public LodComponent target = LodComponent.hght;
     public int[] textureIndices = { 0, 1 };
     
     /// <summary>
@@ -52,6 +55,32 @@ public struct Brush() {
     /// Implemented as the "b" to plug into the falloff function
     /// </summary>
     public float baseStrength = 20f;
+
+    public void UpdateFromInput(InputState input) {
+        int deltaA = input.IsKeyDownI(Key.Up) - input.IsKeyDownI(Key.Down);
+        int deltaB = input.IsKeyDownI(Key.Right) - input.IsKeyDownI(Key.Left);
+        textureIndices[0] += deltaA;
+        textureIndices[1] += deltaB;
+        pressure = input.pressure;
+        
+        if (input.IsKeyDown(Key.LeftShift)) {
+            component = (int)Material.Component.BlendWeight; // Edit the texture blend
+        } else if (input.IsMouseButtonDown(MouseButton.Left)) {
+            component = (int)Material.Component.Material0;   // Edit texture A
+        } else if (input.IsMouseButtonDown(MouseButton.Right)) {
+            component = (int)Material.Component.Material1;   // Edit texture B
+        }
+
+        bool changeTarget = input.IsKeyJustPressed(Key.Q);
+        if (changeTarget) {
+            // I'm not using a ternary because more targets may be added  --torf
+            if (target == LodComponent.hght) {
+                target = LodComponent.mate;
+            } else {
+                target = LodComponent.hght;
+            }
+        }
+    }
 
     /// <summary>
     /// Calculates the result of a falloff function
@@ -158,7 +187,7 @@ public struct Brush() {
         }
     }
 
-    public List<int> ApplyToTiles(Cache.Cache cache, CoverageMap coverage, float multiplier, int component = 0) {
+    public List<int> ApplyToTiles(Cache.Cache cache, CoverageMap coverage, float multiplier) {
         var z = Profiler.BeginZone("Brush.ApplyToTiles");
         if (target == LodComponent.hght) {
             component = 0; // This is the only usable component for HGHT

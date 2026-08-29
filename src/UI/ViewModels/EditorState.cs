@@ -60,6 +60,7 @@ M
     public Brush.FalloffFunc[] brushFalloffTypes { get; } = Enum.GetValues<Brush.FalloffFunc>();
     public Brush.EditFunc[] brushEditTypes { get; } = Enum.GetValues<Brush.EditFunc>();
     public Brush.DistanceType[] brushDistanceTypes { get; } = Enum.GetValues<Brush.DistanceType>();
+    public LodComponent[] brushTargetTypes { get; } = { LodComponent.hght, LodComponent.mate };
     
     public Brush.FalloffFunc brushFalloff {
         get => brush.func; set =>  brush.func = value;
@@ -70,6 +71,7 @@ M
     public Brush.DistanceType brushDistanceType {
         get => brush.falloffShape; set =>  brush.falloffShape = value;
     }
+    public LodComponent brushTargetType { get => brush.target; set =>  brush.target = value; }
     
     // Camera settings access
     public float camSpeed { get => cam.move_speed; set => cam.move_speed = value; }

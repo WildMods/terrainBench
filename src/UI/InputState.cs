@@ -73,30 +73,29 @@ public class InputState
         }
     }
 
-    public bool IsKeyDown(Key key)
-    {
+    public bool IsKeyDown(Key key) {
         lock (_sync) { return _keys.Get((int) key); }
     }
 
-    public bool WasKeyDownLastFrame(Key key)
-    {
+    public bool WasKeyDownLastFrame(Key key) {
         lock (_sync) { return _keysPrevious.Get((int) key); }
     }
 
-    public bool IsKeyJustPressed(Key key)
-    {
+    public bool IsKeyJustPressed(Key key) {
         lock (_sync) { return _keys.Get((int) key) && !_keysPrevious.Get((int) key); }
     }
 
-    public bool IsKeyJustReleased(Key key)
-    {
+
+    public bool IsKeyJustReleased(Key key) {
         lock (_sync) { return !_keys.Get((int) key) && _keysPrevious.Get((int) key); }
     }
 
-    public bool IsKeyHeld(Key key)
-    {
+    public bool IsKeyHeld(Key key) {
         lock (_sync) { return _keys.Get((int) key) && _keysPrevious.Get((int) key); }
     }
+    
+    public int IsKeyDownI(Key k) => IsKeyDown(k) ? 1 : 0;
+    public int IsKeyJustPressedI(Key k) => IsKeyJustPressed(k) ? 1 : 0;
 
     #endregion
 

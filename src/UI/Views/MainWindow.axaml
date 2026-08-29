@@ -45,6 +45,10 @@
                             <TextBlock>Distance type</TextBlock>
                             <ComboBox ItemsSource="{Binding brushDistanceTypes}"
                                       SelectedItem="{Binding brushDistanceType}"/>
+                            
+                            <TextBlock>Brush type</TextBlock>
+                            <ComboBox ItemsSource="{Binding brushTargetTypes}"
+                                      SelectedItem="{Binding brushTargetType}"/>
                     
                             <TextBlock Text="{Binding #brushSTRSlider.Value,
                                        StringFormat='Brush strength: {0:F1} pixels'}"/>

@@ -134,6 +134,8 @@ internal class OpenGlContent {
         }
 
         vm.cam.aspect = (float)viewportSize.AspectRatio;
+        vm.cam.update(input, delta);
+        vm.brush.UpdateFromInput(input);
 
         var fbSize = new Vector2(viewportSize.Width, viewportSize.Height);
         var mouseVec = new Vector2((float)input.MousePosition.X, (float)input.MousePosition.Y);
@@ -159,16 +161,7 @@ internal class OpenGlContent {
         bool leftPress = input.IsMouseButtonDown(MouseButton.Left);
         bool rightPress = input.IsMouseButtonDown(MouseButton.Right);
         if (leftPress || rightPress) {
-            int component = 0;
-            if (input.IsKeyDown(Key.LeftShift)) {
-                component = (int)LodComponents.Material.Component.BlendWeight; // Edit the texture blend
-            } else if (leftPress) {
-                component = (int)LodComponents.Material.Component.Material0; // Edit texture A
-            } else if (rightPress) {
-                component = (int)LodComponents.Material.Component.Material1; // Edit texture B
-            }
-            
-            var updatedTiles = vm.brush.ApplyToTiles(vm.cache, vm.terrain.lodCoverage, 1f, component);
+            var updatedTiles = vm.brush.ApplyToTiles(vm.cache, vm.terrain.lodCoverage, 1f);
             foreach (var packed in updatedTiles) {
                 ZOrder.UnpackIndex(packed, out var idx, out var lod);
                 vm.terrain.ScheduleTileUpdate(idx, lod, LodComponent.hght, vm.cache);
@@ -179,7 +172,5 @@ internal class OpenGlContent {
         if (input.IsKeyDown(Key.S) && input.IsKeyDown(Key.LeftCtrl)) {
             vm.cache.WriteAllTiles(vm.game.modPath, true, CsOead.Endianness.Big);
         }
-
-        vm.cam.update(input, delta);
     }
 }
