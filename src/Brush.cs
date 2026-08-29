@@ -171,7 +171,7 @@ public struct Brush() {
             ZOrder.UnpackIndex(packed, out var idx, out byte lod);
             
             updatedTiles.Add(packed);
-            cache.MakeTileDirty(idx, LodComponent.hght, lod);
+            cache.MakeTileDirty(idx, target, lod);
             
             var lvlDiff = ZOrder.MAX_LOD - lod;
             var lvl8Idx = idx << lvlDiff * 2; // Convert to level 8 tile index
@@ -214,7 +214,7 @@ public struct Brush() {
                             }
                             ref var pixel = ref mateTile[linearIdx];
                             var val = pixel.GetComponent(component);
-                            val = ApplyEditFunc8(val, editFunc, strength);
+                            val = ApplyEditFunc8(val, EditFunc.OVERWRITE, strength);
                             pixel.SetComponent(val, component);
                         }
                     } catch (IndexOutOfRangeException e) {
