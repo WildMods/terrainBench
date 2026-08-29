@@ -57,8 +57,8 @@ public struct Brush() {
     public float baseStrength = 20f;
 
     public void UpdateFromInput(InputState input) {
-        int deltaA = input.IsKeyDownI(Key.Up) - input.IsKeyDownI(Key.Down);
-        int deltaB = input.IsKeyDownI(Key.Right) - input.IsKeyDownI(Key.Left);
+        int deltaA = input.IsKeyJustPressedI(Key.Up) - input.IsKeyJustPressedI(Key.Down);
+        int deltaB = input.IsKeyJustPressedI(Key.Right) - input.IsKeyJustPressedI(Key.Left);
         textureIndices[0] += deltaA;
         textureIndices[1] += deltaB;
         pressure = input.pressure;
