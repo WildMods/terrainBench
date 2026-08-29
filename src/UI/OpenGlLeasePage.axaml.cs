@@ -30,12 +30,12 @@ public partial class OpenGlLeasePage : ContentPage {
         private OpenGlFbo? _fbo;
         private IGlContext? _gl;
         private EditorState _editorState;
-        private InputState _input;
+        private OpenGlLeasePage _inst;
 
-        public GlVisual(OpenGlContent content, EditorState editorState, InputState input) {
+        public GlVisual(OpenGlContent content, EditorState editorState, OpenGlLeasePage inst) {
             _content = content;
             _editorState = editorState;
-            _input = input;
+            _inst = inst;
         }
 
         public override void OnAnimationFrameUpdate() {
@@ -90,8 +90,8 @@ public partial class OpenGlLeasePage : ContentPage {
                     }
 
                     z.Dispose();
-                    _content.OnOpenGlRender(gl, _fbo.Fbo, size, _editorState, _input);
-                    _input.ResetKeyStates();
+                    _content.OnOpenGlRender(gl, _fbo.Fbo, size, _editorState, _inst.input);
+                    _inst.input.ResetKeyStates();
 
                     // Have the rendered frame copied to a presentable texture
                     snapshot = _fbo.Snapshot();
@@ -148,7 +148,7 @@ public partial class OpenGlLeasePage : ContentPage {
         
         Debug.Assert(DataContext is EditorState);
         var vm = (EditorState)DataContext;
-        _visual = visual.Compositor.CreateCustomVisual(new GlVisual(new OpenGlContent(), vm, input));
+        _visual = visual.Compositor.CreateCustomVisual(new GlVisual(new OpenGlContent(), vm, this));
         ElementComposition.SetElementChildVisual(Viewport, _visual);
         UpdateSize(Bounds.Size);
     }
@@ -191,6 +191,8 @@ public partial class OpenGlLeasePage : ContentPage {
         _isDragging = true;
         e.Pointer.Capture(this);
         input.SetMousePosition(e.GetPosition(this));
+        
+        input.SetPressureFromPointer(e.GetCurrentPoint(this));
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e) {
@@ -202,6 +204,7 @@ public partial class OpenGlLeasePage : ContentPage {
 
     protected override void OnPointerMoved(PointerEventArgs e) {
         input.SetMousePosition(e.GetPosition(this));
+        input.SetPressureFromPointer(e.GetCurrentPoint(this));
 
         if (!_isDragging)
             return;

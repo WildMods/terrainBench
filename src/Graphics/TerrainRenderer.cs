@@ -461,7 +461,7 @@ public struct TerrainRenderer {
     
     Shader tessShader;
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
-    int terrainTexArray = 0;
+    public int terrainTexArray = 0;
     int coverageTex = 0;
     public Cache.CoverageMap lodCoverage;
 

@@ -216,6 +216,7 @@ public class Shader {
 
     public void SetUniform(string name, int val) => Uniform.Set(programId, name, val);
     public void SetUniform(string name, float val) => Uniform.Set(programId, name, val);
+    public void SetUniform(string name, Vector4 val) => Uniform.Set(programId, name, val);
     public void SetUniform(string name, Matrix4 val) => Uniform.Set(programId, name, val);
 
     /// <summary>

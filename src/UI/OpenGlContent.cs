@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.OpenGL;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using terrainBench.UI.ViewModels;
 using static Avalonia.OpenGL.GlConsts;
@@ -91,7 +92,18 @@ internal class OpenGlContent {
             var projT = vm.cam.proj_matrix();
             var viewT = vm.cam.view_matrix();
             vm.terrain.Render(projT, viewT, eyeWorld);
-            vm.brushRenderer.Draw(projT, viewT);
+
+            var textures = new int[2];
+            GL.GenTextures(2, textures);
+
+            var fmt = PixelInternalFormat.CompressedRgbS3tcDxt1Ext;
+            var target = TextureTarget.Texture2D;
+            var texArray = vm.terrain.terrainTexArray;
+            GL.TextureView(textures[0], target, texArray, fmt, 0, 1, vm.brush.textureIndices[0], 1);
+            GL.TextureView(textures[1], target, texArray, fmt, 0, 1, vm.brush.textureIndices[1], 1);
+            
+            vm.brushRenderer.Draw(projT, viewT, textures[0], textures[1]);
+            GL.DeleteTextures(2, textures);
         }
 
         z.Dispose();
