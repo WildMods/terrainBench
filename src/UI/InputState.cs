@@ -20,6 +20,16 @@ public class InputState
     public Point MousePositionPrevious { get; private set; }
     public Point MouseDelta { get; private set; }
 
+    public float pressure = 1f;
+
+    public void SetPressureFromPointer(PointerPoint p) {
+        if (p.Pointer.Type == PointerType.Pen) {
+            pressure = p.Properties.Pressure;
+        } else {
+            pressure = 1f;
+        }
+    }
+
     public void CalcMouseDelta()
     {
         var deltaX = MousePosition.X - MousePositionPrevious.X;

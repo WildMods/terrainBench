@@ -140,7 +140,7 @@ internal class OpenGlContent {
             wp.y += 8f;
             
             vm.brush.center = pp;
-            vm.brushRenderer.radius = vm.brush.radius * TerrainCoords.PixelToWorldScale;
+            vm.brushRenderer.radius = vm.brush.effectiveRadius * TerrainCoords.PixelToWorldScale;
             vm.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
         }
 

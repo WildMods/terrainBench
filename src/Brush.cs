@@ -28,6 +28,9 @@ public struct Brush() {
 
     public Vector3 center = new();
     public int radius = 50;
+    public float pressure = 1f;
+    public float effectiveRadius => radius * pressure;
+    
     public Shape shape = Shape.CIRCLE;
     public bool isDistance3D = false;
     public EditFunc editFunc = EditFunc.ADD;
@@ -137,8 +140,8 @@ public struct Brush() {
     /// <returns>The packed tile index/LOD</returns>
     public IEnumerable<Int32> IterAffectedTiles(CoverageMap coverage) {
         var c = new Vector2i((int)center.X, (int)center.Z);
-        var min = c - new Vector2i(radius, radius);
-        var max = c + new Vector2i(radius, radius);
+        var min = c - new Vector2i((int)effectiveRadius);
+        var max = c + new Vector2i((int)effectiveRadius);
         min.X = Math.Clamp(min.X, 0, UInt16.MaxValue);
         min.Y = Math.Clamp(min.Y, 0, UInt16.MaxValue);
         max.X = Math.Clamp(max.X, 0, UInt16.MaxValue);
@@ -192,12 +195,12 @@ public struct Brush() {
                     var dist = EvalDistance2D(p, c, falloffShape);
                     if (shape == Shape.SQUARE) {
                         // The point is always within the radius
-                    } else if (dist > radius) {
+                    } else if (dist > effectiveRadius) {
                         continue; // Pixel out of range
                     }
 
                     int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
-                    var strength = EvalFalloff(dist / radius) * multiplier;
+                    var strength = EvalFalloff(dist / effectiveRadius) * multiplier;
                     
                     try {
                         if (target == LodComponent.hght) {
