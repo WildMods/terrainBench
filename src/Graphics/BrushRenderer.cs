@@ -45,11 +45,12 @@ public class BrushRenderer {
         texShader.Use();
         texShader.SetUniform("tex", 0);
         
-        texShader.SetUniform("rect", new Vector4(0.2f, 0.6f, 0.6f, 1.0f));
+        // TODO: Properly adjust these NDC sizes by aspect ratio
+        texShader.SetUniform("rect", new Vector4(0.4f, 0.5f, 0.7f, 1.0f));
         GL.BindTextureUnit(0, textureA);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
         
-        texShader.SetUniform("rect", new Vector4(0.6f, 0.6f, 1.0f, 1.0f));
+        texShader.SetUniform("rect", new Vector4(0.7f, 0.5f, 1.0f, 1.0f));
         GL.BindTextureUnit(0, textureB);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
         
