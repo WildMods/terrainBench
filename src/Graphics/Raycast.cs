@@ -122,8 +122,12 @@ public static class Raycast {
                 WorldPos wp =  hitTilePos;
                 
                 var worldDist = ((Vector3)(wp - startPos)).Xz; // Make sure only 2D is considered
-                float t = worldDist.Length / Vector2.Dot(worldDist.Normalized(), worldDir.xz);
+                float t = worldDist.Length;
                 WorldPos hitPos = new((WorldPos)startPos + (Vector3)worldDir * t);
+
+                if (hitPos.y < 0f || t < 0f) {
+                    continue; // Something's gone terribly wrong, ignore this
+                }
                 
                 if (normalizedHeight >= hitPos.y) {
                     // Ray has gone under the terrain, it's a hit

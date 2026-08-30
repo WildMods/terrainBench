@@ -151,7 +151,6 @@ internal class OpenGlContent {
         if (r.IsOk()) {
             var pp = r.Unwrap();
             TerrainCoords.WorldPos wp = pp;
-            wp.y += 8f;
             
             vm.brush.center = pp;
             vm.brushRenderer.radius = vm.brush.effectiveRadius * TerrainCoords.PixelToWorldScale;
