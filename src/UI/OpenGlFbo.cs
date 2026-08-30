@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.OpenGL;
 using SkiaSharp;
 using static Avalonia.OpenGL.GlConsts;
-using OpenTK.Graphics.OpenGL4;
 namespace terrainBench.UI;
 
 internal class OpenGlFbo : IDisposable {
@@ -41,38 +40,25 @@ internal class OpenGlFbo : IDisposable {
             ? GL_RGBA
             : GL_RGBA8;
         
-        // WARNING: This is a bit sketchy, I'm having to use the OpenTK OpenGL
-        // bindings to access multisample functions that aren't exposed by
-        // Avalonia's bindings. This is fine only because I've explicitly had
-        // OpenTK load its bindings from Avalonia's GL context. OpenTK calls
-        // have a "GL." prefix, Avalonia calls start with "Gl."
-        // Some enum values are also missing from Avalonia's bindings, so I've
-        // had to use OpenTK enums and cast to them for OpenTK calls:
-        // "PixelInternalFormat", "RenderbufferTarget", "TextureTarget", "TextureTargetMultisample", "RenderbufferStorage"
-        // -- torf
-        Gl.BindTexture((int)TextureTarget.Texture2DMultisample, _texture);
-        GL.TexImage2DMultisample(TextureTargetMultisample.Texture2DMultisample, 4, (PixelInternalFormat)textureFormat, size.Width, size.Height, true);
-        // Gl.TexImage2D(GL_TEXTURE_2D, 0, textureFormat, size.Width, size.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, IntPtr.Zero);
-        Gl.FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, (int)TextureTarget.Texture2DMultisample, _texture, 0);
+        Gl.BindTexture(GL_TEXTURE_2D, _texture);
+        Gl.TexImage2D(GL_TEXTURE_2D, 0, textureFormat, size.Width, size.Height, 0, GL_RGBA,
+            GL_UNSIGNED_BYTE, IntPtr.Zero);
+        Gl.FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture, 0);
         
         _depthBuffer = Gl.GenRenderbuffer();
         var depthFormat = Context.Version.Type == GlProfileType.OpenGLES
             ? GL_DEPTH_COMPONENT16
             : GL_DEPTH_COMPONENT;
         Gl.BindRenderbuffer(GL_RENDERBUFFER, _depthBuffer);
-        // Note this is another OpenTK GL call.
-        GL.RenderbufferStorageMultisample((RenderbufferTarget)GL_RENDERBUFFER, 4, (RenderbufferStorage)depthFormat, size.Width, size.Height);
-        // Gl.RenderbufferStorage(GL_RENDERBUFFER, depthFormat, size.Width, size.Height);
-        
+        Gl.RenderbufferStorage(GL_RENDERBUFFER, depthFormat, size.Width, size.Height);
         Gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, _depthBuffer);
 
-        // FramebufferErrorCode status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
         var status = Gl.CheckFramebufferStatus(GL_FRAMEBUFFER);
         IsValid = (status == GL_FRAMEBUFFER_COMPLETE);
         if(!IsValid)
         {
             int code = Gl.GetError();
-            Console.WriteLine("Unable to configure OpenGL FBO: {0} (status {1})", code, status);
+            Console.WriteLine("Unable to configure OpenGL FBO: " + code);
         }
         
         _size = size;
@@ -83,7 +69,6 @@ internal class OpenGlFbo : IDisposable {
     public int Fbo => _fbo;
 
     public SKImage? Snapshot() {
-#if false
         var z = Profiler.BeginZone("OpenGlFbo.Snapshot");
         Gl.Flush();
         _grContext.ResetContext();
@@ -105,8 +90,8 @@ internal class OpenGlFbo : IDisposable {
         _grContext.Flush();
         z.Dispose();
         return rv;
-#else
-        var target = new GRBackendRenderTarget(_size.Width, _size.Height, 4, 0,
+        /*
+        var target = new GRBackendRenderTarget(_size.Width, _size.Height, 0, 0,
             new GRGlFramebufferInfo((uint)_fbo, SKColorType.Rgba8888.ToGlSizedFormat()));
         SKImage rv;
         using (var surface = SKSurface.Create(_grContext, target,
@@ -114,8 +99,7 @@ internal class OpenGlFbo : IDisposable {
                    new SKSurfaceProperties(SKPixelGeometry.RgbHorizontal)))
             rv = surface.Snapshot();
         _grContext.Flush();
-        return rv;
-#endif
+        return rv;*/
     }
     
     public void Dispose() {
