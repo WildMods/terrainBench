@@ -120,8 +120,10 @@ M
 
         }
 
-        Directory.CreateDirectory(settings.modDir);
-        
+        if (settings.modDir.Length != 0 && !settings.modDir.IsWhiteSpace()) {
+            Directory.CreateDirectory(settings.modDir);
+        }
+
         Console.WriteLine("Base: '{0}'", settings.gameDir);
         Console.WriteLine("Update: '{0}'", settings.updateDir);
         Console.WriteLine("DLC: '{0}'", settings.dlcDir);

@@ -32,14 +32,19 @@ public class BfresTextureReader {
         // var tex1Path = $"{basePath}.Tex1.sbfres";
         // var tex2Path = $"{basePath}.Tex2.sbfres";
 
-        var texData = game.ReadFile(texPath, Game.Section.Base);
-        if (texData.IsOk()) {
-            return new BfresTextureReader(texData.Unwrap());
-        } else {
-            Console.WriteLine("Unable to find .Tex file:\n{0}", texData.Err()?.Message);
+        try {
+            var texData = game.ReadFile(texPath, Game.Section.Base);
+            if (texData.IsOk()) {
+                return new BfresTextureReader(texData.Unwrap());
+            } else {
+                Console.WriteLine("Unable to find .Tex file:\n{0}", texData.Err()?.Message);
+            }
+        } catch (Exception e) {
+            Console.WriteLine(e);
+            return Err(new ErrorStack("Failed to load terrain textures from Switch files", e));
         }
         
-        var tex1Data = game.ReadFile(tex1Path, Game.Section.Base);
+        var tex1Data = game.ReadDecompressed(tex1Path, Game.Section.Base);
         var tex2Data = game.ReadFile(tex2Path, Game.Section.Base);
         if (tex1Data.IsErr() && tex2Data.IsErr()) {
             return Err(new ErrorStack($"Unable to find '{texPath}', '{tex1Path}', or '{tex2Path}'. Are your dump paths correct?"));
@@ -51,7 +56,13 @@ public class BfresTextureReader {
             return Err(new ErrorStack($"Found a Wii U Tex1 file, but unable to find '{tex2Path}'"));
         }
 
-        return new BfresTextureReader(tex1Data.Unwrap(), tex2Data.Unwrap());
+        try {
+            return new BfresTextureReader(tex1Data.Unwrap(), tex2Data.Unwrap());
+        } catch (Exception ex) {
+            Console.WriteLine(ex.Message);
+            return Err(new ErrorStack("Failed to load terrain textures", ex));
+        }
+        
     }
 
     public Result<TextureShared, ErrorStack> GetTexture(string name, int mipLevel) {
