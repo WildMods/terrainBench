@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using OpenTK.Mathematics;
 using OperationResult;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
@@ -36,6 +37,59 @@ public class Cache
         {
             yield return GetHeightmapTile(level, i);
         }
+    }
+
+    Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, LodComponent component)
+    {
+        if (level >= _lods.Length) {
+            return Err(new ErrorStack($"LOD {level} doesn't exist!"));
+        }
+        if (level == 0) {
+            return false; // Nothing to do, but not an error
+        }
+
+        Vector2i tilePos;
+        {
+            ZOrder.Deinterleave16To8(idx, out var x, out var y);
+            tilePos = new(x, y);
+        }
+        
+        int size = component switch {
+            LodComponent.hght => ZOrder.GRID_SIZE,
+            LodComponent.mate => ZOrder.GRID_SIZE,
+            LodComponent.water => 64,
+            LodComponent.grass => 64,
+        };
+
+        Vector2i pixelPosLow = TileScaling.GetLowDetailPos(tilePos, size);
+        ushort lowIdx = (ushort)(idx >> 2);
+        MakeTileDirty(lowIdx, component, (byte)(level - 1));
+        switch (component) {
+        case LodComponent.hght: {
+            var highTile = _lods[level].GetHeightmapTile(idx).Unwrap();
+            var lowTile = _lods[level - 1].GetHeightmapTile(lowIdx).Unwrap();
+            TileScaling.DownscaleTile(highTile, lowTile, pixelPosLow, size);
+            break;
+        }
+        default:
+            // TODO: Implement math operators for other types so we can downscale them
+            return Err(new ErrorStack($"Unsupported component: {component}!"));
+        }
+
+        return true;
+    }
+
+    public Result<bool, ErrorStack> DownscaleTileCascade(ushort idx, uint level, LodComponent component)
+    {
+        for (uint i = level; i > 0; i--) {
+            var res = DownscaleTileByOne(idx, i, component);
+            if (res.IsErr()) {
+                return Err(res.Err().Context($"Failed to downscale idx {idx} @ level {i}"));
+            }
+            idx >>= 2;
+        }
+
+        return true;
     }
 
     public Result<ushort[], ErrorStack> GetHeightmapTile(int level, ushort tileId, bool upscale = true)
