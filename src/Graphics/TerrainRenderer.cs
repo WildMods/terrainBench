@@ -600,9 +600,9 @@ public struct TerrainRenderer {
         var total = Stopwatch.StartNew();
         var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
 
-        string texPath = "Pack/TitleBG.pack//Model//Terrain.Tex.sbfres";
-        string tex1Path = "Model/Terrain.Tex1.sbfres";
-        string tex2Path = "Pack/TitleBG.pack//Model//Terrain.Tex2.sbfres";
+        string texPath = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex.sbfres");
+        string tex1Path = Path.Combine("Model", "Terrain.Tex1.sbfres");
+        string tex2Path = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex2.sbfres");
         
         var res = BfresTextureReader.Create(game, texPath, tex1Path, tex2Path);
         if (res.IsErr()) {

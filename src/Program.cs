@@ -32,6 +32,7 @@ public static class Program
     public static AppBuilder BuildAvaloniaApp() {
         return AppBuilder.Configure<terrainBench.UI.App>()
             .UsePlatformDetect()
+            .With(new Win32PlatformOptions { RenderingMode = new List<Win32RenderingMode> { Win32RenderingMode.Wgl } })
             .WithInterFont()
             .LogToTrace();
     }
