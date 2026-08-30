@@ -71,6 +71,12 @@ public class Cache
             TileScaling.DownscaleTile(highTile, lowTile, pixelPosLow, size);
             break;
         }
+        case LodComponent.mate: {
+            var highTile = _lods[level].GetMaterialTile(idx).Unwrap();
+            var lowTile = _lods[level - 1].GetMaterialTile(lowIdx).Unwrap();
+            TileScaling.DownscaleTile(highTile, lowTile, pixelPosLow, size);
+            break;
+        }
         default:
             // TODO: Implement math operators for other types so we can downscale them
             return Err(new ErrorStack($"Unsupported component: {component}!"));

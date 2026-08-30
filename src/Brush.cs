@@ -253,12 +253,9 @@ public struct Brush() {
             }
             
             applyPixels.Dispose();
+            cache.DownscaleTileCascade(idx, lod, target);
         }
 
-        foreach (var packed in updatedTiles) {
-            ZOrder.UnpackIndex(packed, out var idx, out byte lod);
-            cache.DownscaleTileCascade(idx, lod, LodComponent.hght);
-        }
         z.Dispose();
         return updatedTiles;
     }

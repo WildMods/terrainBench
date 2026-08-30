@@ -1,6 +1,10 @@
+using System.Numerics;
+
 namespace terrainBench.LodComponents;
 
 public struct Material
+// We need to implement math operators for the downscaler to average pixels
+: IAdditionOperators<Material, Material, Material>, IShiftOperators<Material, int, Material>, IBitwiseOperators<Material, ushort, Material>
 {
     public enum Component {
         Material0, Material1, BlendWeight, Unknown,
@@ -34,5 +38,51 @@ public struct Material
             case 2: BlendWeight = val; break;
             case 3: Unk3 = val; break;
         }
+    }
+    
+
+    // The operators we need for averaging pixels
+    public static Material operator +(Material a, Material b) {
+        return new((byte)(a.Material0 + b.Material0),
+            (byte)(a.Material1 + b.Material1),
+            (byte)(a.BlendWeight + b.BlendWeight),
+            (byte)(a.Unk3 + b.Unk3));
+    }
+    
+    public static Material operator >>(Material a, int s) {
+        return new((byte)(a.Material0 >> s), (byte)(a.Material1 >> s),
+            (byte)(a.BlendWeight >> s), (byte)(a.Unk3 >> s));
+    }
+    
+    public static Material operator &(Material a, ushort m) {
+        return new((byte)(a.Material0 & m), (byte)(a.Material1 & m),
+            (byte)(a.BlendWeight & m), (byte)(a.Unk3 & m));
+    }
+
+    
+    
+    // We don't need any of these operators, but the interfaces require them
+    public static Material operator >>>(Material a, int s) {
+        return new((byte)(a.Material0 >>> s), (byte)(a.Material1 >>> s),
+            (byte)(a.BlendWeight >>> s), (byte)(a.Unk3 >>> s));
+    }
+    
+    public static Material operator <<(Material a, int s) {
+        return new((byte)(a.Material0 << s), (byte)(a.Material1 << s),
+            (byte)(a.BlendWeight << s), (byte)(a.Unk3 << s));
+    }
+    
+    public static Material operator |(Material a, ushort m) {
+        return new((byte)(a.Material0 | m), (byte)(a.Material1 | m),
+            (byte)(a.BlendWeight | m), (byte)(a.Unk3 | m));
+    }
+
+    public static Material operator ~(Material a) {
+        return new((byte)~a.Material0, (byte)~a.Material1, (byte)~a.BlendWeight, (byte)~a.Unk3);
+    }
+    
+    public static Material operator ^(Material a, ushort m) {
+        return new((byte)(a.Material0 ^ m), (byte)(a.Material1 ^ m),
+            (byte)(a.BlendWeight ^ m), (byte)(a.Unk3 ^ m));
     }
 }

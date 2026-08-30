@@ -17,7 +17,7 @@ public static class TileScaling {
     /// <param name="size">The square size in pixels of both tiles</param>
     /// <typeparam name="T">The pixel type</typeparam>
     public static void DownscaleTile<T>(T[] high, T[] low, Vector2i lowPos, int size)
-    where T : IAdditionOperators<T, T, T>, IShiftOperators<T, int, T>
+    where T : IAdditionOperators<T, T, T>, IShiftOperators<T, int, T>, IBitwiseOperators<T, ushort, T>
     {
         int lowSize = size / 2; // Size of our tile in the low-detail image
         int lowLinearPos = lowPos.X + (lowPos.Y * size); // Linear index of the low-detail starting pixel
@@ -30,14 +30,26 @@ public static class TileScaling {
             var source1 = new ArraySegment<T>(high, (i + 0) * size, size);
             var source2 = new ArraySegment<T>(high, (i + 1) * size, size);
 
+            // Collect 4x4 area of pixels from our 2 rows
             for (int x = 0; x < size; x += 2) {
-                // Collect 4x4 area of pixels from our 2 rows
-                T pixel = source1[x] + source1[x + 1] + source2[x] + source2[x + 1];
-                // Divide by 4 via shifting to get the average.
-                // I used an explicit shift here because I'm not sure if the
-                // compiler does enough inlining of generic operators to turn
-                // this into a bitshift otherwise. -- torf
-                pixel >>= 2;
+                // We divide by 4 via shifting to get the average. The shift is
+                // done before the addition to avoid integer overflows.
+                
+                // The reason I explicitly shift here is that I'm not sure if
+                // the compiler does enough inlining of generic operators to
+                // turn a divide into a shift otherwise. -- torf
+
+                // If we just sum & divide by 4, overflows are very likely to
+                // cause incorrect answers. To avoid this, we can pre-divide all
+                // our values.
+                T roughAvg = (source1[x] >> 2) + (source1[x + 1] >> 2) +
+                          (source2[x] >> 2) + (source2[x + 1] >> 2);
+                // Pre-dividing like this loses the precision of the low 2 bits
+                // in the average. To get it back, we average them separately
+                // in the normal way.
+                T preciseAvg = ((source1[x] & 0b11) + (source1[x + 1] & 0b11) +
+                               (source2[x] & 0b11) + (source2[x + 1] & 0b11)) >> 2;
+                T pixel = roughAvg + preciseAvg;
                 
                 target[x / 2] = pixel; // Write to low-detail tile
             }
