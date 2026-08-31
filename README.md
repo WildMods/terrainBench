@@ -83,3 +83,6 @@ resolution in the future, which will probably require editing the TSCB
 To support this, I'd also like to add the option of loading `AocField`. I
 tested this early on (which worked fine), but parts of the editor are currently
 hardcoded to use `MainField`.
+
+## Sources & Thanks
+This program was written entirely based on the file specifications on the ZeldaMods wiki, written mostly by [Zephenryus](https://github.com/zephenryus). I've written a higher-level summary linking to his wiki pages [here](https://zeldamods.org/wiki/Terrain). These pages also had contributions from [Ginger](https://github.com/GingerAvalanche), [Echocolat](https://github.com/Echocolat), [Greenlord / S41L0R](https://github.com/S41L0R), and [Waikuteru](https://www.youtube.com/@Waikuteru)
