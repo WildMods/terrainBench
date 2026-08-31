@@ -37,12 +37,15 @@ detail levels, which prevents pop-in.
 - Change camera mode (e.g. from orbit to first-person): `M`
 - Change primary texture: Up/Down arrows
 - Change secondary texture: Left/Right arrows
+- Change brush mode (heightmap and texture painting modes): `Q`
 - Apply heightmap brush: Left click & drag
 - Paint with primary/secondary texture: Left/Right click & drag
   - Hold Shift to paint on the texture blend data
+- If you have a drawing tablet, the pen pressure will determine the brush radius
+
+
 If the keyboard shortcuts aren't responding, try left clicking in the 3D
 viewport.
-- If you have a drawing tablet, the pen pressure will determine the brush radius
 
 ### Pitfalls & Known Issues
 - Normally, the game uses static collision in
