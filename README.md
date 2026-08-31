@@ -5,7 +5,7 @@ Terrain Workbench currently supports editing the terrain heightmap and ground
 material (which also determines the footstep sounds).
 
 ## Setup & Usage
-To load the terrain data, Terrain Workbench needs a the BOTW game files.
+To load the terrain data, Terrain Workbench needs your BOTW game files.
 If you have BCML or UKMM set up, the editor will automatically import your
 saved game paths. Otherwise, you can set the paths by running the editor on the
 command-line. On my machine, it looks like this:
