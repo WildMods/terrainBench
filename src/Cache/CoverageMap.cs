@@ -53,6 +53,9 @@ public class CoverageMap {
     public byte FindBestLOD(byte x, byte y) {
         var linearIdx = ZOrder.GRID_SIZE * y + x;
         var cov = map[linearIdx];
+        if (cov == 0) {
+            return 0;
+        }
         byte best = ZOrder.MAX_LOD;
         while ((cov & 0x80) == 0) {
             cov <<= 1;

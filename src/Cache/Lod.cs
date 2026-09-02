@@ -26,7 +26,7 @@ public class Lod
     private readonly WaterMap _water = new();
     private readonly WaterMap _dirtyWater = new();
 
-    private bool loadFinished = false;
+    public bool loadFinished = false;
 
     public Lod(int level)
     {
