@@ -130,6 +130,7 @@ public struct TerrainRenderer {
                 return false;
             }
 
+            z.Dispose();
             return ScheduleTileUpdate(pos, data, type);
         }
         
@@ -277,6 +278,15 @@ public struct TerrainRenderer {
             pboMate[0] = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
             pboHght[1] = CreateMappableBuffer(BYTES_PER_HGHT * MAX_TILES * MAX_TILES);
             pboMate[1] = CreateMappableBuffer(BYTES_PER_MATE * MAX_TILES * MAX_TILES);
+
+            if (pboHght[0] == 0 || pboHght[1] == 0) {
+                Console.WriteLine("Unable to create HGHT buffer(s)!");
+                return;
+            }
+            if (pboMate[0] == 0 || pboMate[1] == 0) {
+                Console.WriteLine("Unable to create MATE buffer(s)!");
+                return;
+            }
             
             // Map the pixel buffers into CPU address space
             var zMap = Profiler.BeginZone("R_MapTileBuffer");
@@ -362,6 +372,8 @@ public struct TerrainRenderer {
         }
 
         public void GLUninit() {
+            GL.UnmapNamedBuffer(pboHght[activePBO]);
+            GL.UnmapNamedBuffer(pboMate[activePBO]);
             GL.DeleteBuffer(pboHght[0]);
             GL.DeleteBuffer(pboMate[0]);
             GL.DeleteBuffer(pboHght[1]);
@@ -456,6 +468,12 @@ public struct TerrainRenderer {
             
             Console.WriteLine("Unable to update tile {0} @ lvl {1}", idx, lod);
             return false;
+        }
+
+        public void GLUninit() {
+            foreach (var sheet in sheets) {
+                sheet.GLUninit();
+            }
         }
     }
     
@@ -553,6 +571,12 @@ public struct TerrainRenderer {
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
         return true;
+    }
+
+    public void UnloadTerrainTiles() {
+        lodCoverage = null;
+        GL.DeleteTexture(coverageTex);
+        ring0.GLUninit();
     }
 
     public void GLUninit() {

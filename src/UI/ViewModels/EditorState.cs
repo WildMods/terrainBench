@@ -1,10 +1,12 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OpenTK.Mathematics;
 
 namespace terrainBench.UI.ViewModels;
 public partial class EditorState : ObservableObject {
     public enum BootState {
-        INIT, TILES_LOADING, SHOW_UPLOAD_MSG, UPLOADING, DONE,
+        INIT, TILES_LOADING, SHOW_UPLOAD_MSG, LOAD_TERRAIN_TEXTURES, UPLOADING, DONE,
     }
     
     public const string defaultWindowTitle = "Terrain Workbench";
@@ -39,6 +41,7 @@ M
     [ObservableProperty] public Brush brush = new();
     public BrushRenderer brushRenderer = new();
     public Camera cam = new();
+    public bool runRendererUpload = true;
 
     // I couldn't get Avalonia to access public fields of objects on this class,
     // so I'm forced to use wrapper properties to access them in XAML.
@@ -103,7 +106,16 @@ M
     private void Save() {
         cache.WriteAllTiles(game.modPath, true, CsOead.Endianness.Big);
     }
-    
+
+    public void RendererUploadThread() {
+        while (runRendererUpload) {
+            var eyeWorld = new TerrainCoords.WorldPos(cam.eye());
+            TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
+            terrain.UpdateGPUTiles(cache, (Vector2i)eyeTile.xz.Truncate());
+            Thread.Sleep(1);
+        }
+    }
+
     public EditorState(string[] args) {
         var settings = Settings.Settings.Load();
         if (!Settings.Settings.Validate(settings)) {
