@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Mathematics;
 using OperationResult;
-using SkiaSharp;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 
@@ -19,60 +18,22 @@ public class Cache
         }
     }
 
-    public Result<bool, ErrorStack> LoadFromImage(string path, ProgressReport tilesLoadedOut) {
+    public Result<bool, ErrorStack> LoadFromImage(string path, int lvl, ProgressReport tilesLoadedOut) {
         var timer = Stopwatch.StartNew();
-
-        Console.WriteLine("Loading '{0}'", path);
-        try {
-            var bmp = SKBitmap.Decode(path);
-            Console.WriteLine("Decoded '{0}': {1}", path, bmp);
-            if (bmp == null) {
-                return Err(new ErrorStack($"Failed to load '{path}'"));
-            }
-
-            var pixels = bmp.Pixels;
-
-            for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
-                _lods[i].loadFinished = true;
-            }
-            var tileWidth = bmp.Width / ZOrder.GRID_SIZE;
-            var tileHeight = bmp.Height / ZOrder.GRID_SIZE;
-            int tileSizePixels = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE;
-            var mateBuf = new Material[tileSizePixels];
-            for (byte xTile = 0; xTile < tileWidth; xTile++) {
-                for (byte yTile = 0; yTile < tileHeight; yTile++) {
-                    var tileZOrder = ZOrder.Interleave8To16(xTile, yTile);
-                    var tileLinear = xTile + (yTile * tileWidth);
-                    
-                    var buf = new ushort[tileSizePixels];
-                    for (int y = 0; y < ZOrder.GRID_SIZE; y++) {
-                        for (int x = 0; x < ZOrder.GRID_SIZE; x++) {
-                            int xTarget = x + (xTile * ZOrder.GRID_SIZE);
-                            int yTarget = y + (yTile * ZOrder.GRID_SIZE);
-                            var linearIdxSource = xTarget + (yTarget * bmp.Width);
-                            var linearIdxTarget = x + (y * ZOrder.GRID_SIZE);
-                            var p = pixels[linearIdxSource];
-                            buf[linearIdxTarget] = (ushort)(p.Red << 2);
-                        }
-                    }
-                    
-                    _lods[8].InsertTile(tileZOrder, buf);
-                    _lods[8].InsertTile(tileZOrder, mateBuf);
-                    
-                    // This is not very efficient
-                    DownscaleTileCascade(tileZOrder, 8, LodComponent.hght);
-                    DownscaleTileCascade(tileZOrder, 8, LodComponent.mate);
-                    Console.WriteLine("Copied tile ({0}, {1})", xTile, yTile);
-                }
-            }
-        } catch (Exception e) {
-            Console.WriteLine($"Failed to load image '{path}' {e}");
-            return Err(new ErrorStack($"Failed to load image '{path}'", e));
-        }
         
+        for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
+            _lods[i].loadFinished = true;
+        }
+
+        var res = _lods[lvl].LoadHeightmapImage(path, tilesLoadedOut);
+        
+        for (int i = lvl; i >= 0; i--) {
+            DownscaleLevel((uint)i, LodComponent.hght);
+            DownscaleLevel((uint)i, LodComponent.mate);
+        }
         timer.Stop();
         Console.WriteLine("Loaded '{0}' in {1}ms", path, timer.ElapsedMilliseconds);
-        return true;
+        return res;
     }
 
     public void Load(Game game, ProgressReport tilesLoadedOut) {
@@ -94,6 +55,26 @@ public class Cache
         {
             yield return GetHeightmapTile(level, i);
         }
+    }
+
+    Result<bool, ErrorStack> DownscaleLevel(uint level, LodComponent component)
+    {
+        if (level >= _lods.Length) {
+            return Err(new ErrorStack($"LOD {level} doesn't exist!"));
+        }
+        if (level == 0) {
+            return false; // Nothing to do, but not an error
+        }
+
+        bool res = true;
+        foreach (ushort idx in _lods[level].IterDirtyTiles(component)) {
+            var downscaleRes = DownscaleTileByOne(idx, level, component);
+            if (downscaleRes.IsErr()) {
+                res = false;
+            }
+        }
+
+        return res;
     }
 
     Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, LodComponent component)

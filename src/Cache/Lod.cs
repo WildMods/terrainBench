@@ -1,4 +1,5 @@
 using CommunityToolkit.HighPerformance;
+using SkiaSharp;
 using OperationResult;
 using CsOead;
 using terrainBench.LodComponents;
@@ -41,6 +42,56 @@ public class Lod
         _dirtyGrass = new();
         _water = new();
         _dirtyWater = new();
+    }
+
+    public Result<bool, ErrorStack> LoadHeightmapImage(string path, ProgressReport progress) {
+        Console.WriteLine("Loading '{0}'", path);
+        try {
+            var bmp = SKBitmap.Decode(path);
+            Console.WriteLine("Decoded '{0}': {1}", path, bmp);
+            if (bmp == null) {
+                return Err(new ErrorStack($"Failed to load '{path}'"));
+            }
+
+            int lvlDiff = ZOrder.MAX_LOD - _level;
+            var pixels = bmp.Pixels;
+
+            var tileWidth = bmp.Width / ZOrder.GRID_SIZE;
+            var tileHeight = bmp.Height / ZOrder.GRID_SIZE;
+            int tileSizePixels = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE;
+            var mateBuf = new Material[tileSizePixels];
+            for (byte xTile = 0; xTile < tileWidth; xTile++) {
+                for (byte yTile = 0; yTile < tileHeight; yTile++) {
+                    var tileZOrder = ZOrder.Interleave8To16(xTile, yTile);
+                    var tileLinear = xTile + (yTile * tileWidth);
+                    
+                    var buf = new ushort[tileSizePixels];
+                    for (int y = 0; y < ZOrder.GRID_SIZE; y++) {
+                        for (int x = 0; x < ZOrder.GRID_SIZE; x++) {
+                            int xTarget = x + (xTile * ZOrder.GRID_SIZE);
+                            int yTarget = y + (yTile * ZOrder.GRID_SIZE);
+                            var linearIdxSource = xTarget + (yTarget * bmp.Width);
+                            var linearIdxTarget = x + (y * ZOrder.GRID_SIZE);
+                            var p = pixels[linearIdxSource];
+                            buf[linearIdxTarget] = (ushort)(p.Red << (2 + lvlDiff));
+                        }
+                    }
+                    
+                    InsertTile(tileZOrder, buf);
+                    InsertTile(tileZOrder, mateBuf);
+                    
+                    // This is not very efficient
+                    // DownscaleTileCascade(tileZOrder, 8, LodComponent.hght);
+                    // DownscaleTileCascade(tileZOrder, 8, LodComponent.mate);
+                    Console.WriteLine("Copied tile ({0}, {1})", xTile, yTile);
+                }
+            }
+        } catch (Exception e) {
+            Console.WriteLine($"Failed to load image '{path}' {e}");
+            return Err(new ErrorStack($"Failed to load image '{path}'", e));
+        }
+
+        return true;
     }
 
     public void Load(Game game, ProgressReport progress)
@@ -290,6 +341,31 @@ public class Lod
             }
             break;
         }
+        }
+    }
+
+    public IEnumerable<ushort> IterDirtyTiles(LodComponent type) {
+        switch (type) {
+        case LodComponent.hght:
+            foreach (var pair in _dirtyHghts) {
+                yield return pair.Key;
+            }
+            break;
+        case LodComponent.mate:
+            foreach (var pair in _dirtyMates) {
+                yield return pair.Key;
+            }
+            break;
+        case LodComponent.grass:
+            foreach (var pair in _dirtyGrass) {
+                yield return pair.Key;
+            }
+            break;
+        case LodComponent.water:
+            foreach (var pair in _dirtyWater) {
+                yield return pair.Key;
+            }
+            break;
         }
     }
 

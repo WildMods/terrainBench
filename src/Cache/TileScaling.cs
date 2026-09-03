@@ -19,6 +19,7 @@ public static class TileScaling {
     public static void DownscaleTile<T>(T[] high, T[] low, Vector2i lowPos, int size)
     where T : IAdditionOperators<T, T, T>, IShiftOperators<T, int, T>, IBitwiseOperators<T, ushort, T>
     {
+        var z = Profiler.BeginZone("DownscaleTile");
         int lowSize = size / 2; // Size of our tile in the low-detail image
         int lowLinearPos = lowPos.X + (lowPos.Y * size); // Linear index of the low-detail starting pixel
         for (int i = 0; i < size; i += 2) {
@@ -42,6 +43,7 @@ public static class TileScaling {
                 // If we just sum & divide by 4, overflows are very likely to
                 // cause incorrect answers. To avoid this, we can pre-divide all
                 // our values.
+                
                 T roughAvg = (source1[x] >> 2) + (source1[x + 1] >> 2) +
                           (source2[x] >> 2) + (source2[x + 1] >> 2);
                 // Pre-dividing like this loses the precision of the low 2 bits
@@ -54,6 +56,7 @@ public static class TileScaling {
                 target[x / 2] = pixel; // Write to low-detail tile
             }
         }
+        z.Dispose();
     }
 
     /// <summary>
