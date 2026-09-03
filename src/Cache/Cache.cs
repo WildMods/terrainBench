@@ -10,10 +10,12 @@ public class Cache
 {
     private readonly Lod[] _lods = new Lod[9];
 
-    public Cache()
-    {
-        for (int i = 0; i < 9; ++i)
-        {
+    public Cache() {
+        Clear();
+    }
+
+    public void Clear() {
+        for (int i = 0; i <= ZOrder.MAX_LOD; ++i) {
             _lods[i] = new(i);
         }
     }
@@ -25,7 +27,8 @@ public class Cache
             _lods[i].loadFinished = true;
         }
 
-        var res = _lods[lvl].LoadHeightmapImage(path, tilesLoadedOut);
+        int lvlDiff = ZOrder.MAX_LOD - lvl;
+        var res = _lods[lvl].LoadHeightmapImage(path, 2 + lvlDiff, tilesLoadedOut);
         
         for (int i = lvl; i >= 0; i--) {
             DownscaleLevel((uint)i, LodComponent.hght);

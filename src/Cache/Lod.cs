@@ -44,7 +44,7 @@ public class Lod
         _dirtyWater = new();
     }
 
-    public Result<bool, ErrorStack> LoadHeightmapImage(string path, ProgressReport progress) {
+    public Result<bool, ErrorStack> LoadHeightmapImage(string path, int shiftAmount, ProgressReport progress) {
         Console.WriteLine("Loading '{0}'", path);
         try {
             var bmp = SKBitmap.Decode(path);
@@ -53,11 +53,14 @@ public class Lod
                 return Err(new ErrorStack($"Failed to load '{path}'"));
             }
 
-            int lvlDiff = ZOrder.MAX_LOD - _level;
             var pixels = bmp.Pixels;
 
             var tileWidth = bmp.Width / ZOrder.GRID_SIZE;
             var tileHeight = bmp.Height / ZOrder.GRID_SIZE;
+            progress.IsIndeterminate = false;
+            progress.Min = 0;
+            progress.Max = tileWidth * tileHeight;
+            
             int tileSizePixels = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE;
             var mateBuf = new Material[tileSizePixels];
             for (byte xTile = 0; xTile < tileWidth; xTile++) {
@@ -73,17 +76,15 @@ public class Lod
                             var linearIdxSource = xTarget + (yTarget * bmp.Width);
                             var linearIdxTarget = x + (y * ZOrder.GRID_SIZE);
                             var p = pixels[linearIdxSource];
-                            buf[linearIdxTarget] = (ushort)(p.Red << (2 + lvlDiff));
+                            buf[linearIdxTarget] = (ushort)(p.Red << shiftAmount);
                         }
                     }
                     
                     InsertTile(tileZOrder, buf);
                     InsertTile(tileZOrder, mateBuf);
                     
-                    // This is not very efficient
-                    // DownscaleTileCascade(tileZOrder, 8, LodComponent.hght);
-                    // DownscaleTileCascade(tileZOrder, 8, LodComponent.mate);
                     Console.WriteLine("Copied tile ({0}, {1})", xTile, yTile);
+                    progress.Value++;
                 }
             }
         } catch (Exception e) {
