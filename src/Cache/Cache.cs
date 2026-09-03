@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using OpenTK.Mathematics;
 using OperationResult;
+using SkiaSharp;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 
@@ -27,8 +28,34 @@ public class Cache
             _lods[i].loadFinished = true;
         }
 
+        SKBitmap? bmp = null;
+        try {
+            bmp = SKBitmap.Decode(path);
+            Console.WriteLine("Decoded '{0}': {1}", path, bmp);
+            if (bmp == null) {
+                return Err(new ErrorStack($"Failed to load '{path}'"));
+            }
+        } catch (Exception e) {
+            Console.WriteLine($"Failed to load image '{path}' {e}");
+            return Err(new ErrorStack($"Failed to load image '{path}'", e));
+        }
+
+        if (lvl < 0) {
+            // Auto-select import LOD based on heightmap resolution
+            for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
+                if ((1 << i) * ZOrder.GRID_SIZE >= bmp.Height && (1 << i) * ZOrder.GRID_SIZE >= bmp.Width) {
+                    lvl = i;
+                    break;
+                }
+            }
+        }
+        
+        if (lvl >= _lods.Length || lvl < 0) {
+            return Err(new ErrorStack($"LOD {lvl} doesn't exist!"));
+        }
+        
         int lvlDiff = ZOrder.MAX_LOD - lvl;
-        var res = _lods[lvl].LoadHeightmapImage(path, 2 + lvlDiff, tilesLoadedOut);
+        var res = _lods[lvl].LoadHeightmapImage(bmp, 2 + lvlDiff, tilesLoadedOut);
         
         for (int i = lvl; i >= 0; i--) {
             DownscaleLevel((uint)i, LodComponent.hght);
@@ -70,12 +97,12 @@ public class Cache
         }
 
         bool res = true;
-        foreach (ushort idx in _lods[level].IterDirtyTiles(component)) {
+        Parallel.ForEach(_lods[level].IterDirtyTiles(component), idx => {
             var downscaleRes = DownscaleTileByOne(idx, level, component);
             if (downscaleRes.IsErr()) {
                 res = false;
             }
-        }
+        });
 
         return res;
     }

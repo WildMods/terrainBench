@@ -44,15 +44,8 @@ public class Lod
         _dirtyWater = new();
     }
 
-    public Result<bool, ErrorStack> LoadHeightmapImage(string path, int shiftAmount, ProgressReport progress) {
-        Console.WriteLine("Loading '{0}'", path);
+    public Result<bool, ErrorStack> LoadHeightmapImage(SKBitmap bmp, int shiftAmount, ProgressReport progress) {
         try {
-            var bmp = SKBitmap.Decode(path);
-            Console.WriteLine("Decoded '{0}': {1}", path, bmp);
-            if (bmp == null) {
-                return Err(new ErrorStack($"Failed to load '{path}'"));
-            }
-
             var pixels = bmp.Pixels;
 
             var tileWidth = bmp.Width / ZOrder.GRID_SIZE;
@@ -88,8 +81,7 @@ public class Lod
                 }
             }
         } catch (Exception e) {
-            Console.WriteLine($"Failed to load image '{path}' {e}");
-            return Err(new ErrorStack($"Failed to load image '{path}'", e));
+            return Err(new ErrorStack($"Failed to load heightmap image", e));
         }
 
         return true;

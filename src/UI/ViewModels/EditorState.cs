@@ -116,6 +116,23 @@ M
         }
     }
 
+    public bool ReloadFromHeightmap(string path) {
+        // Clear GPU state except textures which don't change
+        runRendererUpload = false;
+        Thread.Sleep(5); // Wait for renderer upload thread to exit
+        terrain.UnloadTerrainTiles();
+        
+        // Load into a fresh cache
+        cache.Clear();
+        // Pass LOD -1 to auto-select
+        cache.LoadFromImage(path, -1, asyncLoadedTiles);
+
+        // Trigger a fresh bootup on the GL thread
+        runRendererUpload = true;
+        BootProgress = BootState.UPLOADING;
+        return true;
+    }
+
     public EditorState(string[] args) {
         var settings = Settings.Settings.Load();
         if (!Settings.Settings.Validate(settings)) {

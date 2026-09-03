@@ -22,6 +22,7 @@
                     <Flyout>
                         <StackPanel Spacing="8">
                             <Button Content="_Open Mod Folder" Click="PickModFolder"/>
+                            <Button Content="Load heightmap image" Click="LoadHeightmapImage"/>
                             <Button Content="_Save"
                                     Command="{Binding SaveCommand}"
                             />
