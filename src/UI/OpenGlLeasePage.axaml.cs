@@ -77,9 +77,11 @@ public partial class OpenGlLeasePage : ContentPage {
                     // Render to a new framebuffer
                     gl.GetIntegerv(GL_FRAMEBUFFER_BINDING, out var oldFb);
 
+                    /*
                     _fbo ??= new OpenGlFbo(glContext, grContext);
                     if (_fbo.Size != size)
                         _fbo.Resize(size);
+                    */
 
                     gl.BindFramebuffer(GL_FRAMEBUFFER, _fbo.Fbo);
 
@@ -94,16 +96,18 @@ public partial class OpenGlLeasePage : ContentPage {
                     _inst.input.ResetKeyStates();
 
                     // Have the rendered frame copied to a presentable texture
-                    snapshot = _fbo.Snapshot();
+                    // snapshot = _fbo.Snapshot();
                     gl.BindFramebuffer(GL_FRAMEBUFFER, oldFb);
                 }
 
                 var presentZone = Profiler.BeginZone("OnRender Present");
                 // Present the image normally
+                /*
                 using(snapshot)
                     if (snapshot != null)
                         skiaLease.SkCanvas.DrawImage(snapshot, new SKRect(0, 0,
                             (float)bounds.Width, (float)bounds.Height));
+                */
                 presentZone.Dispose();
             }
         }

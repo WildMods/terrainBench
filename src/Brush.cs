@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Avalonia.Input;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
 using terrainBench.Cache;
 using terrainBench.LodComponents;
@@ -56,22 +56,32 @@ public struct Brush() {
     /// </summary>
     public float baseStrength = 20f;
 
-    public void UpdateFromInput(InputState input) {
-        int deltaA = input.IsKeyJustPressedI(Key.Up) - input.IsKeyJustPressedI(Key.Down);
-        int deltaB = input.IsKeyJustPressedI(Key.Right) - input.IsKeyJustPressedI(Key.Left);
+    private bool IsKeyJustPressed(KeyboardState input, Keys k) {
+        bool wasPressed = input.WasKeyDown(k);
+        bool isPressed = input.IsKeyDown(k);
+        return (!wasPressed && isPressed);
+    }
+    
+    private int IsKeyJustPressedI(KeyboardState input, Keys k) {
+        return IsKeyJustPressed(input, k) ? 1 : 0;
+    }
+    
+    public void UpdateFromInput(KeyboardState input, MouseState mouse, float pressure) {
+        int deltaA = IsKeyJustPressedI(input, Keys.Up) - IsKeyJustPressedI(input, Keys.Down);
+        int deltaB = IsKeyJustPressedI(input, Keys.Right) - IsKeyJustPressedI(input, Keys.Left);
         textureIndices[0] += deltaA;
         textureIndices[1] += deltaB;
-        pressure = input.pressure;
+       this.pressure = pressure;
         
-        if (input.IsKeyDown(Key.LeftShift)) {
+        if (input.IsKeyDown(Keys.LeftShift)) {
             component = (int)Material.Component.BlendWeight; // Edit the texture blend
-        } else if (input.IsMouseButtonDown(MouseButton.Left)) {
+        } else if (mouse.IsButtonDown(MouseButton.Left)) {
             component = (int)Material.Component.Material0;   // Edit texture A
-        } else if (input.IsMouseButtonDown(MouseButton.Right)) {
+        } else if (mouse.IsButtonDown(MouseButton.Right)) {
             component = (int)Material.Component.Material1;   // Edit texture B
         }
 
-        bool changeTarget = input.IsKeyJustPressed(Key.Q);
+        bool changeTarget = IsKeyJustPressed(input, Keys.Q);
         if (changeTarget) {
             // I'm not using a ternary because more targets may be added  --torf
             if (target == LodComponent.hght) {

@@ -15,7 +15,6 @@ using static EditorState.BootState;
 internal class OpenGlContent {
     // Timing - to calculate delta time
     private double _lastFrameTime;
-    private bool running = true;
 
     public void Init(GlInterface gl, GlVersion version, EditorState vm) {
         vm.BootProgress = TILES_LOADING;
@@ -29,7 +28,7 @@ internal class OpenGlContent {
     }
 
     public void Deinit(GlInterface GL, EditorState vm) {
-        running = false;
+        vm.runRendererUpload = false;
         vm.terrain.GLUninit();
         vm.brushRenderer.GLUninit();
     }
@@ -127,8 +126,8 @@ internal class OpenGlContent {
         }
 
         vm.cam.aspect = (float)viewportSize.AspectRatio;
-        vm.cam.update(input, delta);
-        vm.brush.UpdateFromInput(input);
+        // vm.cam.update(input, delta);
+        // vm.brush.UpdateFromInput(input);
 
         var fbSize = new Vector2(viewportSize.Width, viewportSize.Height);
         var mouseVec = new Vector2((float)input.MousePosition.X, (float)input.MousePosition.Y);

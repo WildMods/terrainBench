@@ -3,6 +3,7 @@
 
 using Avalonia;
 using terrainBench.Settings;
+using terrainBench.UI;
 
 public static class Program
 {
@@ -25,7 +26,10 @@ public static class Program
         
         Profiler.AppInfo("BOTW terrain editor");
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        // BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        Window w = new(args);
+        w.Run();
+        w.OnClosed();
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
