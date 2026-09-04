@@ -157,6 +157,7 @@ public class Window : GameWindow {
         bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
         bool shouldImportHeightmap = false;
         bool shouldPickModFolder = false;
+        bool isViewportHovered = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
@@ -199,6 +200,7 @@ public class Window : GameWindow {
             fbStart = (Vector2)ImGui.GetCursorScreenPos();
             fbDisplayedSize = (Vector2)ImGui.GetContentRegionAvail();
             ImGui.Image(fbo.colorTexture, (SNVector2)fbDisplayedSize, new SNVector2(0, 1), new SNVector2(1, 0));
+            isViewportHovered = ImGui.IsItemHovered();
             ImGui.End();
         }
 
@@ -235,8 +237,7 @@ public class Window : GameWindow {
         
         editor.cam.aspect = (float)fbo.Size.X / (float)fbo.Size.Y;
 
-        // TODO: Use WantCaptureKeyboard or similar to not update based on inputs directed at the GUI
-        bool shouldUseKeyboard = true;
+        bool shouldUseKeyboard = isViewportHovered;
         if (shouldUseKeyboard) {
             editor.cam.update(KeyboardState, MouseState, delta);
             editor.brush.UpdateFromInput(KeyboardState, MouseState, 1f);
