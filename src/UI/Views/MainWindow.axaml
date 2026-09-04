@@ -23,82 +23,8 @@
                         <StackPanel Spacing="8">
                             <Button Content="_Open Mod Folder" Click="PickModFolder"/>
                             <Button Content="Load heightmap image" Click="LoadHeightmapImage"/>
-                            <Button Content="_Save"
-                                    Command="{Binding SaveCommand}"
-                            />
                             <Separator/>
                             <Button Content="_Quit"/>
-                        </StackPanel>
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
-            <Button Content="Brush">
-                <Button.Flyout>
-                    <Flyout>
-                        <StackPanel Spacing="8">
-                            <TextBlock>Falloff type</TextBlock>
-                            <ComboBox ItemsSource="{Binding brushFalloffTypes}"
-                                      SelectedItem="{Binding brushFalloff}"/>
-                    
-                            <TextBlock>Edit function</TextBlock>
-                            <ComboBox ItemsSource="{Binding brushEditTypes}"
-                                      SelectedItem="{Binding brushEditType}"/>
-                            <TextBlock>Distance type</TextBlock>
-                            <ComboBox ItemsSource="{Binding brushDistanceTypes}"
-                                      SelectedItem="{Binding brushDistanceType}"/>
-                            
-                            <TextBlock>Brush type</TextBlock>
-                            <ComboBox ItemsSource="{Binding brushTargetTypes}"
-                                      SelectedItem="{Binding brushTargetType}"/>
-                    
-                            <TextBlock Text="{Binding #brushSTRSlider.Value,
-                                       StringFormat='Brush strength: {0:F1} pixels'}"/>
-                            <Slider Minimum="0" Maximum="200" Name="brushSTRSlider"
-                                    Margin="0" Padding="0" MaxHeight="40"
-                                    Value="{Binding brushBaseStrength}"/>
-                    
-                            <TextBlock Text="{Binding #brushSizeSlider.Value,
-                                       StringFormat='Brush size: {0:F1} pixels'}"/>
-                            <Slider Minimum="1" Maximum="200" Name="brushSizeSlider"
-                                    Margin="0" Padding="0" MaxHeight="40"
-                                    Value="{Binding brushRadius}"/>
-                            
-                            <TextBlock Text="{Binding #brushFalloffSlider.Value,
-                                       StringFormat='Brush falloff: {0:F1}x'}"/>
-                            <Slider Minimum="0" Maximum="50" Name="brushFalloffSlider"
-                                    Margin="0" Padding="0" MaxHeight="40"
-                                    Value="{Binding brushFalloffStrength}"/>
-                        </StackPanel>
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
-            <Button Content="Camera">
-                <Button.Flyout>
-                    <Flyout>
-                        <StackPanel Spacing="8">
-                            <TextBlock>Mode</TextBlock>
-                            <ComboBox ItemsSource="{Binding camModes}"
-                                      SelectedItem="{Binding camMode}"/>
-                            
-                            <TextBlock Text="{Binding #camSpeedSlider.Value,
-                                       StringFormat='Camera speed: {0:F1}'}"/>
-                            <Slider Minimum="1" Maximum="1000" Name="camSpeedSlider"
-                                    Margin="0" Padding="0" MaxHeight="40"
-                                    Value="{Binding camSpeed}"/>
-                            
-                            <TextBlock Text="{Binding #camFOVSlider.Value,
-                                       StringFormat='FOV: {0:F1}'}"/>
-                            <Slider Minimum="1" Maximum="120" Name="camFOVSlider"
-                                    Margin="0" Padding="0" MaxHeight="40"
-                                    Value="{Binding camFOV}"/>
-                            
-                            <TextBlock Text="{Binding #camMouseSensSlider.Value,
-                                       StringFormat='Mouse sensitivity: {0:F3}'}"/>
-                            <Slider Minimum="0" Maximum="1" Name="camMouseSensSlider"
-                                    Margin="0" Padding="0" MaxHeight="40"
-                                    Value="{Binding camMouseSens}"/>
-                            <CheckBox Content="Invert Mouse X" IsChecked="{Binding camInvertX}"/>
-                            <CheckBox Content="Invert Mouse Y" IsChecked="{Binding camInvertY}"/>
                         </StackPanel>
                     </Flyout>
                 </Button.Flyout>
@@ -114,21 +40,6 @@
                             <Slider Minimum="1" Maximum="128" Name="renderDistSlider"
                                     Margin="0" Padding="0" MaxHeight="40"
                                     Value="{Binding renderDistance}"/>
-                        </StackPanel>
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
-            <Button Content="Help">
-                <Button.Flyout>
-                    <Flyout>
-                        <StackPanel Spacing="8">
-                            <TextBlock Margin="5" 
-                                       Text="{Binding GlInformation}" 
-                                       FontFamily="Courier New"/>
-                            <TextBlock Margin="5" 
-                                       Text="{Binding ControlsInformation}" />
-                            <TextBlock Margin="5" 
-                                       Text="{Binding CreditInformation}" />
                         </StackPanel>
                     </Flyout>
                 </Button.Flyout>

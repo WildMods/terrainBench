@@ -1,5 +1,4 @@
-﻿using Avalonia.Platform.Storage;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTK.Mathematics;
 
@@ -12,8 +11,7 @@ public partial class EditorState : ObservableObject {
     public const string defaultWindowTitle = "Terrain Workbench";
     public const string gpuUploadWindowTitle = "Uploading to GPU...";
 
-    [ObservableProperty]
-    public string _controlsInformation = @"
+    public string controlsInfo = @"
 W, A, S, D
    => Move camera forward/left/backwards/right
 Space, Shift
@@ -26,19 +24,17 @@ M
    => Change camera mode
             ";
     
-    [ObservableProperty]
-    private string _creditInformation = "Written by Torphedo & Ginger Chody";
+    public string creditInfo = "Written by Torphedo & Ginger Chody";
     
     [ObservableProperty]
-    private string _glInformation = "Graphics API info placeholder"; // Filled @ runtime
+    private string glInfo = "Graphics API info placeholder"; // Filled @ runtime
 
-    [ObservableProperty]
-    private BootState _bootProgress = BootState.INIT;
+    public BootState bootProgress = BootState.INIT;
 
     public Game game;
     public Cache.Cache cache = new();
     public TerrainRenderer terrain = new();
-    [ObservableProperty] public Brush brush = new();
+    public Brush brush = new();
     public BrushRenderer brushRenderer = new();
     public Camera cam = new();
     public bool runRendererUpload = true;
@@ -49,52 +45,12 @@ M
     
     // Render settings
     public int renderDistance { get => terrain.renderRadius; set => terrain.renderRadius = value; }
-    
-    // Brush settings access
-    public float brushBaseStrength {
-        get => brush.baseStrength; set =>  brush.baseStrength = value;
-    }
-    public float brushFalloffStrength {
-        get => brush.falloffStrength; set =>  brush.falloffStrength = value;
-    }
-    public int brushRadius {
-        get => brush.radius; set =>  brush.radius = value;
-    }
-    public Brush.FalloffFunc[] brushFalloffTypes { get; } = Enum.GetValues<Brush.FalloffFunc>();
-    public Brush.EditFunc[] brushEditTypes { get; } = Enum.GetValues<Brush.EditFunc>();
-    public Brush.DistanceType[] brushDistanceTypes { get; } = Enum.GetValues<Brush.DistanceType>();
-    public LodComponent[] brushTargetTypes { get; } = { LodComponent.hght, LodComponent.mate };
-    
-    public Brush.FalloffFunc brushFalloff {
-        get => brush.func; set =>  brush.func = value;
-    }
-    public Brush.EditFunc brushEditType {
-        get => brush.editFunc; set =>  brush.editFunc = value;
-    }
-    public Brush.DistanceType brushDistanceType {
-        get => brush.falloffShape; set =>  brush.falloffShape = value;
-    }
-    public LodComponent brushTargetType { get => brush.target; set =>  brush.target = value; }
-    
-    // Camera settings access
-    public float camSpeed { get => cam.move_speed; set => cam.move_speed = value; }
-    public float camFOV { get => cam.fov_degrees; set => cam.fov_degrees = value; }
-    public float camMouseSens { get => cam.mouse_sens; set => cam.mouse_sens = value; }
-    public bool camInvertX { get => cam.invert_mouse_x; set => cam.invert_mouse_x = value; }
-    public bool camInvertY { get => cam.invert_mouse_y; set => cam.invert_mouse_y = value; }
-    public Camera.Mode[] camModes { get; } = { Camera.Mode.ORBIT, Camera.Mode.MINECRAFT, Camera.Mode.FLY };
-    public Camera.Mode camMode { get => cam.mode; set => cam.mode = value; }
 
     // Asynchronously updated progress data
     public ProgressReport asyncLoadedTiles = new();
     public int uiTotalTiles = 18100;
     
-    [ObservableProperty] public string uiProgressText = "Loaded {0}/{3} tiles ({1:0}%)";
-
-    [RelayCommand]
-    private void Save() {
-        cache.WriteAllTiles(game.modPath, true, CsOead.Endianness.Big);
-    }
+    public string uiProgressText = "Loaded {0}/{3} tiles ({1:0}%)";
 
     public void RendererUploadThread() {
         while (runRendererUpload) {
@@ -118,7 +74,7 @@ M
 
         // Trigger a fresh bootup on the GL thread
         runRendererUpload = true;
-        BootProgress = BootState.UPLOADING;
+        bootProgress = BootState.UPLOADING;
         return true;
     }
 

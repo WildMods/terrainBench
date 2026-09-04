@@ -17,13 +17,13 @@ internal class OpenGlContent {
     private double _lastFrameTime;
 
     public void Init(GlInterface gl, GlVersion version, EditorState vm) {
-        vm.BootProgress = TILES_LOADING;
+        vm.bootProgress = TILES_LOADING;
         vm.asyncLoadedTiles.Max = 18100;
         vm.terrain.GLInit();
         vm.brushRenderer.GLInit();
         Task.Run(delegate {
             vm.cache.Load(vm.game, vm.asyncLoadedTiles);
-            vm.BootProgress = SHOW_UPLOAD_MSG;
+            vm.bootProgress = SHOW_UPLOAD_MSG;
         });
     }
 
@@ -40,10 +40,10 @@ internal class OpenGlContent {
         
         var z = Profiler.BeginZone("AvaloniaRender");
         DoUpdate(delta, vm, input, size);
-        switch (vm.BootProgress) {
+        switch (vm.bootProgress) {
             case SHOW_UPLOAD_MSG:
                 // SetWindowTitle(EditorState.gpuUploadWindowTitle);
-                vm.BootProgress = LOAD_TERRAIN_TEXTURES;
+                vm.bootProgress = LOAD_TERRAIN_TEXTURES;
                 z.Dispose();
                 return; // End frame to make sure title is applied
             case LOAD_TERRAIN_TEXTURES:
@@ -51,14 +51,14 @@ internal class OpenGlContent {
                 using (Profiler.BeginZone("R_LoadTerrainTextures")) {
                     vm.terrain.LoadTerrainTextures(vm.game);
                 }
-                vm.BootProgress = UPLOADING;
+                vm.bootProgress = UPLOADING;
                 break;
             case UPLOADING:
                 using (Profiler.BeginZone("R_GLInit")) {
                     vm.terrain.LoadTerrainTiles(vm.cache);
                 }
 
-                vm.BootProgress = DONE;
+                vm.bootProgress = DONE;
                 Task.Run(() => vm.RendererUploadThread());
 
                 // SetWindowTitle(EditorState.defaultWindowTitle);
@@ -77,7 +77,7 @@ internal class OpenGlContent {
             gl.Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         }
 
-        if (vm.BootProgress == DONE) {
+        if (vm.bootProgress == DONE) {
             var eyeWorld = new TerrainCoords.WorldPos(vm.cam.eye());
             TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
 
@@ -106,7 +106,7 @@ internal class OpenGlContent {
             // Close();
         }
 
-        if (vm.BootProgress != DONE) {
+        if (vm.bootProgress != DONE) {
             // Everything beyond this point relies on terrain data being loaded
             return;
         }

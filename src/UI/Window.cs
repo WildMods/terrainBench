@@ -39,24 +39,24 @@ public class Window : GameWindow {
     }
 
     void UpdateLoadingStateMachine(EditorState ed) {
-        switch (ed.BootProgress) {
+        switch (ed.bootProgress) {
             case SHOW_UPLOAD_MSG:
                 Title = EditorState.gpuUploadWindowTitle;
-                ed.BootProgress = LOAD_TERRAIN_TEXTURES;
+                ed.bootProgress = LOAD_TERRAIN_TEXTURES;
                 return; // End frame to make sure title is applied
             case LOAD_TERRAIN_TEXTURES:
                 // Start the GPU uploads 1 frame after title is changed
                 using (Profiler.BeginZone("R_LoadTerrainTextures")) {
                     ed.terrain.LoadTerrainTextures(ed.game);
                 }
-                ed.BootProgress = UPLOADING;
+                ed.bootProgress = UPLOADING;
                 break;
             case UPLOADING:
                 using (Profiler.BeginZone("R_GLInit")) {
                     ed.terrain.LoadTerrainTiles(ed.cache);
                 }
 
-                ed.BootProgress = DONE;
+                ed.bootProgress = DONE;
                 Task.Run(() => ed.RendererUploadThread());
 
                 Title = EditorState.defaultWindowTitle;
@@ -97,14 +97,14 @@ public class Window : GameWindow {
         GLFWProvider.SetErrorCallback(GLFWErrorCallback);
         
         // Start terrain loading
-        editor.BootProgress = TILES_LOADING;
+        editor.bootProgress = TILES_LOADING;
         editor.asyncLoadedTiles.Max = 18100;
         editor.terrain.GLInit();
         editor.brushRenderer.GLInit();
         var ed = editor;
         Task.Run(delegate {
             ed.cache.Load(ed.game, ed.asyncLoadedTiles);
-            ed.BootProgress = SHOW_UPLOAD_MSG;
+            ed.bootProgress = SHOW_UPLOAD_MSG;
         });
     }
 
@@ -118,7 +118,7 @@ public class Window : GameWindow {
         var loadedGB = ((long)editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
         var totalGB = ((long)editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
         var percent = (float)editor.asyncLoadedTiles.Value / editor.uiTotalTiles * 100f;
-        editor.UiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
+        editor.uiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
         
         bool temp = false;
         bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
@@ -147,7 +147,7 @@ public class Window : GameWindow {
                     ImGui.EndMenu();
                 }
 
-                ImGui.ProgressBar(percent / 100f, new SNVector2(), editor.UiProgressText);
+                ImGui.ProgressBar(percent / 100f, new SNVector2(), editor.uiProgressText);
                 ImGui.EndMenuBar();
             }
 
@@ -178,7 +178,7 @@ public class Window : GameWindow {
         }
 
         
-        if (editor.BootProgress != DONE) {
+        if (editor.bootProgress != DONE) {
             // Everything beyond this point relies on terrain data being loaded
             return;
         }
@@ -232,7 +232,7 @@ public class Window : GameWindow {
         GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
         
-        if (editor.BootProgress == DONE) {
+        if (editor.bootProgress == DONE) {
             var eyeWorld = new TerrainCoords.WorldPos(editor.cam.eye());
             TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
 
