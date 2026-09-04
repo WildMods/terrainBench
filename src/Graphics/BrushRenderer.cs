@@ -40,7 +40,9 @@ public class BrushRenderer {
         brushShader.SetUniform("modelT", modelT);
         
         GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
+        GL.Disable(EnableCap.DepthTest);
         GL.DrawArrays(PrimitiveType.LineStrip, 0, res + 1);
+        GL.Enable(EnableCap.DepthTest);
 
         texShader.Use();
         texShader.SetUniform("tex", 0);
