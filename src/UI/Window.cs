@@ -111,11 +111,16 @@ public class Window : GameWindow {
         UpdateLoadingStateMachine(editor);
         ImGui.DockSpaceOverViewport();
         
-        bool closed = false;
-        if (ImGui.Begin("Terrain Workbench", ref closed, ImGuiWindowFlags.MenuBar)) {
+        bool temp = false;
+        bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
+        if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
-                    ImGui.MenuItem("Quit", "Ctrl-Q");
+                    shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
+                    ImGui.EndMenu();
+                }
+                if (ImGui.BeginMenu("Camera")) {
+                    editor.cam.ImGuiEdit();
                     ImGui.EndMenu();
                 }
 
@@ -128,6 +133,10 @@ public class Window : GameWindow {
         }
         
         ImGui.ShowDemoWindow();
+        
+        if (shouldClose) {
+            Close();
+        }
         
         editor.UiLoadedTiles = editor.AsyncLoadedTiles.Value;
         editor.UiLoadIndeterminate = editor.AsyncLoadedTiles.IsIndeterminate;
@@ -143,10 +152,6 @@ public class Window : GameWindow {
         var percent = (float)editor.uiLoadedTiles / editor.uiTotalTiles * 100f;
         editor.UiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
         
-        if (KeyboardState.IsKeyDown(Keys.Escape)) {
-            // Close();
-        }
-
         if (editor.BootProgress != DONE) {
             // Everything beyond this point relies on terrain data being loaded
             return;

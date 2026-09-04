@@ -1,6 +1,7 @@
 // Created Jul. 16 2026, copied from RenderTron 9000 C++ class
 // @author Torphedo
 
+using ImGuiNET;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
 using terrainBench.UI;
@@ -23,7 +24,7 @@ public class Camera {
     public float radius = 30.0f;
     public float move_speed = 500.0f;
     public float mouse_sens = 0.05f;
-    private float zoom_sense = 10.0f;
+    private float zoom_sens = 10.0f;
 
     // Projection settings
     public float fov_angle = DegreesToRadians(70.0f);
@@ -64,6 +65,37 @@ public class Camera {
             field = value;
         }
     } = Mode.ORBIT;
+
+    public bool ImGuiEdit() {
+        bool dirty = false;
+
+        Mode[] modeOptions = {Mode.ORBIT, Mode.MINECRAFT, Mode.FLY };
+        if (ImGui.BeginCombo("Mode", mode.ToString())) {
+            foreach (var m in modeOptions) {
+                if (ImGui.Selectable(m.ToString())) {
+                    mode = m;
+                }
+                if (mode == m) {
+                    ImGui.SetItemDefaultFocus();
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        
+        dirty |= ImGui.SliderFloat("Move Speed", ref move_speed, 0f, 500f);
+        var fov_temp = fov_degrees;
+        if (ImGui.SliderFloat("FOV", ref fov_temp, 10f, 120f)) {
+            fov_degrees = fov_temp;
+            dirty = true;
+        }
+        dirty |= ImGui.SliderFloat("Mouse sensitivity", ref mouse_sens, 0f, 0.5f);
+        dirty |= ImGui.SliderFloat("Zoom sensitivity", ref zoom_sens, 0.1f, 50f);
+        dirty |= ImGui.Checkbox("Invert X", ref invert_mouse_x);
+        dirty |= ImGui.Checkbox("Invert Y", ref invert_mouse_y);
+
+        return dirty;
+    }
 
     /// @brief Update the camera state (should be called each frame)
     /// @param The camera to modify
@@ -106,7 +138,7 @@ public class Camera {
         orbit_angles = Quaternion.FromAxisAngle(cam_side, cursor_delta.Y) * orbit_angles;
         orbit_angles = Quaternion.FromAxisAngle(camera_up, cursor_delta.X) * orbit_angles;
 
-        radius -= scroll_delta.Y * zoom_sense;
+        radius -= scroll_delta.Y * zoom_sens;
         radius = Math.Clamp(radius, 0.05f, 8192.0f); // Don't allow <= 0 or really high zoom
     }
 
