@@ -51,5 +51,7 @@
         <Content Condition="Exists('$(OeadLibFile).so')" Include="$(OeadLibFile).so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        
+        <Content Condition="Exists('$(MSBuildProjectDirectory)')" Include="$(MSBuildProjectDirectory)/ProFontIIx.ttf" Link="ProFontIIx.ttf" TargetPath="ProFontIIx.ttf" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 </Project>

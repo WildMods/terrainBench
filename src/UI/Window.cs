@@ -79,7 +79,8 @@ public class Window : GameWindow {
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableGamepad;
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags.ViewportsEnable;
-        io.FontGlobalScale = 2f;
+        io.FontGlobalScale = 1f;
+        io.Fonts.AddFontFromFileTTF("ProFontIIx.ttf", 32f);
 
         ImGui.StyleColorsDark();
 
@@ -92,6 +93,26 @@ public class Window : GameWindow {
 
         ImguiImplOpenTK4.Init(this);
         ImguiImplOpenGL3.Init();
+        
+        var s = ImGui.GetStyle();
+        s.CellPadding += new SNVector2(0, 1.0f);
+        s.ItemSpacing += new SNVector2(5.0f, 2.0f);
+        s.ItemInnerSpacing += new SNVector2(5.0f, 0.0f);
+        s.GrabRounding = s.FrameRounding = 6.0f;
+        s.WindowRounding = s.FrameRounding;
+
+        // Swap most colors to be green-ish instead of blue-ish
+        var skipList = new ImGuiCol[]{
+            ImGuiCol.PlotHistogram, ImGuiCol.PlotHistogramHovered,
+            ImGuiCol.PlotLinesHovered, ImGuiCol.DragDropTarget
+        };
+        for (int i = 0; i < s.Colors.Count; i++) {
+            if (skipList.Contains((ImGuiCol)i)) {
+                continue;
+            }
+            
+            (s.Colors[i].Y, s.Colors[i].Z) = (s.Colors[i].Z, s.Colors[i].Y);
+        }
 
         fbo.GLInit();
         GLFWProvider.SetErrorCallback(GLFWErrorCallback);
