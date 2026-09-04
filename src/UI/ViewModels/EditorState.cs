@@ -86,19 +86,8 @@ M
     public Camera.Mode camMode { get => cam.mode; set => cam.mode = value; }
 
     // Asynchronously updated progress data
-    [ObservableProperty] public ProgressReport asyncLoadedTiles = new();
-    
-    // Copies of async progress data pulled by the UI
-    // Avalonia will only trigger UI updates when values have their setter called.
-    // This apparently doesn't trivially extend to whole objects being copied or
-    // edited via methods. I couldn't get Avalonia to forcefully refresh a binding
-    // even by manually invoking OnPropertyChanged().
-    // So, the only working solution I've found is to constantly copy the
-    // atomically updated fields to these primitive properties, forcing Avalonia
-    // to recognize that the value has changed.
-    [ObservableProperty] public bool uiLoadIndeterminate = false;
-    [ObservableProperty] public int uiLoadedTiles = 0;
-    [ObservableProperty] public int uiTotalTiles = 18100;
+    public ProgressReport asyncLoadedTiles = new();
+    public int uiTotalTiles = 18100;
     
     [ObservableProperty] public string uiProgressText = "Loaded {0}/{3} tiles ({1:0}%)";
 

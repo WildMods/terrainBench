@@ -111,11 +111,21 @@ public class Window : GameWindow {
         UpdateLoadingStateMachine(editor);
         ImGui.DockSpaceOverViewport();
         
+        // Pixels can be 2 or 4 bytes, so we use an average of 3 bytes
+        var bytesPerTile = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE * 3;
+        var bytesPerGB = (long)Math.Pow(1000, 3);
+        var loadedGB = ((long)editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
+        var totalGB = ((long)editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
+        var percent = (float)editor.asyncLoadedTiles.Value / editor.uiTotalTiles * 100f;
+        editor.UiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
+        
         bool temp = false;
         bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
+        bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
+                    shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
                     shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
                     ImGui.EndMenu();
                 }
@@ -124,6 +134,7 @@ public class Window : GameWindow {
                     ImGui.EndMenu();
                 }
 
+                ImGui.ProgressBar(percent / 100f, new SNVector2(), editor.UiProgressText);
                 ImGui.EndMenuBar();
             }
 
@@ -134,36 +145,32 @@ public class Window : GameWindow {
         
         ImGui.ShowDemoWindow();
         
+        if (shouldSave) {
+            editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
+        }
+        
         if (shouldClose) {
             Close();
         }
         
-        editor.UiLoadedTiles = editor.AsyncLoadedTiles.Value;
-        editor.UiLoadIndeterminate = editor.AsyncLoadedTiles.IsIndeterminate;
-        editor.UiTotalTiles = editor.AsyncLoadedTiles.Max;
+        editor.cam.aspect = (float)fbo.Size.X / (float)fbo.Size.Y;
 
-        // Just do the progress text ourselves instead of letting Avalonia do it.
-        // This is the only practical way to get progress in GB.
-        // Pixels can be 2 or 4 bytes, so we use an average of 3 bytes
-        var bytesPerTile = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE * 3;
-        var bytesPerGB = (long)Math.Pow(1000, 3);
-        var loadedGB = ((long)editor.uiLoadedTiles * bytesPerTile) / (float)bytesPerGB;
-        var totalGB = ((long)editor.uiTotalTiles * bytesPerTile) / (float)bytesPerGB;
-        var percent = (float)editor.uiLoadedTiles / editor.uiTotalTiles * 100f;
-        editor.UiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
+        // TODO: Use WantCaptureKeyboard or similar to not update based on inputs directed at the GUI
+        bool shouldUseKeyboard = true;
+        if (shouldUseKeyboard) {
+            editor.cam.update(KeyboardState, MouseState, delta);
+            editor.brush.UpdateFromInput(KeyboardState, MouseState, 1f);
+        }
+
         
         if (editor.BootProgress != DONE) {
             // Everything beyond this point relies on terrain data being loaded
             return;
         }
 
-        editor.cam.aspect = (float)fbo.Size.X / (float)fbo.Size.Y;
-        editor.cam.update(KeyboardState, MouseState, delta);
-        editor.brush.UpdateFromInput(KeyboardState, MouseState, 1f);
-
+        // TODO: Handle FBO start position
         var fbSize = new Vector2(fbo.Size.X, fbo.Size.Y);
-        // var mouseVec = new Vector2((float)MouseState.MousePosition.X, (float)MouseState.MousePosition.Y);
-        var mouseVec = new Vector2();
+        var mouseVec = new Vector2((float)MouseState.Position.X, (float)MouseState.Position.Y);
         mouseVec.Y = fbSize.Y - mouseVec.Y; // Invert Y axis
         
         var ray = Raycast.ScreenToRay(mouseVec, editor.cam.proj_matrix(), editor.cam.view_matrix(), fbSize, new());
@@ -178,7 +185,6 @@ public class Window : GameWindow {
             TerrainCoords.WorldPos wp = pp;
             
             editor.brush.center = pp;
-            editor.brushRenderer.radius = editor.brush.effectiveRadius * TerrainCoords.PixelToWorldScale;
             editor.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
         }
 
@@ -191,10 +197,6 @@ public class Window : GameWindow {
                 editor.terrain.ScheduleTileUpdate(idx, lod, LodComponent.hght, editor.cache);
                 editor.terrain.ScheduleTileUpdate(idx, lod, LodComponent.mate, editor.cache);
             }
-        }
-
-        if (KeyboardState.IsKeyDown(Keys.S) && KeyboardState.IsKeyDown(Keys.LeftControl)) {
-            editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
         }
     }
 
@@ -232,6 +234,7 @@ public class Window : GameWindow {
             GL.TextureView(textures[0], target, texArray, fmt, 0, 1, editor.brush.textureIndices[0], 1);
             GL.TextureView(textures[1], target, texArray, fmt, 0, 1, editor.brush.textureIndices[1], 1);
             
+            editor.brushRenderer.radius = editor.brush.effectiveRadius() * TerrainCoords.PixelToWorldScale;
             editor.brushRenderer.Draw(projT, viewT, textures[0], textures[1]);
             GL.DeleteTextures(2, textures);
         }

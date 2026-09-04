@@ -133,13 +133,6 @@
                     </Flyout>
                 </Button.Flyout>
             </Button>
-            <ProgressBar
-                IsIndeterminate="{Binding UiLoadIndeterminate}"
-                Value="{Binding UiLoadedTiles}"
-                Maximum="{Binding UiTotalTiles}"
-                ProgressTextFormat="{Binding UiProgressText}"
-                ShowProgressText="True"
-            />
         </DockPanel>
 
         <Border Grid.Row="1" Background="#777777">
