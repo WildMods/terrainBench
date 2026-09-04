@@ -4,7 +4,7 @@ using CsOead;
 using OperationResult;
 using static OperationResult.Helpers;
 
-namespace terrainBench;
+namespace terrainBench.Core;
 
 /// <summary>
 /// Represents a game folder in the game dump (i.e. base, update, or DLC folder)

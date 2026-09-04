@@ -2,7 +2,7 @@ using OpenTK.Mathematics;
 using OperationResult;
 using static OperationResult.Helpers;
 
-namespace terrainBench;
+namespace terrainBench.Core;
 using static TerrainCoords;
 
 public static class Raycast {
@@ -59,7 +59,7 @@ public static class Raycast {
         }
     }
 
-    public static Result<PixelGrid8Pos, ErrorStack> RaycastTerrain(Cache.Cache cache, TileGrid8Pos startPos, Vector3 dir, float rangeTiles)
+    public static Result<PixelGrid8Pos, ErrorStack> RaycastTerrain(Cache cache, TileGrid8Pos startPos, Vector3 dir, float rangeTiles)
     {
         var z = Profiler.BeginZone("RaycastTerrain");
         var source = new Vector2(startPos.x, startPos.z);

@@ -1,9 +1,7 @@
-﻿using Native.IO.Handles;
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OperationResult;
 using static OperationResult.Helpers;
-using terrainBench;
 
 namespace terrainBench.Graphics;
 

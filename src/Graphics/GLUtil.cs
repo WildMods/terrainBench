@@ -1,5 +1,6 @@
 using OpenTK.Graphics.OpenGL4;
 
+namespace terrainBench.Graphics;
 public static class GLUtil {
     public static int CreateMappableBuffer(int size) {
         int[] buffers = new int[1];

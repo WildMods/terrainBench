@@ -1,6 +1,7 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-namespace terrainBench;
+
+namespace terrainBench.Graphics;
 
 public static class Uniform
 {

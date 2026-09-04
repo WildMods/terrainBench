@@ -1,6 +1,7 @@
 ﻿using OpenTK.Mathematics;
 
-namespace terrainBench.UI.ViewModels;
+namespace terrainBench.Core;
+
 public partial class EditorState {
     public enum BootState {
         INIT, TILES_LOADING, SHOW_UPLOAD_MSG, LOAD_TERRAIN_TEXTURES, UPLOADING, DONE,
@@ -29,10 +30,10 @@ M
     public BootState bootProgress = BootState.INIT;
 
     public Game game;
-    public Cache.Cache cache = new();
-    public TerrainRenderer terrain = new();
+    public Cache cache = new();
+    public Graphics.TerrainRenderer terrain = new();
     public Brush brush = new();
-    public BrushRenderer brushRenderer = new();
+    public Graphics.BrushRenderer brushRenderer = new();
     public Camera cam = new();
     public bool runRendererUpload = true;
 

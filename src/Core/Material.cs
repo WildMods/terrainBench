@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace terrainBench.LodComponents;
+namespace terrainBench.Core.LodComponents;
 
 public struct Material
 // We need to implement math operators for the downscaler to average pixels

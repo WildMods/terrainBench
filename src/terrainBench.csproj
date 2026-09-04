@@ -18,17 +18,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Shaders/terrain.vert.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.tcs.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.tess.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.geom.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.frag.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.vert.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.tcs.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.tess.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.geom.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.frag.glsl" />
 
-        <EmbeddedResource Include="Shaders/brush.vert.glsl" />
-        <EmbeddedResource Include="Shaders/brush.frag.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/brush.vert.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/brush.frag.glsl" />
         
-        <EmbeddedResource Include="Shaders/texQuad.vert.glsl" />
-        <EmbeddedResource Include="Shaders/texQuad.frag.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/texQuad.vert.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/texQuad.frag.glsl" />
     </ItemGroup>
 
     <ItemGroup>

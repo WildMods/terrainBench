@@ -1,5 +1,5 @@
 using System.Diagnostics;
-namespace terrainBench.Cache;
+namespace terrainBench.Core;
 
 /// <summary>
 /// A compact data structure to quickly find out what detail levels are available

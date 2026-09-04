@@ -2,11 +2,12 @@ using System.Diagnostics;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System.Collections.Concurrent;
-using static GLUtil;
 using CommunityToolkit.HighPerformance;
 using System.Runtime.InteropServices;
-namespace terrainBench;
-using Graphics;
+
+namespace terrainBench.Graphics;
+using static GLUtil;
+using Core;
 
 public struct TerrainRenderer {
     const int HGHT_DIM = 256;
@@ -260,7 +261,7 @@ public struct TerrainRenderer {
         /// <summary>
         /// Build an atlas from packed index values
         /// </summary>
-        public CompactTileSheet(Cache.Cache cache, ConcurrentQueue<Int32> iter) {
+        public CompactTileSheet(Cache cache, ConcurrentQueue<Int32> iter) {
             var zone = Profiler.BeginZone("R_CreateCompactTileSheet");
             hghtTex = CreateTileTexture(SizedInternalFormat.R16, MAX_SIZE);
             mateTex = CreateTileTexture(SizedInternalFormat.Rgba8, MAX_SIZE);
@@ -389,7 +390,7 @@ public struct TerrainRenderer {
     public struct TileRegion {
         public readonly List<CompactTileSheet> sheets = [];
 
-        public TileRegion(Cache.CoverageMap lodCoverage, Cache.Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+        public TileRegion(CoverageMap lodCoverage, Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
 
@@ -415,7 +416,7 @@ public struct TerrainRenderer {
             }
         }
 
-        public void UploadNewTiles(Cache.CoverageMap lodCoverage, Cache.Cache cache, byte xCenter, byte yCenter, byte sizeTiles) {
+        public void UploadNewTiles(CoverageMap lodCoverage, Cache cache, byte xCenter, byte yCenter, byte sizeTiles) {
             var z = Profiler.BeginZone("R_FindNewTiles");
             // The set of tiles in the draw radius (i.e. that should be in VRAM)
             var inGroup = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
@@ -481,7 +482,7 @@ public struct TerrainRenderer {
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     public int terrainTexArray = 0;
     int coverageTex = 0;
-    public Cache.CoverageMap lodCoverage;
+    public CoverageMap lodCoverage;
 
     TileRegion ring0;
     public int renderRadius = 32;
@@ -495,7 +496,7 @@ public struct TerrainRenderer {
         return ring0.ScheduleTileUpdate(idx, lod, data, type);
     }
 
-    public bool ScheduleTileUpdate(UInt16 idx, byte lod, LodComponent type, Cache.Cache cache)
+    public bool ScheduleTileUpdate(UInt16 idx, byte lod, LodComponent type, Cache cache)
     {
         ReadOnlySpan<byte> data = new();
         switch (type) {
@@ -544,11 +545,12 @@ public struct TerrainRenderer {
 
     public bool GLInit() {
         var zone = Profiler.BeginZone("R_GLInit");
-        string vert = GetEmbeddedText("terrainBench.Shaders.terrain.vert.glsl");
-        string tcs =  GetEmbeddedText("terrainBench.Shaders.terrain.tcs.glsl");
-        string tess = GetEmbeddedText("terrainBench.Shaders.terrain.tess.glsl");
-        string geom = GetEmbeddedText("terrainBench.Shaders.terrain.geom.glsl");
-        string frag = GetEmbeddedText("terrainBench.Shaders.terrain.frag.glsl");
+        string prefix = "terrainBench.Graphics.Shaders.";
+        string vert = GetEmbeddedText(prefix + "terrain.vert.glsl");
+        string tcs =  GetEmbeddedText(prefix + "terrain.tcs.glsl");
+        string tess = GetEmbeddedText(prefix + "terrain.tess.glsl");
+        string geom = GetEmbeddedText(prefix + "terrain.geom.glsl");
+        string frag = GetEmbeddedText(prefix + "terrain.frag.glsl");
 
         using (Profiler.BeginZone("R_ShaderCompile")) {
             tessShader = new Shader(vert, tcs, tess, geom, frag);
@@ -560,7 +562,7 @@ public struct TerrainRenderer {
         return true;
     }
 
-    public bool LoadTerrainTiles(Cache.Cache cache) {
+    public bool LoadTerrainTiles(Cache cache) {
         lodCoverage = new(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
@@ -698,7 +700,7 @@ public struct TerrainRenderer {
         return true;
     }
 
-    public void UpdateGPUTiles(Cache.Cache cache, Vector2i eyeTile) {
+    public void UpdateGPUTiles(Cache cache, Vector2i eyeTile) {
         ring0.UploadNewTiles(lodCoverage, cache, (byte)eyeTile.X, (byte)eyeTile.Y, (byte)renderRadius);
     }
 

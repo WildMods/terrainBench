@@ -2,11 +2,9 @@ using ImGuiNET;
 using System.Diagnostics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
-using terrainBench.Cache;
-using terrainBench.LodComponents;
-using terrainBench.UI;
 
-namespace terrainBench;
+namespace terrainBench.Core;
+using LodComponents;
 
 public struct Brush() {
     public enum Shape {
@@ -250,7 +248,7 @@ public struct Brush() {
         }
     }
 
-    public List<int> ApplyToTiles(Cache.Cache cache, CoverageMap coverage, float multiplier) {
+    public List<int> ApplyToTiles(Cache cache, CoverageMap coverage, float multiplier) {
         var z = Profiler.BeginZone("Brush.ApplyToTiles");
         if (target == LodComponent.hght) {
             component = 0; // This is the only usable component for HGHT

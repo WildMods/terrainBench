@@ -3,7 +3,9 @@ using BfresLibrary;
 using Native.IO.Handles;
 using OperationResult;
 using static OperationResult.Helpers;
+
 namespace terrainBench;
+using Core;
 
 /// <summary>
 /// Wrapper to handle reading textures from Wii U and Switch files, which have

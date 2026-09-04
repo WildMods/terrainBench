@@ -2,10 +2,10 @@ using System.Diagnostics;
 using OpenTK.Mathematics;
 using OperationResult;
 using SkiaSharp;
-using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 
-namespace terrainBench.Cache;
+namespace terrainBench.Core;
+using LodComponents;
 
 public class Cache
 {

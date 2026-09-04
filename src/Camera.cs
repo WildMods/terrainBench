@@ -4,7 +4,6 @@
 using ImGuiNET;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
-using terrainBench.UI;
 using static OpenTK.Mathematics.MathHelper;
 
 namespace terrainBench;

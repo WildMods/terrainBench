@@ -3,7 +3,7 @@
 // @author Torphedo
 using OperationResult;
 using static OperationResult.Helpers;
-namespace terrainBench;
+namespace terrainBench.Core;
 
 /// <summary>
 /// Utilities for Z-order curve indices used in BOTW terrain tiles.

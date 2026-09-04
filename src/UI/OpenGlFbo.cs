@@ -1,6 +1,5 @@
 // Adapted from Avalonia samples:
 // https://github.com/AvaloniaUI/Avalonia/blob/main/samples/ControlCatalog/Pages/OpenGl/OpenGlFbo.cs
-using SkiaSharp;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 namespace terrainBench.UI;

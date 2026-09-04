@@ -1,7 +1,7 @@
 using System.Numerics;
 using OpenTK.Mathematics;
 
-namespace terrainBench.Cache;
+namespace terrainBench.Core;
 
 public static class TileScaling {
     /// <summary>

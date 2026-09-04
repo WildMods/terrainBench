@@ -1,3 +1,5 @@
+namespace terrainBench;
+
 public static class AboutSelf {
     public static string version = "1.0";
     public static string authors = "Torphedo & Ginger Chody";

@@ -1,8 +1,7 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
-namespace terrainBench;
-using Graphics;
+namespace terrainBench.Graphics;
 
 public class BrushRenderer {
     private Shader? brushShader = null;
@@ -12,10 +11,11 @@ public class BrushRenderer {
     int vaoBlank;
 
     public bool GLInit() {
-        var brushVert = GLUtil.GetEmbeddedText("terrainBench.Shaders.brush.vert.glsl");
-        var brushFrag = GLUtil.GetEmbeddedText("terrainBench.Shaders.brush.frag.glsl");
-        var texVert = GLUtil.GetEmbeddedText("terrainBench.Shaders.texQuad.vert.glsl");
-        var texFrag = GLUtil.GetEmbeddedText("terrainBench.Shaders.texQuad.frag.glsl");
+        string prefix = "terrainBench.Graphics.Shaders.";
+        var brushVert = GLUtil.GetEmbeddedText(prefix + "brush.vert.glsl");
+        var brushFrag = GLUtil.GetEmbeddedText(prefix + "brush.frag.glsl");
+        var texVert = GLUtil.GetEmbeddedText(prefix + "texQuad.vert.glsl");
+        var texFrag = GLUtil.GetEmbeddedText(prefix + "texQuad.frag.glsl");
         brushShader = new(brushVert, brushFrag);
         texShader = new(texVert, texFrag);
         vaoBlank = GL.GenVertexArray();

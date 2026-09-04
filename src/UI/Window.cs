@@ -1,24 +1,15 @@
 ﻿using ImGuiNET;
-using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using ErrorCode = OpenTK.Windowing.GraphicsLibraryFramework.ErrorCode;
 using SNVector2 = System.Numerics.Vector2;
 
-using terrainBench.UI.ViewModels;
-using static terrainBench.UI.ViewModels.EditorState.BootState;
+using terrainBench.Core;
+using static terrainBench.Core.EditorState.BootState;
 namespace terrainBench.UI;
 
 public class Window : GameWindow {

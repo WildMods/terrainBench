@@ -1,4 +1,4 @@
-namespace terrainBench.LodComponents;
+namespace terrainBench.Core.LodComponents;
 
 public struct WaterExtm
 {

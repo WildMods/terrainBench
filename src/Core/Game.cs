@@ -7,7 +7,7 @@ using static OperationResult.Helpers;
 using CsOead;
 using System.Diagnostics;
 
-namespace terrainBench;
+namespace terrainBench.Core;
 
 public enum LodComponent
 {

@@ -2,11 +2,11 @@ using CommunityToolkit.HighPerformance;
 using SkiaSharp;
 using OperationResult;
 using CsOead;
-using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 using System.Collections.Concurrent;
 
-namespace terrainBench.Cache;
+using terrainBench.Core.LodComponents;
+namespace terrainBench.Core;
 
 // Shorthands to keep later code a bit shorter
 using HGHTMap = ConcurrentDictionary<ushort, ushort[]>;

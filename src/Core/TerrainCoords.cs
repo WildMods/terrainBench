@@ -1,8 +1,7 @@
 using OpenTK.Mathematics;
 using Vector3 = OpenTK.Mathematics.Vector3;
-using Vector4 = OpenTK.Mathematics.Vector4;
 
-namespace terrainBench;
+namespace terrainBench.Core;
 
 // Convert between various terrain coordinate systems
 public static class TerrainCoords {
