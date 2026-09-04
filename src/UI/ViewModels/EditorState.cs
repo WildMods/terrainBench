@@ -1,9 +1,7 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 
 namespace terrainBench.UI.ViewModels;
-public partial class EditorState : ObservableObject {
+public partial class EditorState {
     public enum BootState {
         INIT, TILES_LOADING, SHOW_UPLOAD_MSG, LOAD_TERRAIN_TEXTURES, UPLOADING, DONE,
     }
@@ -26,7 +24,6 @@ M
     
     public string creditInfo = "Written by Torphedo & Ginger Chody";
     
-    [ObservableProperty]
     private string glInfo = "Graphics API info placeholder"; // Filled @ runtime
 
     public BootState bootProgress = BootState.INIT;
@@ -38,13 +35,6 @@ M
     public BrushRenderer brushRenderer = new();
     public Camera cam = new();
     public bool runRendererUpload = true;
-
-    // I couldn't get Avalonia to access public fields of objects on this class,
-    // so I'm forced to use wrapper properties to access them in XAML.
-    // Sorry for all this useless wrapper code. -- torf
-    
-    // Render settings
-    public int renderDistance { get => terrain.renderRadius; set => terrain.renderRadius = value; }
 
     // Asynchronously updated progress data
     public ProgressReport asyncLoadedTiles = new();

@@ -32,12 +32,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
         <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+        <PackageReference Include="SkiaSharp" Version="4.151.2" />
 
         <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
 	    <ProjectReference Include="$(LibraryPath)/BfresLibrary/BfresLibrary/BfresLibrary.csproj" />
@@ -56,21 +52,4 @@
         <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
-
-    <ItemGroup>
-      <AdditionalFiles Include="UI\App.axaml" />
-      <AdditionalFiles Include="UI\Views\MainWindow.axaml" />
-      <AdditionalFiles Include="UI\GlOverlay.axaml" />
-      <AdditionalFiles Include="UI\OpenGlLeasePage.axaml" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Update="UI\App.axaml.cs">
-        <DependentUpon>App.axaml</DependentUpon>
-        <SubType>Code</SubType>
-      </Compile>
-    </ItemGroup>
-
-
-
 </Project>
