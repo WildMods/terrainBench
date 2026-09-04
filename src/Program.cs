@@ -26,19 +26,8 @@ public static class Program
         
         Profiler.AppInfo("BOTW terrain editor");
 
-        // BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         Window w = new(args);
         w.Run();
         w.OnClosed();
     }
-
-    // Avalonia configuration, don't remove; also used by visual designer.
-    public static AppBuilder BuildAvaloniaApp() {
-        return AppBuilder.Configure<terrainBench.UI.App>()
-            .UsePlatformDetect()
-            .With(new Win32PlatformOptions { RenderingMode = new List<Win32RenderingMode> { Win32RenderingMode.Wgl } })
-            .WithInterFont()
-            .LogToTrace();
-    }
-
 }
