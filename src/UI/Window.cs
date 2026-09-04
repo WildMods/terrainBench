@@ -135,6 +135,12 @@ public class Window : GameWindow {
         }
         if (ImGui.Begin("About")) {
             ImGui.Text($"Terrain Workbench {AboutSelf.version} written by {AboutSelf.authors}.");
+
+            var glVersion = GL.GetString(StringName.Version);
+            var glVendor = GL.GetString(StringName.Vendor);
+            var glslVersion = GL.GetString(StringName.ShadingLanguageVersion);
+            var glRenderer = GL.GetString(StringName.Renderer);
+            ImGui.Text($"\nGL Version: {glVendor} {glVersion}\nGLSL Version: {glslVersion}\nRenderer: {glRenderer}\n\n");
             ImGui.Text($"Resources: {AboutSelf.resources}");
             ImGui.Text($"Special thanks: {AboutSelf.specialThanks}");
             ImGui.End();
@@ -153,6 +159,8 @@ public class Window : GameWindow {
         var percent = (float)editor.asyncLoadedTiles.Value / editor.uiTotalTiles * 100f;
         editor.uiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
         
+        Vector2 fbStart = new();
+        Vector2 fbDisplayedSize = new();
         bool temp = false;
         bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
         bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
@@ -192,8 +200,10 @@ public class Window : GameWindow {
                 ImGui.EndMenuBar();
             }
 
-            var s = new SNVector2(fbo.Size.X, fbo.Size.Y);
-            ImGui.Image(fbo.colorTexture, s, new SNVector2(0, 1), new SNVector2(1, 0));
+            
+            fbStart = (Vector2)ImGui.GetCursorScreenPos();
+            fbDisplayedSize = (Vector2)ImGui.GetContentRegionAvail();
+            ImGui.Image(fbo.colorTexture, (SNVector2)fbDisplayedSize, new SNVector2(0, 1), new SNVector2(1, 0));
             ImGui.End();
         }
 
@@ -225,18 +235,22 @@ public class Window : GameWindow {
             return;
         }
 
-        // TODO: Handle FBO start position
-        var fbSize = new Vector2(fbo.Size.X, fbo.Size.Y);
-        var mouseVec = new Vector2((float)MouseState.Position.X, (float)MouseState.Position.Y);
-        mouseVec.Y = fbSize.Y - mouseVec.Y; // Invert Y axis
+        Vector2 mouseVec;
+        unsafe {
+            GLFW.GetCursorPos(this.WindowPtr, out var x, out var y);
+            GLFW.GetFramebufferSize(WindowPtr, out var screenX, out var screenY);
+            
+            mouseVec = new Vector2((float)x, (float)y);
+            var sizeDiff = new Vector2(screenX, screenY) - fbDisplayedSize;
+            mouseVec -= sizeDiff;
+        }
+
+        var ray = Raycast.ScreenToRay(mouseVec, editor.cam.proj_matrix(), editor.cam.view_matrix(), fbDisplayedSize, new(), true);
         
-        var ray = Raycast.ScreenToRay(mouseVec, editor.cam.proj_matrix(), editor.cam.view_matrix(), fbSize, new());
-        
-        int MAX_EDIT_RANGE = editor.terrain.renderRadius;
         TerrainCoords.WorldPos eyeWorld = new(editor.cam.eye());
         TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
         var dir = ray.Dir;
-        var r = Raycast.RaycastTerrain(editor.cache, eyeTile, dir, MAX_EDIT_RANGE);
+        var r = Raycast.RaycastTerrain(editor.cache, eyeTile, dir, editor.terrain.renderRadius);
         if (r.IsOk()) {
             var pp = r.Unwrap();
             TerrainCoords.WorldPos wp = pp;

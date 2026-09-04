@@ -159,9 +159,10 @@ public static class Raycast {
     /// If your framebuffer takes up the whole screen or your mouse coordinates are
     /// already relative to its origin, this is just (0, 0).</param>
     /// <returns>The normalized world space direction vector, and the ray's origin</returns>
-    public static Ray ScreenToRay(Vector2 mousePos, Matrix4 projT, Matrix4 viewT, Vector2 fbSize, Vector2 fbStart) {
+    public static Ray ScreenToRay(Vector2 mousePos, Matrix4 projT, Matrix4 viewT, Vector2 fbSize, Vector2 fbStart, bool flipY) {
         // Map to NDC (-1 to 1)
         var mouseNDC = ((mousePos - fbStart) / fbSize) * 2 - new Vector2(1, 1);
+        mouseNDC.Y *= (flipY ? -1 : 1);
         
         // The near/far planes become the -1 / 1 edges of NDC.
         Vector3 nearScreen = new(mouseNDC.X, mouseNDC.Y, -1f);
