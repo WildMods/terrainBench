@@ -164,9 +164,13 @@ public class Window : GameWindow {
         bool temp = false;
         bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
         bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
+        bool shouldImportHeightmap = false;
+        bool shouldPickModFolder = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
+                    shouldPickModFolder = ImGui.MenuItem("Set mod folder");
+                    shouldImportHeightmap = ImGui.MenuItem("Import heightmap image");
                     shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
                     shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
                     ImGui.EndMenu();
@@ -215,9 +219,27 @@ public class Window : GameWindow {
         if (shouldSave) {
             editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
         }
-        
+
         if (shouldClose) {
             Close();
+        }
+
+        if (shouldPickModFolder) {
+            var res = NativeFileDialogSharp.Dialog.FolderPicker();
+            if (res.IsOk) {
+                var s = Settings.Settings.Load();
+                s.modDir = res.Path;
+                editor.game.modPath = res.Path;
+                s.Save();
+                Console.WriteLine("Set mod folder to {0}", res.Path);
+            }
+        }
+        if (shouldImportHeightmap) {
+            var filters = "png,jpeg,webp,heif,heic,avif,jpegxl,jxl,ktx,ktx2,astc,bmp,pkm";
+            var res = NativeFileDialogSharp.Dialog.FileOpen(filters);
+            if (res.IsOk) {
+                editor.ReloadFromHeightmap(res.Path);
+            }
         }
         
         editor.cam.aspect = (float)fbo.Size.X / (float)fbo.Size.Y;
