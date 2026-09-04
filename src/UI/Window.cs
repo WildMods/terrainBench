@@ -26,7 +26,7 @@ public class Window : GameWindow {
     bool needResize = true;
     Vector2i newSize = new();
     bool showDemo = false;
-
+    bool showAbout = false;
     EditorState editor;
 
     public Window(string[] args) : base(GameWindowSettings.Default, new NativeWindowSettings()
@@ -57,7 +57,7 @@ public class Window : GameWindow {
                 }
 
                 ed.bootProgress = DONE;
-                Task.Run(() => ed.RendererUploadThread());
+                Task.Run(ed.RendererUploadThread);
 
                 Title = EditorState.defaultWindowTitle;
                 break;
@@ -108,6 +108,18 @@ public class Window : GameWindow {
         });
     }
 
+    void AboutMenu() {
+        if (!showAbout) {
+            return;
+        }
+        if (ImGui.Begin("About")) {
+            ImGui.Text($"Terrain Workbench {AboutSelf.version} written by {AboutSelf.authors}.");
+            ImGui.Text($"Resources: {AboutSelf.resources}");
+            ImGui.Text($"Special thanks: {AboutSelf.specialThanks}");
+            ImGui.End();
+        }
+    }
+    
     void Update(double delta) {
         UpdateLoadingStateMachine(editor);
         ImGui.DockSpaceOverViewport();
@@ -139,7 +151,15 @@ public class Window : GameWindow {
                     ImGui.EndMenu();
                 }
                 
+                if (ImGui.BeginMenu("Render")) {
+                    ImGui.SliderInt("Render distance (tiles)", ref editor.terrain.renderRadius, 0, 128);
+                    ImGui.EndMenu();
+                }
+                
                 if (ImGui.BeginMenu("Help")) {
+                    if (ImGui.MenuItem("About")) {
+                        showAbout = !showAbout;
+                    }
                     if (ImGui.MenuItem("Show demo window")) {
                         // TODO: There's a MenuItem overload for this, just dont know how the bindings expose it.
                         showDemo = !showDemo;
@@ -159,6 +179,7 @@ public class Window : GameWindow {
         if (showDemo) {
             ImGui.ShowDemoWindow();
         }
+        AboutMenu();
         
         if (shouldSave) {
             editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
