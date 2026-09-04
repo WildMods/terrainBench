@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using OpenTK.Mathematics;
 using OperationResult;
+using SkiaSharp;
 using terrainBench.LodComponents;
 using static OperationResult.Helpers;
 
@@ -10,14 +11,61 @@ public class Cache
 {
     private readonly Lod[] _lods = new Lod[9];
 
-    public Cache()
-    {
-        for (int i = 0; i < 9; ++i)
-        {
+    public Cache() {
+        Clear();
+    }
+
+    public void Clear() {
+        for (int i = 0; i <= ZOrder.MAX_LOD; ++i) {
             _lods[i] = new(i);
         }
     }
-    
+
+    public Result<bool, ErrorStack> LoadFromImage(string path, int lvl, ProgressReport tilesLoadedOut) {
+        var timer = Stopwatch.StartNew();
+        
+        for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
+            _lods[i].loadFinished = true;
+        }
+
+        SKBitmap? bmp = null;
+        try {
+            bmp = SKBitmap.Decode(path);
+            Console.WriteLine("Decoded '{0}': {1}", path, bmp);
+            if (bmp == null) {
+                return Err(new ErrorStack($"Failed to load '{path}'"));
+            }
+        } catch (Exception e) {
+            Console.WriteLine($"Failed to load image '{path}' {e}");
+            return Err(new ErrorStack($"Failed to load image '{path}'", e));
+        }
+
+        if (lvl < 0) {
+            // Auto-select import LOD based on heightmap resolution
+            for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
+                if ((1 << i) * ZOrder.GRID_SIZE >= bmp.Height && (1 << i) * ZOrder.GRID_SIZE >= bmp.Width) {
+                    lvl = i;
+                    break;
+                }
+            }
+        }
+        
+        if (lvl >= _lods.Length || lvl < 0) {
+            return Err(new ErrorStack($"LOD {lvl} doesn't exist!"));
+        }
+        
+        int lvlDiff = ZOrder.MAX_LOD - lvl;
+        var res = _lods[lvl].LoadHeightmapImage(bmp, 2 + lvlDiff, tilesLoadedOut);
+        
+        for (int i = lvl; i >= 0; i--) {
+            DownscaleLevel((uint)i, LodComponent.hght);
+            DownscaleLevel((uint)i, LodComponent.mate);
+        }
+        timer.Stop();
+        Console.WriteLine("Loaded '{0}' in {1}ms", path, timer.ElapsedMilliseconds);
+        return res;
+    }
+
     public void Load(Game game, ProgressReport tilesLoadedOut) {
         var timer = Stopwatch.StartNew();
         using (Profiler.BeginZone("CacheLoad"))
@@ -37,6 +85,26 @@ public class Cache
         {
             yield return GetHeightmapTile(level, i);
         }
+    }
+
+    Result<bool, ErrorStack> DownscaleLevel(uint level, LodComponent component)
+    {
+        if (level >= _lods.Length) {
+            return Err(new ErrorStack($"LOD {level} doesn't exist!"));
+        }
+        if (level == 0) {
+            return false; // Nothing to do, but not an error
+        }
+
+        bool res = true;
+        Parallel.ForEach(_lods[level].IterDirtyTiles(component), idx => {
+            var downscaleRes = DownscaleTileByOne(idx, level, component);
+            if (downscaleRes.IsErr()) {
+                res = false;
+            }
+        });
+
+        return res;
     }
 
     Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, LodComponent component)
@@ -67,14 +135,24 @@ public class Cache
         switch (component) {
         case LodComponent.hght: {
             var highTile = _lods[level].GetHeightmapTile(idx).Unwrap();
-            var lowTile = _lods[level - 1].GetHeightmapTile(lowIdx).Unwrap();
-            TileScaling.DownscaleTile(highTile, lowTile, pixelPosLow, size);
+            var lowTileRes = _lods[level - 1].GetHeightmapTile(lowIdx);
+            if (lowTileRes.IsErr()) {
+                _lods[level - 1].InsertTile(lowIdx, new ushort[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE]);
+                lowTileRes = _lods[level - 1].GetHeightmapTile(lowIdx);
+            }
+            
+            TileScaling.DownscaleTile(highTile, lowTileRes.Unwrap(), pixelPosLow, size);
             break;
         }
         case LodComponent.mate: {
             var highTile = _lods[level].GetMaterialTile(idx).Unwrap();
-            var lowTile = _lods[level - 1].GetMaterialTile(lowIdx).Unwrap();
-            TileScaling.DownscaleTile(highTile, lowTile, pixelPosLow, size);
+            var lowTileRes = _lods[level - 1].GetMaterialTile(lowIdx);
+            if (lowTileRes.IsErr()) {
+                _lods[level - 1].InsertTile(lowIdx, new Material[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE]);
+                lowTileRes = _lods[level - 1].GetMaterialTile(lowIdx);
+            }
+            
+            TileScaling.DownscaleTile(highTile, lowTileRes.Unwrap(), pixelPosLow, size);
             break;
         }
         default:

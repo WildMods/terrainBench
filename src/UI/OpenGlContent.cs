@@ -34,15 +34,6 @@ internal class OpenGlContent {
         vm.brushRenderer.GLUninit();
     }
 
-    public void RendererUploadThread(EditorState vm) {
-        while (running) {
-            var eyeWorld = new TerrainCoords.WorldPos(vm.cam.eye());
-            TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
-            vm.terrain.UpdateGPUTiles(vm.cache, (Vector2i)eyeTile.xz.Truncate());
-            Thread.Sleep(1);
-        }
-    }
-
     public void OnOpenGlRender(GlInterface gl, int fb, PixelSize size, EditorState vm, InputState input) {
         var now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
         var delta = now - _lastFrameTime;
@@ -53,21 +44,23 @@ internal class OpenGlContent {
         switch (vm.BootProgress) {
             case SHOW_UPLOAD_MSG:
                 // SetWindowTitle(EditorState.gpuUploadWindowTitle);
-                vm.BootProgress = UPLOADING;
+                vm.BootProgress = LOAD_TERRAIN_TEXTURES;
                 z.Dispose();
                 return; // End frame to make sure title is applied
-            case UPLOADING:
+            case LOAD_TERRAIN_TEXTURES:
                 // Start the GPU uploads 1 frame after title is changed
                 using (Profiler.BeginZone("R_LoadTerrainTextures")) {
                     vm.terrain.LoadTerrainTextures(vm.game);
                 }
-
+                vm.BootProgress = UPLOADING;
+                break;
+            case UPLOADING:
                 using (Profiler.BeginZone("R_GLInit")) {
                     vm.terrain.LoadTerrainTiles(vm.cache);
                 }
 
                 vm.BootProgress = DONE;
-                Task.Run(() => RendererUploadThread(vm));
+                Task.Run(() => vm.RendererUploadThread());
 
                 // SetWindowTitle(EditorState.defaultWindowTitle);
                 break;
