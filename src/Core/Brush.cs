@@ -314,7 +314,6 @@ public struct Brush() {
             }
             
             applyPixels.Dispose();
-            cache.DownscaleTileCascade(idx, lod, target);
         }
 
         z.Dispose();

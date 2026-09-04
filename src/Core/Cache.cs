@@ -56,11 +56,9 @@ public class Cache
         
         int lvlDiff = ZOrder.MAX_LOD - lvl;
         var res = _lods[lvl].LoadHeightmapImage(bmp, 2 + lvlDiff, tilesLoadedOut);
-        
-        for (int i = lvl; i >= 0; i--) {
-            DownscaleLevel((uint)i, LodComponent.hght);
-            DownscaleLevel((uint)i, LodComponent.mate);
-        }
+
+        DownscaleAllLevels(LodComponent.hght);
+        DownscaleAllLevels(LodComponent.mate);
         timer.Stop();
         Console.WriteLine("Loaded '{0}' in {1}ms", path, timer.ElapsedMilliseconds);
         return res;
@@ -87,7 +85,7 @@ public class Cache
         }
     }
 
-    Result<bool, ErrorStack> DownscaleLevel(uint level, LodComponent component)
+    public Result<bool, ErrorStack> DownscaleLevel(uint level, LodComponent component)
     {
         if (level >= _lods.Length) {
             return Err(new ErrorStack($"LOD {level} doesn't exist!"));
@@ -105,6 +103,16 @@ public class Cache
         });
 
         return res;
+    }
+    
+    public Result<bool, ErrorStack> DownscaleAllLevels(LodComponent component) {
+        for (int i = ZOrder.MAX_LOD; i >= 0; i--) {
+            var res = DownscaleLevel((uint)i, component);
+            if (res.IsErr()) {
+                return Err(res.Err().Context($"Failed to downscale level {i} -> {i - 1}"));
+            };
+        }
+        return true;
     }
 
     Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, LodComponent component)
@@ -345,7 +353,9 @@ public class Cache
     public void WriteAllTiles(string basePath, bool dirty, CsOead.Endianness endian, string fieldName = "MainField")
     {
         var timer = Stopwatch.StartNew();
-        for (int i = 0; i <= ZOrder.MAX_LOD; i++) {
+        DownscaleAllLevels(LodComponent.hght);
+        DownscaleAllLevels(LodComponent.mate);
+        for (uint i = 0; i <= ZOrder.MAX_LOD; i++) {
             var lvl = _lods[i];
             lvl.WriteAllTiles(basePath, dirty, endian, fieldName);
             Console.WriteLine("Saved level {0}", i);
