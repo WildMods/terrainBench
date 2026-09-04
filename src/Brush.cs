@@ -1,3 +1,4 @@
+using ImGuiNET;
 using System.Diagnostics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
@@ -35,7 +36,6 @@ public struct Brush() {
     public int component = 0; // The component index in a pixel to edit
     
     public Shape shape = Shape.CIRCLE;
-    public bool isDistance3D = false;
     public EditFunc editFunc = EditFunc.ADD;
 
     public FalloffFunc func = FalloffFunc.LINEAR;
@@ -92,6 +92,61 @@ public struct Brush() {
         }
     }
 
+    public bool ImGuiEdit() {
+        bool dirty = false;
+        dirty |= ImGui.SliderFloat("Strength", ref baseStrength, 0f, 100f);
+        dirty |= ImGui.SliderFloat("Falloff", ref falloffStrength, -50f, 50f);
+        dirty |= ImGui.SliderInt("Radius (pixels)", ref radius, 0, 500);
+        
+        if (ImGui.BeginCombo("Shape", shape.ToString())) {
+            foreach (var s in Enum.GetValues<Shape>()) {
+                if (ImGui.Selectable(s.ToString())) {
+                    shape = s;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        if (ImGui.BeginCombo("Edit Function", editFunc.ToString())) {
+            foreach (var f in Enum.GetValues<EditFunc>()) {
+                if (ImGui.Selectable(f.ToString())) {
+                    editFunc = f;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        if (ImGui.BeginCombo("Falloff Function", func.ToString())) {
+            foreach (var f in Enum.GetValues<FalloffFunc>()) {
+                if (ImGui.Selectable(f.ToString())) {
+                    func = f;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        if (ImGui.BeginCombo("Falloff Shape", falloffShape.ToString())) {
+            foreach (var f in Enum.GetValues<DistanceType>()) {
+                if (ImGui.Selectable(f.ToString())) {
+                    falloffShape = f;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        if (ImGui.BeginCombo("Brush Mode", target.ToString())) {
+            if (ImGui.Selectable(LodComponent.hght.ToString())) {
+                target = LodComponent.hght;
+            }
+            if (ImGui.Selectable(LodComponent.mate.ToString())) {
+                target = LodComponent.mate;
+            }
+            ImGui.EndCombo();
+        }
+
+        return dirty;
+    }
+
     /// <summary>
     /// Calculates the result of a falloff function
     /// </summary>
@@ -113,11 +168,9 @@ public struct Brush() {
     /// <param name="type">The type of distance function to use</param>
     /// <param name="is3D">Whether to take the 2D or 3D distance</param>
     /// <returns>The distance between the 2 points</returns>
-    public static float EvalDistance(Vector3 a, Vector3 b, DistanceType type, bool is3D) {
-        if (!is3D) {
-            // Ignore height in 2D mode
-            a.Y = b.Y = 0;
-        }
+    public static float EvalDistance(Vector3 a, Vector3 b, DistanceType type) {
+        // Assume 2D and ignore height
+        a.Y = b.Y = 0;
 
         float dist = type switch {
             DistanceType.EUCLIDEAN => Vector3.Distance(a, b),
@@ -168,7 +221,7 @@ public struct Brush() {
     }
     
     public float EvalBrushStrength(Vector3 pos) {
-        float dist = EvalDistance(center, pos, falloffShape, isDistance3D);
+        float dist = EvalDistance(center, pos, falloffShape);
         return EvalFalloff(dist);
     }
 

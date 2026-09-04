@@ -25,6 +25,7 @@ public class Window : GameWindow {
     OpenGlFbo fbo = new();
     bool needResize = true;
     Vector2i newSize = new();
+    bool showDemo = false;
 
     EditorState editor;
 
@@ -133,6 +134,18 @@ public class Window : GameWindow {
                     editor.cam.ImGuiEdit();
                     ImGui.EndMenu();
                 }
+                if (ImGui.BeginMenu("Brush")) {
+                    editor.brush.ImGuiEdit();
+                    ImGui.EndMenu();
+                }
+                
+                if (ImGui.BeginMenu("Help")) {
+                    if (ImGui.MenuItem("Show demo window")) {
+                        // TODO: There's a MenuItem overload for this, just dont know how the bindings expose it.
+                        showDemo = !showDemo;
+                    }
+                    ImGui.EndMenu();
+                }
 
                 ImGui.ProgressBar(percent / 100f, new SNVector2(), editor.UiProgressText);
                 ImGui.EndMenuBar();
@@ -142,8 +155,10 @@ public class Window : GameWindow {
             ImGui.Image(fbo.colorTexture, s, new SNVector2(0, 1), new SNVector2(1, 0));
             ImGui.End();
         }
-        
-        ImGui.ShowDemoWindow();
+
+        if (showDemo) {
+            ImGui.ShowDemoWindow();
+        }
         
         if (shouldSave) {
             editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
