@@ -288,59 +288,67 @@ public class Window : GameWindow {
     protected override void OnRenderFrame(FrameEventArgs e)
     {
         base.OnRenderFrame(e);
+        Profiler.EmitFrameMark();
 
         ImguiImplOpenGL3.NewFrame();
         ImguiImplOpenTK4.NewFrame();
         ImGui.NewFrame();
+        
+        using (Profiler.BeginZone("Update")) {
+            Update(e.Time);
+        }
 
         if (needResize) {
             fbo.Resize(newSize);
         }
 
-        fbo.Bind();
-        GL.Enable(EnableCap.DepthTest);
-        GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
-        
-        if (editor.bootProgress == DONE) {
-            var eyeWorld = new TerrainCoords.WorldPos(editor.cam.eye());
-            TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
+        using (Profiler.BeginZone("Main Render")) {
+            fbo.Bind();
+            GL.Enable(EnableCap.DepthTest);
+            GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
 
-            var projT = editor.cam.proj_matrix();
-            var viewT = editor.cam.view_matrix();
-            editor.terrain.Render(projT, viewT, eyeWorld);
+            if (editor.bootProgress == DONE) {
+                var eyeWorld = new TerrainCoords.WorldPos(editor.cam.eye());
+                TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
 
-            var textures = new int[2];
-            GL.GenTextures(2, textures);
+                var projT = editor.cam.proj_matrix();
+                var viewT = editor.cam.view_matrix();
+                editor.terrain.Render(projT, viewT, eyeWorld);
 
-            var fmt = PixelInternalFormat.CompressedRgbS3tcDxt1Ext;
-            var target = TextureTarget.Texture2D;
-            var texArray = editor.terrain.terrainTexArray;
-            GL.TextureView(textures[0], target, texArray, fmt, 0, 1, editor.brush.textureIndices[0], 1);
-            GL.TextureView(textures[1], target, texArray, fmt, 0, 1, editor.brush.textureIndices[1], 1);
-            
-            editor.brushRenderer.radius = editor.brush.effectiveRadius() * TerrainCoords.PixelToWorldScale;
-            editor.brushRenderer.Draw(projT, viewT, textures[0], textures[1]);
-            GL.DeleteTextures(2, textures);
-        }
-        fbo.Unbind();
-        
-        Update(e.Time);
-        
-        ImGui.Render();
-        GL.Viewport(0, 0, FramebufferSize.X, FramebufferSize.Y);
-        GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
-        ImguiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
+                var textures = new int[2];
+                GL.GenTextures(2, textures);
 
-        if (ImGui.GetIO().ConfigFlags.HasFlag(ImGuiConfigFlags.ViewportsEnable))
-        {
-            ImGui.UpdatePlatformWindows();
-            ImGui.RenderPlatformWindowsDefault();
-            Context.MakeCurrent();
+                var fmt = PixelInternalFormat.CompressedRgbS3tcDxt1Ext;
+                var target = TextureTarget.Texture2D;
+                var texArray = editor.terrain.terrainTexArray;
+                GL.TextureView(textures[0], target, texArray, fmt, 0, 1, editor.brush.textureIndices[0], 1);
+                GL.TextureView(textures[1], target, texArray, fmt, 0, 1, editor.brush.textureIndices[1], 1);
+
+                editor.brushRenderer.radius = editor.brush.effectiveRadius() * TerrainCoords.PixelToWorldScale;
+                editor.brushRenderer.Draw(projT, viewT, textures[0], textures[1]);
+                GL.DeleteTextures(2, textures);
+            }
+            fbo.Unbind();
         }
 
-        SwapBuffers();
+        using (Profiler.BeginZone("ImGui Render")) {
+            ImGui.Render();
+            GL.Viewport(0, 0, FramebufferSize.X, FramebufferSize.Y);
+            GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
+            ImguiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
+    
+            if (ImGui.GetIO().ConfigFlags.HasFlag(ImGuiConfigFlags.ViewportsEnable)) {
+                ImGui.UpdatePlatformWindows();
+                ImGui.RenderPlatformWindowsDefault();
+                Context.MakeCurrent();
+            }
+        }
+
+        using (Profiler.BeginZone("SwapBuffers")) {
+            SwapBuffers();
+        }
     }
 
     protected override void OnResize(ResizeEventArgs e) {

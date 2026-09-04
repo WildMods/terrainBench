@@ -160,6 +160,7 @@ public static class Raycast {
     /// already relative to its origin, this is just (0, 0).</param>
     /// <returns>The normalized world space direction vector, and the ray's origin</returns>
     public static Ray ScreenToRay(Vector2 mousePos, Matrix4 projT, Matrix4 viewT, Vector2 fbSize, Vector2 fbStart, bool flipY) {
+        var z = Profiler.BeginZone("ScreenToRay");
         // Map to NDC (-1 to 1)
         var mouseNDC = ((mousePos - fbStart) / fbSize) * 2 - new Vector2(1, 1);
         mouseNDC.Y *= (flipY ? -1 : 1);
@@ -179,6 +180,7 @@ public static class Raycast {
 
         // The direction is the vector from the near to the far plane
         var ray = new Ray(nearWorld.Xyz, (farWorld.Xyz - nearWorld.Xyz).Normalized());
+        z.Dispose();
         return ray;
     }
 }
