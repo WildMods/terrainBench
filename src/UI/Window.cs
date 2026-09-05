@@ -26,6 +26,7 @@ public class Window : GameWindow {
         APIVersion = new Version(4, 2)
     })
     {
+        this.VSync = VSyncMode.On;
         editor = new(args);
     }
 
