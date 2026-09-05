@@ -1,41 +1,18 @@
 #version 420 core
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
-layout (binding = 3) uniform sampler2D coverageTex;
-uniform int mask;
-uniform int eyeIdx;
-uniform int minDist;
 
 in VertexData {
-    float height;
     vec2 uv;
     vec2 posInTile;
-    flat int tileIdx;
+    bool shouldCull;
 }inData[];
 
 out VertexData {
-    float height;
     vec2 uv;
     vec2 posInTile;
     vec3 normal;
 }outData;
-
-// Copied from vertex shader
-// De-interleave the low 16 bits to get an 8-bit X/Z coordinate
-ivec2 idxToGridPos(int idx) {
-    ivec2 pos = ivec2(0);
-    for (int i = 0; i < 16; i+= 2) {
-        pos.y <<= 1;
-        pos.y |= ((idx >> 15) & 1);
-        idx <<= 1;
-
-        pos.x <<= 1;
-        pos.x |= ((idx >> 15) & 1);
-        idx <<= 1;
-    }
-    return pos;
-}
-
 
 /*
     Signed edge function. Returns 0 if the point lies on the edge, -1 if it lies on
@@ -47,42 +24,8 @@ float edge_func(vec2 v0, vec2 v1, vec2 p) {
     return determinant(mat2(p - v0, v1 - v0));
 }
 
-int manhattanDist(ivec2 a, ivec2 b) {
-    ivec2 d = abs(a - b);
-    return d.x + d.y;
-}
-
-// Check if a vertex belongs to a low-res tile that should be culled to make
-// room for a higher-res one
-bool cull_by_coverage(int i) {
-    int idx = inData[i].tileIdx;
-    
-    int lod = idx >> 16;
-    // Figure out this pixel's position within the level 8 tile grid
-    int sizeofThisTile = (1 << (8 - lod));
-    int index = idx & 0xFFFF;
-    index <<= (2 * (8 - lod)); // Convert to index in the level 8 grid
-    ivec2 lvl8Pos = (idxToGridPos(index) + ivec2(inData[i].posInTile.yx));
-    
-    if (manhattanDist(idxToGridPos(eyeIdx), lvl8Pos) < minDist) {
-        return true; // Cull it
-    }
-
-    // Don't draw this part of the tile if a higher-res tile has already been drawn here
-    int lodBit = lod - 1;
-    int lodCoverage = int(texelFetch(coverageTex, lvl8Pos, 0).r * 255.0);
-    // If the value isn't 1 after shifting, that means a higher LOD bit is
-    // present (i.e. there is a higher-quality tile available), and/or our LOD
-    // bit is unset.
-    if (((lodCoverage & mask) >> lodBit) != 1) {
-        return true;
-    }
-    
-    return false;
-}
-
 void main() {
-    if (cull_by_coverage(0) && cull_by_coverage(1) && cull_by_coverage(2)) {
+    if (inData[0].shouldCull && inData[1].shouldCull && inData[2].shouldCull) {
         return; // Low-quality triangle, cull it.
     }
 
@@ -101,7 +44,6 @@ void main() {
     // Just emit the vertex as-is.
     for (int i = 0; i < 3; i++) {
         gl_Position = gl_in[i].gl_Position;
-        outData.height = inData[i].height;
         outData.uv = inData[i].uv;
         outData.posInTile = inData[i].posInTile;
         outData.normal = normal;

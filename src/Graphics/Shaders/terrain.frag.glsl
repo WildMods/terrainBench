@@ -1,7 +1,6 @@
 #version 420 core
 #extension GL_ARB_shading_language_420pack: require
 in VertexData {
-    float height;
     vec2 uv;
     vec2 posInTile;
     vec3 normal;
