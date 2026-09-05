@@ -390,12 +390,12 @@ public struct TerrainRenderer {
     public struct TileRegion {
         public readonly List<CompactTileSheet> sheets = [];
 
-        public TileRegion(CoverageMap lodCoverage, Cache cache, byte sizeTiles, byte xCenter, byte yCenter) {
+        public TileRegion(CoverageMap lodCoverage, Cache cache, byte sizeTiles, byte xCenter, byte yCenter, byte maxLOD = ZOrder.MAX_LOD) {
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
 
             // Build deduplicated set of packed index values
-            var indices = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
+            var indices = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles, maxLOD);
             Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
 
             // Build tile atlases and do GPU upload
@@ -416,10 +416,10 @@ public struct TerrainRenderer {
             }
         }
 
-        public void UploadNewTiles(CoverageMap lodCoverage, Cache cache, byte xCenter, byte yCenter, byte sizeTiles) {
+        public void UploadNewTiles(CoverageMap lodCoverage, Cache cache, byte xCenter, byte yCenter, byte sizeTiles, byte maxLOD = ZOrder.MAX_LOD) {
             var z = Profiler.BeginZone("R_FindNewTiles");
             // The set of tiles in the draw radius (i.e. that should be in VRAM)
-            var inGroup = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles);
+            var inGroup = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles, maxLOD);
             // The set of tiles that should be in VRAM, but aren't yet
             var missingGroup = new HashSet<int>(inGroup);
             
@@ -485,6 +485,7 @@ public struct TerrainRenderer {
     public CoverageMap lodCoverage;
 
     TileRegion ring0;
+    TileRegion ring1;
     public int renderRadius = 32;
 
     /// <summary>
@@ -569,6 +570,7 @@ public struct TerrainRenderer {
 
         var loadWatch = Stopwatch.StartNew();
         ring0 = new(lodCoverage, cache, 32, 128, 128);
+        ring1 = new(lodCoverage, cache, 255, 128, 128, 5);
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
@@ -728,7 +730,16 @@ public struct TerrainRenderer {
 
         var eyeTile = (TerrainCoords.TileGrid8Pos)eyeWorld;
         var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);
+
+        tessShader.SetUniform("eyeIdx", center);
+        tessShader.SetUniform("mask", 0xFF);
+        tessShader.SetUniform("minDist", 0);
         ring0.Draw(tilesPerTexLoc, indicesLocation, 0, renderRadius, center);
+
+        tessShader.SetUniform("eyeIdx", center);
+        tessShader.SetUniform("mask", 0xFF >> 3);
+        tessShader.SetUniform("minDist", renderRadius);
+        ring1.Draw(tilesPerTexLoc, indicesLocation, renderRadius, 256, center);
 
         GL.BindVertexArray(0);
         z.Dispose();

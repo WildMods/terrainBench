@@ -2,6 +2,9 @@
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
 layout (binding = 3) uniform sampler2D coverageTex;
+uniform int mask;
+uniform int eyeIdx;
+uniform int minDist;
 
 in VertexData {
     float height;
@@ -44,16 +47,26 @@ float edge_func(vec2 v0, vec2 v1, vec2 p) {
     return determinant(mat2(p - v0, v1 - v0));
 }
 
+int manhattanDist(ivec2 a, ivec2 b) {
+    ivec2 d = abs(a - b);
+    return d.x + d.y;
+}
+
 // Check if a vertex belongs to a low-res tile that should be culled to make
 // room for a higher-res one
 bool cull_by_coverage(int i) {
     int idx = inData[i].tileIdx;
+    
     int lod = idx >> 16;
     // Figure out this pixel's position within the level 8 tile grid
     int sizeofThisTile = (1 << (8 - lod));
     int index = idx & 0xFFFF;
     index <<= (2 * (8 - lod)); // Convert to index in the level 8 grid
     ivec2 lvl8Pos = (idxToGridPos(index) + ivec2(inData[i].posInTile.yx));
+    
+    if (manhattanDist(idxToGridPos(eyeIdx), lvl8Pos) < minDist) {
+        return true; // Cull it
+    }
 
     // Don't draw this part of the tile if a higher-res tile has already been drawn here
     int lodBit = lod - 1;
@@ -61,7 +74,7 @@ bool cull_by_coverage(int i) {
     // If the value isn't 1 after shifting, that means a higher LOD bit is
     // present (i.e. there is a higher-quality tile available), and/or our LOD
     // bit is unset.
-    if ((lodCoverage >> lodBit) != 1) {
+    if (((lodCoverage & mask) >> lodBit) != 1) {
         return true;
     }
     

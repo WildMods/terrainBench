@@ -50,13 +50,14 @@ public class CoverageMap {
     /// <summary>
     /// Find out the highest detail level available at a specific coordinate
     /// </summary>
-    public byte FindBestLOD(byte x, byte y) {
+    public byte FindBestLOD(byte x, byte y, byte maxLOD = ZOrder.MAX_LOD) {
         var linearIdx = ZOrder.GRID_SIZE * y + x;
         var cov = map[linearIdx];
         if (cov == 0) {
             return 0;
         }
-        byte best = ZOrder.MAX_LOD;
+        cov <<= (ZOrder.MAX_LOD - maxLOD);
+        byte best = maxLOD;
         while ((cov & 0x80) == 0) {
             cov <<= 1;
             best--;
@@ -99,7 +100,7 @@ public class CoverageMap {
         return FindAllTilesInSquare(xMin, yMin, xMax, yMax);
     }
     
-    public HashSet<Int32> FindAllTilesInManhattanRadius(byte xCenter, byte yCenter, ushort sizeTiles) {
+    public HashSet<Int32> FindAllTilesInManhattanRadius(byte xCenter, byte yCenter, ushort sizeTiles, byte maxLOD = ZOrder.MAX_LOD) {
         byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
         byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
         byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
@@ -113,7 +114,7 @@ public class CoverageMap {
                     continue;
                 }
                 
-                byte best = FindBestLOD((byte)x, (byte)y);
+                byte best = FindBestLOD((byte)x, (byte)y, maxLOD);
                 var idx = ZOrder.Interleave8To16((byte)x, (byte)y);
                 
                 var lvlDiff = ZOrder.MAX_LOD - best;

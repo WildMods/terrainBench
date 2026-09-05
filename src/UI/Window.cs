@@ -395,7 +395,7 @@ public class Window : GameWindow {
                     Console.WriteLine($"[DontCare] [{source}] {message}");
                     break;
                 case DebugSeverity.DebugSeverityNotification:
-                    //Logger?.LogDebug($"[{source}] {message}");
+                    // Console.WriteLine($"Notification: [{source}] {message}");
                     break;
                 case DebugSeverity.DebugSeverityHigh:
                     Console.Error.WriteLine($"Error: [{source}] {message}");
