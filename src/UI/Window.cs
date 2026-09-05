@@ -58,7 +58,7 @@ public class Window : GameWindow {
     protected override void OnLoad() {
         base.OnLoad();
 
-        Title = $"Terrain Workbench [{GL.GetString(StringName.Version)}]";
+        Title = EditorState.defaultWindowTitle;
 
         GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
         GL.Enable(EnableCap.DebugOutput);
@@ -125,15 +125,13 @@ public class Window : GameWindow {
             return;
         }
         if (ImGui.Begin("About")) {
-            ImGui.Text($"Terrain Workbench {AboutSelf.version} written by {AboutSelf.authors}.");
+            ImGui.Text(AboutSelf.AboutText());
 
             var glVersion = GL.GetString(StringName.Version);
             var glVendor = GL.GetString(StringName.Vendor);
             var glslVersion = GL.GetString(StringName.ShadingLanguageVersion);
             var glRenderer = GL.GetString(StringName.Renderer);
             ImGui.Text($"\nGL Version: {glVendor} {glVersion}\nGLSL Version: {glslVersion}\nRenderer: {glRenderer}\n\n");
-            ImGui.Text($"Resources: {AboutSelf.resources}");
-            ImGui.Text($"Special thanks: {AboutSelf.specialThanks}");
             ImGui.End();
         }
     }

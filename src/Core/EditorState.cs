@@ -7,7 +7,7 @@ public partial class EditorState {
         INIT, TILES_LOADING, SHOW_UPLOAD_MSG, LOAD_TERRAIN_TEXTURES, UPLOADING, DONE,
     }
     
-    public const string defaultWindowTitle = "Terrain Workbench";
+    public static string defaultWindowTitle = $"{AboutSelf.name} {AboutSelf.version}";
     public const string gpuUploadWindowTitle = "Uploading to GPU...";
 
     public string controlsInfo = @"
