@@ -106,6 +106,8 @@ public class Window : GameWindow {
             (s.Colors[i].Y, s.Colors[i].Z) = (s.Colors[i].Z, s.Colors[i].Y);
         }
 
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(TriangleFace.Back);
         fbo.GLInit();
         GLFWProvider.SetErrorCallback(GLFWErrorCallback);
         

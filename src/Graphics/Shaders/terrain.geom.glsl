@@ -33,9 +33,16 @@ void main() {
     vec4 v0 = gl_in[0].gl_Position;
     vec4 v1 = gl_in[1].gl_Position;
     vec4 v2 = gl_in[2].gl_Position;
+    
+    // In my testing, it seems like using the built-in (hardware) backface
+    // culling gives nearly identical performance to doing it here in software.
+    // I've read that doing it in software is faster in some cases, so I'd like
+    // to keep the code around. -- torf
+#if 0
     if (edge_func(v1.xy / v1.w, v2.xy / v2.w, v0.xy / v0.w) > 0) {
         return; // Face is seen from behind, cull it.
     }
+#endif
     
     vec3 d1 = v0.xyz - v1.xyz;
     vec3 d2 = v0.xyz - v2.xyz;

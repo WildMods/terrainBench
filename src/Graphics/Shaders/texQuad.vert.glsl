@@ -3,7 +3,7 @@
 // 1x1 quad vertices
 const vec2 base = vec2(0, 1.0);
 const vec2 uvs[6] = vec2[](
-    base.xx, base.xy, base.yx,
+    base.xx, base.yx, base.xy,
     base.yy, base.xy, base.yx
 );
 
@@ -12,7 +12,7 @@ out vec2 uv;
 
 void main() {
     vec2 verts[6] = vec2[](
-        rect.xy, rect.xw, rect.zy, // min-min, min-max, max-min
+        rect.xy, rect.zy, rect.xw, // min-min, max-min, min-max
         rect.zw, rect.xw, rect.zy  // max-max, min-max, max-min
     );
     
