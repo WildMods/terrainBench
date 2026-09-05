@@ -20,7 +20,7 @@ in int tileIndex[];
 out VertexData {
     vec2 uv;
     vec2 posInTile;
-    bool shouldCull;
+    int shouldCull;
 }outData;
 
 // Copied from vertex shader
@@ -46,7 +46,7 @@ int manhattanDist(ivec2 a, ivec2 b) {
 
 // Check if a vertex belongs to a low-res tile that should be culled to make
 // room for a higher-res one
-bool cull_by_coverage(int idx, vec2 posInTile) {
+int cull_by_coverage(int idx, vec2 posInTile) {
     
     int lod = idx >> 16;
     // Figure out this pixel's position within the level 8 tile grid
@@ -56,7 +56,7 @@ bool cull_by_coverage(int idx, vec2 posInTile) {
     ivec2 lvl8Pos = (idxToGridPos(index) + ivec2(posInTile.yx));
     
     if (manhattanDist(idxToGridPos(eyeIdx), lvl8Pos) < minDist) {
-        return true; // Cull it
+        return 1; // Cull it
     }
 
     // Don't draw this part of the tile if a higher-res tile has already been drawn here
@@ -66,10 +66,10 @@ bool cull_by_coverage(int idx, vec2 posInTile) {
     // present (i.e. there is a higher-quality tile available), and/or our LOD
     // bit is unset.
     if (((lodCoverage & mask) >> lodBit) != 1) {
-        return true;
+        return 1;
     }
     
-    return false;
+    return 0;
 }
 
 

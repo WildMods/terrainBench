@@ -5,7 +5,7 @@ layout (triangle_strip, max_vertices = 3) out;
 in VertexData {
     vec2 uv;
     vec2 posInTile;
-    bool shouldCull;
+    int shouldCull;
 }inData[];
 
 out VertexData {
@@ -25,7 +25,7 @@ float edge_func(vec2 v0, vec2 v1, vec2 p) {
 }
 
 void main() {
-    if (inData[0].shouldCull && inData[1].shouldCull && inData[2].shouldCull) {
+    if (inData[0].shouldCull == 1 && inData[1].shouldCull == 1 && inData[2].shouldCull == 1) {
         return; // Low-quality triangle, cull it.
     }
 

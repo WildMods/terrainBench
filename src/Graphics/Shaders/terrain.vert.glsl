@@ -46,25 +46,28 @@ void main() {
     int lod = idx >> 16;
     float tileFactor = float(1 << MAX_LOD) / float(1 << lod);
 
+    // Figure out if this entire tile will be outside the frustum and can be culled
     bool outsideFrustum = true;
     for (int i = 0; i < 4; i++) {
         vec3 v = calcVertForIdx(idx, i, tileFactor);
         
         vec4 ndcCenter = matView * matModel * vec4(v, 1);
+        // Ignore the Y component of the camera, to essentially do 2D clipping against the tile grid.
         ndcCenter.y = 0;
         ndcCenter = matProjection * ndcCenter;
         ndcCenter /= ndcCenter.w;
+        
         float threshold = 1;
-        if (abs(ndcCenter.x) > threshold || abs(ndcCenter.y) > threshold || abs(ndcCenter.z) > threshold) {
-        } else {
+        if (abs(ndcCenter.x) < threshold && abs(ndcCenter.y) < threshold && abs(ndcCenter.z) < threshold) {
             outsideFrustum = false;
+            break;
         }
     }
 
     if (outsideFrustum) {
         tileIdx = -1;
         gl_Position = vec4(0, 0, 2, 1);
-        return;
+        return; // Cull the whole tile.
     }
     
     vec3 pos = calcVertForIdx(idx, gl_VertexID, tileFactor);
