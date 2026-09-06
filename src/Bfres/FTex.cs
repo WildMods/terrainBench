@@ -5,6 +5,8 @@ namespace terrainBench.Bfres;
 // See https://mk8.tockdom.com/wiki/FTEX_(File_Format)
 [StructLayout(LayoutKind.Sequential, Size = 0xC0)]
 public unsafe struct FTexHeader {
+    public const int MAX_MIPS = 13;
+    
     public readonly uint magic;
     public readonly uint dimension; // GX2SurfaceDim
     public readonly uint width;
@@ -22,7 +24,7 @@ public unsafe struct FTexHeader {
     public readonly uint swizzleValue;
     public readonly uint alignment; // [bytes per pixel] * 512
     public readonly uint pitch;
-    public fixed uint mipmapOffsets[13];
+    public fixed uint mipmapOffsets[MAX_MIPS];
     public readonly uint firstMip;
     public readonly uint mipCount;
     public readonly uint firstSlice; // Always 0
@@ -50,7 +52,7 @@ public unsafe struct FTexHeader {
         Channel mapping [RGBA order]: {(GX2Component)channelMapping[0]} {(GX2Component)channelMapping[1]} {(GX2Component)channelMapping[2]} {(GX2Component)channelMapping[3]}
         Alignment {alignment}, pitch {pitch}
         Mip offsets: ";
-        for (int i = 0; i < 13; i++) {
+        for (int i = 0; i < MAX_MIPS; i++) {
             msg += String.Format("0x{0:X} ", mipmapOffsets[i]);
         }
         msg += "\n";
@@ -79,7 +81,7 @@ public unsafe struct FTexHeader {
         EndianUtils.Swap(&h->alignment);
         EndianUtils.Swap(&h->pitch);
 
-        for (int i = 0; i < 13; i++) {
+        for (int i = 0; i < MAX_MIPS; i++) {
             EndianUtils.Swap(&h->mipmapOffsets[i]);
         }
         EndianUtils.Swap(&h->firstMip);
@@ -103,4 +105,9 @@ public unsafe struct FTexHeader {
         EndianUtils.Swap(&h->userDataEntryCount);
         EndianUtils.Swap(&h->padding);
     } 
+
+    public readonly long CalcSurfaceSize() {
+        var numSamples = 1 << (int)aaMode;
+        return height * pitch * depth * numSamples;
+    }
 }

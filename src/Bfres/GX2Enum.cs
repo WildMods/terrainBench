@@ -309,3 +309,46 @@ enum GX2Component {
     GX2_COMPONENT_FIRST = COMPONENT_R,
     GX2_COMPONENT_LAST  = CONST_1,
 };
+
+
+public static class GX2 {
+    public static bool IsFormatBCN(GX2SurfaceFormat format) {
+        switch (format) {
+            case GX2SurfaceFormat.T_BC1_UNORM:
+            case GX2SurfaceFormat.T_BC1_SRGB:
+            case GX2SurfaceFormat.T_BC2_UNORM:
+            case GX2SurfaceFormat.T_BC2_SRGB:
+            case GX2SurfaceFormat.T_BC3_UNORM:
+            case GX2SurfaceFormat.T_BC3_SRGB:
+            case GX2SurfaceFormat.T_BC4_UNORM:
+            case GX2SurfaceFormat.T_BC4_SNORM:
+            case GX2SurfaceFormat.T_BC5_SNORM:
+            case GX2SurfaceFormat.T_BC5_UNORM:
+                return true;
+            default:
+                return false;
+        }
+    }
+    public static int BlockSize(GX2SurfaceFormat format) {
+        return IsFormatBCN(format) ? 4 : 1;
+    }
+
+    public static uint CalcPitch(GX2SurfaceFormat format, uint width)
+    {
+        return (uint)(width / BlockSize(format));
+    }
+
+    public static uint CalcBitsPerPixel(uint pitch) {
+        return (pitch * 8) / 512;
+    }
+    
+    public static long CalcSurfaceSize(uint height, uint pitch, uint depth, uint aaMode) {
+        var numSamples = 1 << (int)aaMode;
+        return height * pitch * depth * numSamples;
+    }
+    
+    public static long CalcSliceSize(uint height, uint pitch, uint aaMode) {
+        var numSamples = 1 << (int)aaMode;
+        return height * pitch * numSamples;
+    }
+}

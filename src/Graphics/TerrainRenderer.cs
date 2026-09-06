@@ -682,7 +682,6 @@ public struct TerrainRenderer {
                 unsafe {
                     fixed (byte* bp = mip == 0 ? data : mipData) {
                         nint ptr = (IntPtr)bp + posInTexture;
-                        Console.WriteLine("Uploading level of {0} bytes", levelSize);
                         ptr += levelSize * order[i];
                         GL.CompressedTextureSubImage3D(terrainTexArray, mip, 0, 0, pos, curWidth, curHeight, 1, (PixelFormat)dxt1, levelSize, ptr);
                     }

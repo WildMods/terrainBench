@@ -271,18 +271,26 @@ public class ResourceFile {
 
 
         var mipMin = mip ? 1 : 0;
-        var mipMax = mip ? Math.Min(13, ftex.mipCount) : 1;
+        var mipMax = mip ? Math.Min(FTexHeader.MAX_MIPS, ftex.mipCount) : 1;
         var numMips = mipMax - mipMin;
+        var blockSize = GX2.BlockSize((GX2SurfaceFormat)ftex.format);
 
         uint outPos = 0;
         var outBuf = new byte[swizzledData.Length];
         for (int lvl = mipMin; lvl < mipMax; lvl++) {
             var width = Math.Max(1, ftex.width >> lvl);
             var height = Math.Max(1, ftex.height >> lvl);
-            
-            var layerSize = Math.Max(8, width * height * bitsPerPixel / 8);
+            uint curPitch = ftex.pitch >> lvl;
+
+            var layerSize = Math.Max(8, width * height * bitsPerPixel / (1 * 8));
             var levelSize = layerSize * ftex.arrayLength;
-            Console.WriteLine("Layer size: {0}", layerSize);
+            
+            var layerSizeIn = Math.Max(layerSize, ftex.alignment / 8);
+            var rowSizeIn = layerSizeIn / blockSize;
+            Console.WriteLine("Input layer size: {0}, row size {1} @ mip {2}", layerSizeIn, rowSizeIn, lvl);
+            
+            Console.WriteLine("Layer size: {0}, alternate calc gives {1}", layerSize, GX2.CalcSliceSize(ftex.height, ftex.pitch, ftex.aaMode));
+            Console.WriteLine("Level size: {0}, alternate calc gives {1}", levelSize, GX2.CalcSurfaceSize(ftex.height, ftex.pitch, ftex.depth, ftex.aaMode));
             uint startOffset = 0;
             if (mip) {
                 unsafe {
@@ -292,26 +300,32 @@ public class ResourceFile {
                     startOffset -= ftex.dataSize;
                 }
             }
-            Console.WriteLine("Deswizzling mip level {0} (offset 0x{1:X})", lvl, startOffset);
-            var levelDataIn = ROSpanSegment<byte>(swizzledData, startOffset, (int)(layerSize * ftex.arrayLength));
+            var levelDataIn = ROSpanSegment<byte>(swizzledData, startOffset, (int)(layerSizeIn * ftex.arrayLength));
             var levelDataOut = SpanSegment<byte>(outBuf, outPos, (int)(layerSize * ftex.arrayLength));
             outPos += levelSize;
-            
-            File.WriteAllBytes($"mip{lvl}.bin", levelDataIn.ToArray());
 
-            var curPitch = ftex.pitch >> 2 * lvl;
+            File.WriteAllBytes($"mip{lvl}.bin", levelDataIn.ToArray());
+            
+            Console.WriteLine("Pitch = {0} @ lvl {1}, levelSize {2}, layerSize {3}", curPitch, lvl, levelSize, layerSize);
             for (uint i = 0; i < ftex.arrayLength; i++) {
-                var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSize, (int)layerSize);
+                var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSizeIn, (int)layerSize);
                 var layerOut = SpanSegment<byte>(levelDataOut, i * layerSize, (int)layerSize);
 
+                // Please remove this later! This is a hack to just copy the mip
+                // data unswizzled, which is mostly not noticable at a distance.
+                layerIn.CopyTo(layerOut);
+                if (lvl > 3) {
+                    continue;
+                }
+
+                // Note the input and output are the same right now since we copy the unswizzled data in
                 BfresLibrary.Swizzling.GX2.swizzleSurf(width, height,
                     i, ftex.format, ftex.aaMode, ftex.usage, ftex.tileMode,
-                    ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
+                    ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerOut, layerOut, 0);
             }
             File.WriteAllBytes($"outmip{lvl}.bin", levelDataOut.ToArray());
         }
         
-        Console.WriteLine("Got deswizzled array of {0} bytes of texture data", outBuf.Length);
         return outBuf;
     }
     
