@@ -6,7 +6,10 @@ using Entish.Attributes;
 using static Entish.EndianUtils;
 using OperationResult;
 using static OperationResult.Helpers;
+
+using BfresLibrary;
 namespace terrainBench;
+using Bfres;
 
 public class ResourceFile {
     public enum SubfileType {
@@ -119,14 +122,35 @@ public class ResourceFile {
         }
     }
 
-    private static unsafe ReadOnlySpan<T> SpanSegment<T>(ReadOnlySpan<byte> span, long offset, int count)
+    private static unsafe ReadOnlySpan<T> ROSpanSegment<T>(ReadOnlySpan<byte> span, long offset, int count)
         where T : unmanaged
     {
         Debug.Assert(offset >= 0 && count >= 0);
-        Debug.Assert((offset + sizeof(T) * count) < span.Length);
+        var size = sizeof(T) * count;
+        var endPos = offset + size;
+        if (endPos > span.Length) {
+            Console.WriteLine("Span of size {0} @ offset {1} would be out of bounds (size = {2})", size, offset, span.Length);
+            Debug.Assert(false);
+        }
         fixed (byte* ptr = span) {
             var pos = (T*)(ptr + offset);
             return new ReadOnlySpan<T>(pos, count);
+        }
+    }
+    
+    private static unsafe Span<T> SpanSegment<T>(Span<byte> span, long offset, int count)
+        where T : unmanaged
+    {
+        Debug.Assert(offset >= 0 && count >= 0);
+        var size = sizeof(T) * count;
+        var endPos = offset + size;
+        if (endPos > span.Length) {
+            Console.WriteLine("Span of size {0} @ offset {1} would be out of bounds (size = {2})", size, offset, span.Length);
+            Debug.Assert(false);
+        }
+        fixed (byte* ptr = span) {
+            var pos = (T*)(ptr + offset);
+            return new Span<T>(pos, count);
         }
     }
 
@@ -158,27 +182,27 @@ public class ResourceFile {
             var group = ReadUnsafe<IndexGroup>(data, h.indexGroupOffset);
             IndexGroup.Swap(header.bom, &group);
             uint entriesPos = (uint)(h.indexGroupOffset + sizeof(IndexGroup));
-            var entries = SpanSegment<IndexGroupEntry>(data, entriesPos, group.entryCount + 1);
+            var entries = ROSpanSegment<IndexGroupEntry>(data, entriesPos, group.entryCount + 1);
 
 
             // Walk the radix tree of entries. See:
             // https://mk8.tockdom.com/wiki/BFRES_(File_Format)#Index_Group
             // Also see BfresLibrary.ResDict.Traverse() in the BfresLibrary project:
             // https://github.com/KillzXGaming/BfresLibrary/blob/master/BfresLibrary/Shared/Common/ResDict.cs#L515-L539
-            
+
             IndexGroupEntry parent = entries[0];
             IndexGroupEntry.Swap(header.bom, &parent);
-            
+
             uint childIdx = parent.leftIndex;
             IndexGroupEntry child = entries[(int)childIdx];
             IndexGroupEntry.Swap(header.bom, &child);
-            
+
             // Each entry points to a specific bit in a specific character of
             // the filename. The value of that bit determines whether we walk
             // left or right down the tree.
             while (parent.searchValue > child.searchValue) {
                 parent = child;
-                
+
                 // Get the bit pointed to by this entry
                 uint charpos = child.searchValue >> 3;
                 byte bitpos = (byte)(child.searchValue & 0b111);
@@ -187,12 +211,12 @@ public class ResourceFile {
                     int c = name[(int)charpos] >> bitpos;
                     direction = c & 1;
                 }
-                
+
                 // Walk down the tree based on the target bit
-                childIdx = direction == 1 ? child.rightIndex : child.leftIndex; 
+                childIdx = direction == 1 ? child.rightIndex : child.leftIndex;
                 child = entries[(int)childIdx];
                 IndexGroupEntry.Swap(header.bom, &child);
-                
+
                 if (childIdx == 0 || childIdx > group.entryCount) {
                     Console.WriteLine("Can't find '{0}'", name);
                     return 0; // Unable to find entry
@@ -204,16 +228,94 @@ public class ResourceFile {
             // C# doesn't seem to have anything like offsetof().
             const int NAME_PTR_OFFSET_IN_ENTRY = 8;
             const int DATA_PTR_OFFSET_IN_ENTRY = 12;
-            
+
             var namePtr = targetEntryPos + NAME_PTR_OFFSET_IN_ENTRY + child.nameOffset;
             var dataPtr = targetEntryPos + DATA_PTR_OFFSET_IN_ENTRY + child.dataOffset;
             Console.WriteLine("Found '{0}' in entry {1}, name @ 0x{2:X}, data @ 0x{3:X}", name, childIdx, namePtr, dataPtr);
             return (uint)dataPtr;
         }
     }
+
+    public static FTexHeader GetFTEX(ReadOnlySpan<byte> data, uint offset) {
+        var header = ReadUnsafe<ResFileHeader>(data, 0);
+        var ftex = ReadUnsafe<FTexHeader>(data, offset);
+        unsafe {
+            FTexHeader.Swap(header.bom, &ftex);
+        }
+
+        return ftex;
+    }
+
+    public static ReadOnlySpan<byte> GetRawTextureData(ReadOnlySpan<byte> data, uint ftexOffset, FTexHeader ftex, bool mip) {
+        short BASE_OFFSET_POS = 0xB0;
+        short MIP_OFFSET_POS = 0xB4;
+        var baseDataOffset = ftexOffset + BASE_OFFSET_POS + ftex.dataOffset;
+        var mipDataOffset = ftexOffset + MIP_OFFSET_POS + (ftex.mipOffset - ftex.dataSize);
+
+        if (mip) {
+            var mipSpan = ROSpanSegment<byte>(data, mipDataOffset, (int)ftex.mipmapsSize);
+            return mipSpan;
+        } else {
+            var baseSpan = ROSpanSegment<byte>(data, baseDataOffset, (int)ftex.dataSize);
+            Console.WriteLine("Got swizzled span of {0} bytes of texture data", baseSpan.Length);
+            return baseSpan;
+        }
+    }
+
+    public static byte[] GetDeswizzledTextureData(ReadOnlySpan<byte> data, uint ftexOffset, FTexHeader ftex, bool mip) {
+        var swizzledData = GetRawTextureData(data, ftexOffset, ftex, mip);
+
+        // Alignment = 512 * bytes per pixel
+        var bitsPerPixel = (ftex.pitch * 8) / 512;
+        var bitsPerBlock = (ftex.alignment * 8) / 512;
+
+
+        var mipMin = mip ? 1 : 0;
+        var mipMax = mip ? Math.Min(13, ftex.mipCount) : 1;
+        var numMips = mipMax - mipMin;
+
+        uint outPos = 0;
+        var outBuf = new byte[swizzledData.Length];
+        for (int lvl = mipMin; lvl < mipMax; lvl++) {
+            var width = Math.Max(1, ftex.width >> lvl);
+            var height = Math.Max(1, ftex.height >> lvl);
+            
+            var layerSize = Math.Max(8, width * height * bitsPerPixel / 8);
+            var levelSize = layerSize * ftex.arrayLength;
+            Console.WriteLine("Layer size: {0}", layerSize);
+            uint startOffset = 0;
+            if (mip) {
+                unsafe {
+                    startOffset = ftex.mipmapOffsets[lvl - 1];
+                }
+                if (lvl == 1) {
+                    startOffset -= ftex.dataSize;
+                }
+            }
+            Console.WriteLine("Deswizzling mip level {0} (offset 0x{1:X})", lvl, startOffset);
+            var levelDataIn = ROSpanSegment<byte>(swizzledData, startOffset, (int)(layerSize * ftex.arrayLength));
+            var levelDataOut = SpanSegment<byte>(outBuf, outPos, (int)(layerSize * ftex.arrayLength));
+            outPos += levelSize;
+            
+            File.WriteAllBytes($"mip{lvl}.bin", levelDataIn.ToArray());
+
+            var curPitch = ftex.pitch >> 2 * lvl;
+            for (uint i = 0; i < ftex.arrayLength; i++) {
+                var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSize, (int)layerSize);
+                var layerOut = SpanSegment<byte>(levelDataOut, i * layerSize, (int)layerSize);
+
+                BfresLibrary.Swizzling.GX2.swizzleSurf(width, height,
+                    i, ftex.format, ftex.aaMode, ftex.usage, ftex.tileMode,
+                    ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
+            }
+            File.WriteAllBytes($"outmip{lvl}.bin", levelDataOut.ToArray());
+        }
+        
+        Console.WriteLine("Got deswizzled array of {0} bytes of texture data", outBuf.Length);
+        return outBuf;
+    }
     
     public static void ParseBFRES(ReadOnlySpan<byte> data) {
-        uint pos = 0;
         var ftexHandleRes = GetSubfile(data, SubfileType.FTEX);
         if (ftexHandleRes.IsErr()) {
             Console.WriteLine("Failed to find FTEX subfile!");
@@ -221,6 +323,13 @@ public class ResourceFile {
 
         var ftexHandle = ftexHandleRes.Unwrap();
         Console.WriteLine("FTEX offset 0x{0:x}, {1} entries", ftexHandle.indexGroupOffset, ftexHandle.fileCount);
-        FindSubfileEntry(data, ftexHandle, "MaterialAlb");
+        uint offset = FindSubfileEntry(data, ftexHandle, "MaterialAlb");
+
+        unsafe {
+            var header = ReadUnsafe<ResFileHeader>(data, 0);
+            var ftex = ReadUnsafe<Bfres.FTexHeader>(data, offset);
+            Bfres.FTexHeader.Swap(header.bom, &ftex);
+            Console.WriteLine("{0}", ftex);
+        }
     }
 }

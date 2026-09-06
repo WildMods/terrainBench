@@ -18,13 +18,22 @@ public class BfresTextureReader {
     // If pulling from Wii U files, this will be the Tex2 BFRES (for mipmaps)
     readonly ResFile? mipRes = null;
 
+    public byte[] deswizzledBase = Array.Empty<byte>();
+    public byte[] deswizzledMip = Array.Empty<byte>();
+
     BfresTextureReader(Span<byte> baseData) {
         baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
     }
     
     BfresTextureReader(Span<byte> baseData, Span<byte> mipData) {
         baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
-        mipRes = new ResFile(new MemoryStream(mipData.ToArray()));
+        var deswizzleTime = Stopwatch.StartNew();
+        ResourceFile.ParseBFRES(baseData);
+        ResourceFile.ParseBFRES(mipData);
+        deswizzledBase = GetDeswizzled("MaterialAlb", baseData, false);
+        deswizzledMip = GetDeswizzled("MaterialAlb", mipData, true);
+        deswizzleTime.Stop();
+        Console.WriteLine("Loaded base textures in {0}ms", deswizzleTime.ElapsedMilliseconds);
     }
     
     /// <param name="basePath">e.g. "Model/Terrain" can read "Model/Terrain.Tex.sbfres",
@@ -82,5 +91,20 @@ public class BfresTextureReader {
         }
 
         return tex;
+    }
+
+    public static byte[] GetDeswizzled(string name, ReadOnlySpan<byte> data, bool mip) {
+        var ftexHandleRes = ResourceFile.GetSubfile(data, ResourceFile.SubfileType.FTEX);
+        if (ftexHandleRes.IsErr()) {
+            Console.WriteLine("Failed to find FTEX subfile!");
+        }
+
+        var ftexHandle = ftexHandleRes.Unwrap();
+        Console.WriteLine("FTEX offset 0x{0:x}, {1} entries", ftexHandle.indexGroupOffset, ftexHandle.fileCount);
+        uint offset = ResourceFile.FindSubfileEntry(data, ftexHandle, "MaterialAlb");
+
+        var ftex = ResourceFile.GetFTEX(data, offset);
+        var result = ResourceFile.GetDeswizzledTextureData(data, offset, ftex, mip);
+        return result;
     }
 }

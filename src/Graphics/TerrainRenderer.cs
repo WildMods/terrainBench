@@ -666,35 +666,36 @@ public struct TerrainRenderer {
         GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
         GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.MirroredRepeat);
 
-        for (Int32 i = 0, pos = 0; i < order.Length; i++) {
-            deswizzleTime.Start();
+        var data = bfresReader.deswizzledBase;
+        var mipData = bfresReader.deswizzledMip;
+        if (data.Length == 0) {
+            Console.WriteLine("Failed to decode texture");
+        }
 
-            // The BFRES library's mipmap loading doesn't work and I couldn't
-            // easily fix it, so we only load mip 0. -- torf
-            int mip = 0;
-            var curTex = bfresReader.GetTexture("MaterialAlb", mip);
-            if (curTex.IsErr()) {
-                Console.WriteLine("Unable to get texture for mip level {0}", mip);
-                continue;
-            }
+        int posInTexture = 0;
+        for (int mip = 0; mip < 11; mip++) {
+            var curWidth = width >> mip;
+            var curHeight = height >> mip;
+            var levelSize = Math.Max(8, curWidth * curHeight / 2);
             
-            var data = curTex.Unwrap().GetDeswizzledData(order[i], mip);
-            deswizzleTime.Stop();
-            if (data.Length == 0) {
-                Console.WriteLine("Failed to decode texture {0}", i);
-                continue;
-            }
-            unsafe {
-                fixed (byte* bp = data) {
-                    nint ptr = (IntPtr)bp;
-                    GL.CompressedTextureSubImage3D(terrainTexArray, mip, 0, 0, pos, width, height, 1, (PixelFormat)dxt1, data.Length, ptr);
+            for (Int32 i = 0, pos = 0; i < order.Length; i++) {
+                unsafe {
+                    fixed (byte* bp = mip == 0 ? data : mipData) {
+                        nint ptr = (IntPtr)bp + posInTexture;
+                        Console.WriteLine("Uploading level of {0} bytes", levelSize);
+                        ptr += levelSize * order[i];
+                        GL.CompressedTextureSubImage3D(terrainTexArray, mip, 0, 0, pos, curWidth, curHeight, 1, (PixelFormat)dxt1, levelSize, ptr);
+                    }
                 }
+                pos++;
             }
-            pos++;
+            if (mip > 0) {
+                posInTexture += (int)(levelSize * t.Depth);
+            }
         }
         bfresUpload.Dispose();
         Console.WriteLine("Generating mipmaps...");
-        GL.GenerateTextureMipmap(terrainTexArray);
+        // GL.GenerateTextureMipmap(terrainTexArray);
 
         total.Stop();
         Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
