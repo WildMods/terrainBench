@@ -307,21 +307,15 @@ public class ResourceFile {
             File.WriteAllBytes($"mip{lvl}.bin", levelDataIn.ToArray());
             
             Console.WriteLine("Pitch = {0} @ lvl {1}, levelSize {2}, layerSize {3}", curPitch, lvl, levelSize, layerSize);
+            Console.WriteLine($"Mip {lvl} = {width}x{height}");
             for (uint i = 0; i < ftex.arrayLength; i++) {
                 var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSizeIn, (int)layerSize);
                 var layerOut = SpanSegment<byte>(levelDataOut, i * layerSize, (int)layerSize);
 
-                // Please remove this later! This is a hack to just copy the mip
-                // data unswizzled, which is mostly not noticable at a distance.
-                layerIn.CopyTo(layerOut);
-                if (lvl > 3) {
-                    continue;
-                }
-
                 // Note the input and output are the same right now since we copy the unswizzled data in
                 BfresLibrary.Swizzling.GX2.swizzleSurf(width, height,
                     i, ftex.format, ftex.aaMode, ftex.usage, ftex.tileMode,
-                    ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerOut, layerOut, 0);
+                    ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
             }
             File.WriteAllBytes($"outmip{lvl}.bin", levelDataOut.ToArray());
         }
