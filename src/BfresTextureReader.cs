@@ -12,24 +12,49 @@ using Core;
 /// different names and split mipmaps differently.
 /// </summary>
 public class BfresTextureReader {
-    // A Wii U Tex1 file, or a Switch Tex file
-    readonly ResFile baseRes;
-
-    // If pulling from Wii U files, this will be the Tex2 BFRES (for mipmaps)
-    readonly ResFile? mipRes = null;
-
     public byte[] deswizzledBase = Array.Empty<byte>();
     public byte[] deswizzledMip = Array.Empty<byte>();
 
+    public int width = 0;
+    public int height = 0;
+    public int arrayLength = 0;
+
     BfresTextureReader(Span<byte> baseData) {
-        baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
+        var tex = BFRESSwitch.GetBNTXTexture(baseData, "MaterialAlb");
+        if (tex is null) {
+            Console.WriteLine("Couldn't find textures!");
+        }
+        width = tex.Width;
+        height = tex.Height;
+        arrayLength = tex.ArrayLength;
+
+        deswizzledBase = tex.GetDeswizzledDataForEntireLevel(0, out var baseLevelSize);
+        deswizzledMip = new byte[(int)(deswizzledBase.Length * 1.5)];
+
+        long posInMipBuffer = 0;
+        for (int i = 1; i < tex.MipCount; i++) {
+            Console.WriteLine("");
+            long levelSize = tex.CalcLayerLinearSize(i) * tex.ArrayLength;
+            var mipLevelData = new Span<byte>(deswizzledMip, (int)posInMipBuffer, (int)levelSize);
+
+            tex.GetDeswizzledDataForEntireLevel(i, mipLevelData, out levelSize);
+            posInMipBuffer += levelSize;
+        }
+        
     }
     
     BfresTextureReader(Span<byte> baseData, Span<byte> mipData) {
-        baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
+        string texName = "MaterialAlb";
+        
+        var baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
+        var t = baseRes.Textures[texName];
+        width = (int)t.Width;
+        height = (int)t.Height;
+        arrayLength = (int)t.ArrayLength;
+        
         var deswizzleTime = Stopwatch.StartNew();
-        deswizzledBase = GetDeswizzled("MaterialAlb", baseData, false);
-        deswizzledMip = GetDeswizzled("MaterialAlb", mipData, true);
+        deswizzledBase = GetDeswizzled(texName, baseData, false);
+        deswizzledMip = GetDeswizzled(texName, mipData, true);
         deswizzleTime.Stop();
         Console.WriteLine("Loaded base textures in {0}ms", deswizzleTime.ElapsedMilliseconds);
     }
@@ -44,6 +69,7 @@ public class BfresTextureReader {
         try {
             var texData = game.ReadFile(texPath, Game.Section.Base);
             if (texData.IsOk()) {
+                BFRESSwitch.ParseBFRES(texData.Unwrap());
                 return new BfresTextureReader(texData.Unwrap());
             } else {
                 Console.WriteLine("Unable to find .Tex file:\n{0}", texData.Err()?.Message);
@@ -73,24 +99,7 @@ public class BfresTextureReader {
         }
         
     }
-
-    public Result<TextureShared, ErrorStack> GetTexture(string name, int mipLevel) {
-        Debug.Assert(baseRes != null);
-        bool needMips = (mipLevel != 0);
-
-        // Only get the mip file if we need mipmaps and it exists.
-        // If there's no mip file, we assume the base file has mips and the base textures.
-        ResFile bfres = needMips ? (mipRes ?? baseRes) : baseRes;
-        Debug.Assert(bfres != null);
-
-        var tex = bfres.Textures[name];
-        if (tex == null) {
-            return Err(new ErrorStack($"Texture {name} not found at mip level {mipLevel}"));
-        }
-
-        return tex;
-    }
-
+    
     public static byte[] GetDeswizzled(string name, ReadOnlySpan<byte> data, bool mip) {
         return BFRESWiiU.GetDeswizzledByName(name, data, mip);
     }

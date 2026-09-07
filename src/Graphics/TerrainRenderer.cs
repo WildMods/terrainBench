@@ -644,19 +644,15 @@ public struct TerrainRenderer {
         deswizzleTime.Stop();
 
         var bfresUpload = Profiler.BeginZone("R_UploadTerrainTex");
-        var texResult = bfresReader.GetTexture("MaterialAlb", 0);
-        if (texResult.IsErr()) {
-            Console.WriteLine("Unable to find terrain texture array!");
-            return false;
-        }
-        var t = texResult.Unwrap();
         var order = fallbackIndices;
+        /*
         if (t.UserData != null) {
             // Load indices from the BFRES if possible for accuracy
             order = t.UserData["array_index"].GetValueInt32Array();
         }
+        */
 
-        int height = (int)t.Height, width = (int)t.Width;
+        int height = bfresReader.height, width = (int)bfresReader.width;
         GL.CreateTextures(TextureTarget.Texture2DArray, 1, out terrainTexArray);
         if (terrainTexArray == 0) {
             Console.WriteLine("Failed to create texture array!");
@@ -678,7 +674,7 @@ public struct TerrainRenderer {
             var curHeight = height >> mip;
             var levelSize = Math.Max(8, curWidth * curHeight / 2);
             
-            for (Int32 i = 0, pos = 0; i < order.Length; i++) {
+            for (int i = 0, pos = 0; i < order.Length; i++) {
                 unsafe {
                     fixed (byte* bp = mip == 0 ? data : mipData) {
                         nint ptr = (IntPtr)bp + posInTexture;
@@ -689,12 +685,11 @@ public struct TerrainRenderer {
                 pos++;
             }
             if (mip > 0) {
-                posInTexture += (int)(levelSize * t.Depth);
+                posInTexture += (int)(levelSize * bfresReader.arrayLength);
             }
         }
         bfresUpload.Dispose();
         Console.WriteLine("Generating mipmaps...");
-        // GL.GenerateTextureMipmap(terrainTexArray);
 
         total.Stop();
         Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);

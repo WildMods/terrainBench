@@ -41,6 +41,7 @@
 
         <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
 	    <ProjectReference Include="$(LibraryPath)/BfresLibrary/BfresLibrary/BfresLibrary.csproj" />
+	    <ProjectReference Include="$(LibraryPath)/BntxSharp/src/BntxSharp/BntxSharp.csproj" />
         <PackageReference Include="YamlDotNet" Version="18.1.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />
