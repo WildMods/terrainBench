@@ -138,6 +138,20 @@ public class Window : GameWindow {
             ImGui.End();
         }
     }
+
+    bool PickablePath(string label, ref string txt) {
+        ImGui.Text(String.Format("{0}: {1}", label, txt));
+        ImGui.SameLine();
+        if (ImGui.Button($"Select##{label}")) {
+            var res = NativeFileDialogSharp.Dialog.FolderPicker();
+            if (res.IsOk) {
+                txt = res.Path;
+                return true;
+            }
+        }
+
+        return false;
+    }
     
     void Update(double delta) {
         UpdateLoadingStateMachine(editor);
@@ -157,12 +171,10 @@ public class Window : GameWindow {
         bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
         bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
         bool shouldImportHeightmap = false;
-        bool shouldPickModFolder = false;
         bool isViewportHovered = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
-                    shouldPickModFolder = ImGui.MenuItem("Set mod folder");
                     shouldImportHeightmap = ImGui.MenuItem("Import heightmap image");
                     shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
                     shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
@@ -179,6 +191,29 @@ public class Window : GameWindow {
                 
                 if (ImGui.BeginMenu("Render")) {
                     ImGui.SliderInt("Render distance (tiles)", ref editor.terrain.renderRadius, 0, 128);
+                    ImGui.EndMenu();
+                }
+                if (ImGui.BeginMenu("Settings")) {
+                    if (PickablePath("Base game folder", ref editor.game._basePath)) {
+                        var s = Settings.Settings.Load();
+                        s.gameDir = editor.game._basePath;
+                        s.Save();
+                    }
+                    if (PickablePath("Update folder", ref editor.game._updatePath)) {
+                        var s = Settings.Settings.Load();
+                        s.updateDir = editor.game._updatePath;
+                        s.Save();
+                    }
+                    if (PickablePath("DLC folder", ref editor.game._dlcPath)) {
+                        var s = Settings.Settings.Load();
+                        s.dlcDir = editor.game._dlcPath;
+                        s.Save();
+                    }
+                    if (PickablePath("Mod folder", ref editor.game.modPath)) {
+                        var s = Settings.Settings.Load();
+                        s.modDir = editor.game.modPath;
+                        s.Save();
+                    }
                     ImGui.EndMenu();
                 }
                 

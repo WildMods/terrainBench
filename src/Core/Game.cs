@@ -40,9 +40,9 @@ public class Game
     // Instead of checking each game folder for each file, we look up the
     // canonical path here and find out which folder (if any) to find it in.
     private ConcurrentDictionary<string, Section> fileIndex = new();
-    private readonly string _basePath;
-    private readonly string _updatePath;
-    private readonly string _dlcPath;
+    public string _basePath;
+    public string _updatePath;
+    public string _dlcPath;
     public string modPath;
     
     public Game(string basePath, string updatePath, string dlcPath, string modPath)
