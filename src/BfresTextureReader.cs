@@ -92,17 +92,6 @@ public class BfresTextureReader {
     }
 
     public static byte[] GetDeswizzled(string name, ReadOnlySpan<byte> data, bool mip) {
-        var ftexHandleRes = ResourceFile.GetSubfile(data, ResourceFile.SubfileType.FTEX);
-        if (ftexHandleRes.IsErr()) {
-            Console.WriteLine("Failed to find FTEX subfile!");
-        }
-
-        var ftexHandle = ftexHandleRes.Unwrap();
-        Console.WriteLine("FTEX offset 0x{0:x}, {1} entries", ftexHandle.indexGroupOffset, ftexHandle.fileCount);
-        uint offset = ResourceFile.FindSubfileEntry(data, ftexHandle, "MaterialAlb");
-
-        var ftex = ResourceFile.GetFTEX(data, offset);
-        var result = ResourceFile.GetDeswizzledTextureData(data, offset, ftex, mip);
-        return result;
+        return BFRESWiiU.GetDeswizzledByName(name, data, mip);
     }
 }
