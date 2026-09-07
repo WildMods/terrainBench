@@ -266,31 +266,25 @@ public class ResourceFile {
         var swizzledData = GetRawTextureData(data, ftexOffset, ftex, mip);
 
         // Alignment = 512 * bytes per pixel
-        var bitsPerPixel = (ftex.pitch * 8) / 512;
+        var blockSize = GX2.BlockSize((GX2SurfaceFormat)ftex.format);
         var bitsPerBlock = (ftex.alignment * 8) / 512;
-
+        var bitsPerPixel = bitsPerBlock / (blockSize * blockSize);
 
         var mipMin = mip ? 1 : 0;
         var mipMax = mip ? Math.Min(FTexHeader.MAX_MIPS, ftex.mipCount) : 1;
         var numMips = mipMax - mipMin;
-        var blockSize = GX2.BlockSize((GX2SurfaceFormat)ftex.format);
 
         uint outPos = 0;
         var outBuf = new byte[swizzledData.Length];
         for (int lvl = mipMin; lvl < mipMax; lvl++) {
             var width = Math.Max(1, ftex.width >> lvl);
             var height = Math.Max(1, ftex.height >> lvl);
-            uint curPitch = ftex.pitch >> lvl;
 
-            var layerSize = Math.Max(8, width * height * bitsPerPixel / (1 * 8));
-            var levelSize = layerSize * ftex.arrayLength;
-            
-            var layerSizeIn = Math.Max(layerSize, ftex.alignment / 8);
-            var rowSizeIn = layerSizeIn / blockSize;
-            Console.WriteLine("Input layer size: {0}, row size {1} @ mip {2}", layerSizeIn, rowSizeIn, lvl);
-            
-            Console.WriteLine("Layer size: {0}, alternate calc gives {1}", layerSize, GX2.CalcSliceSize(ftex.height, ftex.pitch, ftex.aaMode));
-            Console.WriteLine("Level size: {0}, alternate calc gives {1}", levelSize, GX2.CalcSurfaceSize(ftex.height, ftex.pitch, ftex.depth, ftex.aaMode));
+            // Size of a single array layer at this mip level
+            var layerSize = Math.Max(8, width * height * bitsPerPixel / 8);
+            // Size of this entire mip level
+            uint levelSize = (uint)(layerSize * ftex.arrayLength);
+
             uint startOffset = 0;
             if (mip) {
                 unsafe {
@@ -300,24 +294,29 @@ public class ResourceFile {
                     startOffset -= ftex.dataSize;
                 }
             }
+            
+            // Tiling mode may change as we get smaller mips, we need to query
+            // the library for the correct info.
+            var surf = BfresLibrary.Swizzling.GX2.getSurfaceInfo(
+                (BfresLibrary.Swizzling.GX2.GX2SurfaceFormat)ftex.format, ftex.width, ftex.height, ftex.arrayLength, ftex.dimension, ftex.tileMode, ftex.aaMode, lvl);
+            uint curPitch = surf.pitch;
+            var layerSizeIn = surf.sliceSize;
+            
+            // Views of the entire mip level
             var levelDataIn = ROSpanSegment<byte>(swizzledData, startOffset, (int)(layerSizeIn * ftex.arrayLength));
             var levelDataOut = SpanSegment<byte>(outBuf, outPos, (int)(layerSize * ftex.arrayLength));
             outPos += levelSize;
-
-            File.WriteAllBytes($"mip{lvl}.bin", levelDataIn.ToArray());
             
-            Console.WriteLine("Pitch = {0} @ lvl {1}, levelSize {2}, layerSize {3}", curPitch, lvl, levelSize, layerSize);
-            Console.WriteLine($"Mip {lvl} = {width}x{height}");
+            // Deswizzle each array layer
             for (uint i = 0; i < ftex.arrayLength; i++) {
-                var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSizeIn, (int)layerSize);
+                // Views of a single array layer
+                var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSizeIn, (int)layerSizeIn);
                 var layerOut = SpanSegment<byte>(levelDataOut, i * layerSize, (int)layerSize);
 
-                // Note the input and output are the same right now since we copy the unswizzled data in
                 BfresLibrary.Swizzling.GX2.swizzleSurf(width, height,
-                    i, ftex.format, ftex.aaMode, ftex.usage, ftex.tileMode,
+                    i, ftex.format, ftex.aaMode, ftex.usage, surf.tileMode,
                     ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
             }
-            File.WriteAllBytes($"outmip{lvl}.bin", levelDataOut.ToArray());
         }
         
         return outBuf;

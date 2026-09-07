@@ -28,8 +28,6 @@ public class BfresTextureReader {
     BfresTextureReader(Span<byte> baseData, Span<byte> mipData) {
         baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
         var deswizzleTime = Stopwatch.StartNew();
-        ResourceFile.ParseBFRES(baseData);
-        ResourceFile.ParseBFRES(mipData);
         deswizzledBase = GetDeswizzled("MaterialAlb", baseData, false);
         deswizzledMip = GetDeswizzled("MaterialAlb", mipData, true);
         deswizzleTime.Stop();
