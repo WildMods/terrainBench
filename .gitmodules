@@ -12,4 +12,4 @@
 	url = https://github.com/WildMods/BfresLibrary
 [submodule "lib/BntxSharp"]
 	path = lib/BntxSharp
-	url = https://github.com/Torphedo/BntxSharp
+	url = https://github.com/BladesawStudios/BntxSharp
