@@ -7,29 +7,56 @@ material (which also determines the footstep sounds).
 ## Setup & Usage
 To load the terrain data, Terrain Workbench needs your BOTW game files.
 If you have BCML or UKMM set up, the editor will automatically import your
-saved game paths. Otherwise, you can set the paths by running the editor on the
-command-line. On my machine, it looks like this:
+saved game paths. Otherwise, use the `Settings` menu in the toolbar to set your
+game paths (press the `Select` button next to each folder to pick a folder in
+File Explorer).
+On my machine, the folders look like this:
 
+<details>
+<summary> Click this dropdown to see example Wii U game paths</summary>
 ```
-terrainBench.exe C:\storage\games\Cemu\mlc01\usr\title\00050000\101c9400\content\ C:\storage\games\Cemu\mlc01\usr\title\0005000e\101c9400\content\ C:\storage\games\Cemu\mlc01\usr\title\0005000c\101c9400\content\0010
+Base game folder: C:\storage\games\Cemu\mlc01\usr\title\00050000\101c9400\content
+Update folder: C:\storage\games\Cemu\mlc01\usr\title\0005000e\101c9400\content
+DLC folder: C:\storage\games\Cemu\mlc01\usr\title\0005000c\101c9400\content\0010
 ```
-Make sure your DLC folder ends in `0010`, not `content` or `romfs`.
+Make sure your DLC folder ends in `0010`, not `content`.
+</details>
+<details>
+<summary> Click this dropdown to see example Switch game paths</summary>
+```
+Base game folder: C:\storage\games\Switch\yuzu\dump\01007EF00011E000\romfs
+Update folder: C:\storage\games\Switch\yuzu\dump\01007EF00011E000\romfs
+DLC folder: C:\storage\games\Switch\yuzu\dump\01007EF00011F001\romfs
+```
+Note that on Switch, the base and update folders are the same (this distinction
+doesn't exist like it does on the Wii U). Also, there's no `0010` folder like
+there is on the Wii U version.
+</details>
+  
 These paths will be saved to `%LOCALAPPDATA%\botw_tools\settings.json`
 (or on Linux, `~/.local/share/botw_tools/settings.json`), meaning it won't
 automatically get new BCML/UKMM paths if you change them there.
 
-Next, you need to choose where your terrain mod will be saved to. You can set
-this in the JSON file, or use the `File > Open Mod Folder` button in the
-editor. When you run the editor, edits from your mod folder will be
-automatically loaded. I reccommend you set this to one of your emulator mod
-folders, not a folder for your mod loader. Terrain data is especially easy to
+You can also set the *mod folder* in the same `Settings` menu, which is where
+your terrain edits will be saved. When you start the editor, files in the mod
+folder are loaded instead of the versions in the other 3 folders. This means
+that you can start a new session later, and still see all your edits shown in
+the context of the whole map.
+
+I reccommend you set the mod folder to one of your emulator mod folders, not a
+folder for your mod loader (e.g. UKMM). Terrain data is especially easy to
 edit, because it doesn't need any merging or RSTB changes to work. If you save
 directly to an emulator mod folder (like a Cemu graphics pack), you can see
 changes without rebooting the game or remerging your mods, just by teleporting
 away and coming back.
 
-When you save (`Ctrl + S`), the editor automatically generates data for lower
-detail levels, which prevents pop-in.
+Only the parts of the world you make edits to *during the current session* are
+saved when you press the "Save" button (or keybind). Even if you have a huge
+project with lots of edits loaded, saving is generally as fast as a new project
+unless you've edited huge areas of the map *during that session*.
+
+Saving also automatically generates data for lower detail levels, which
+prevents pop-in.
 
 ### Controls
 - Movement: `W/A/S/D` for horizontal, `Shift`/`Space` for vertical
@@ -42,10 +69,8 @@ detail levels, which prevents pop-in.
 - Paint with primary/secondary texture: Left/Right click & drag
   - Hold Shift to paint on the texture blend data
 - If you have a drawing tablet, the pen pressure will determine the brush radius
+- Save: `Control + S`
 
-
-If the keyboard shortcuts aren't responding, try left clicking in the 3D
-viewport.
 
 ### Pitfalls & Known Issues
 - Normally, the game uses static collision in
@@ -62,14 +87,16 @@ mouse by about 5% in seemingly random places.
 - The renderer uses a fixed amount of VRAM, so if you increase the render
 distance or go to a very dense area it may not all load at once.
 
-- There are some minor frame drops (from ~120 -> ~100FPS on my machine) when
-using brushes.
-
 ## Average Performance
-On my machine (a 2021 laptop), startup takes about 7-10 seconds. During normal
-use, Terrain Workbench uses about 4.7GB of RAM, and about 1.5GB of VRAM.
-The minimum OpenGL version is 4.3, from 2012 (so you should be fine with any
-decent post-2013 hardware).
+On my machine (a 2021 gaming laptop with a 6GB RTX 3060), startup takes 10-30
+seconds (mostly depends on disk speed and how recently the files have been
+used). During normal use, Terrain Workbench uses about 4.7GB of RAM, and about
+1.5GB of VRAM. The minimum OpenGL version is 4.3, from 2012 (so you should be
+fine with any decent post-2013 hardware).
+It's generally stable at 165FPS (my refresh rate) at 80-100% GPU usage, but if
+the entire map is on screen, it drops to about 115FPS.
+Startup time mostly depends on disk speed (and multi-core CPU power), but the
+average framerate depends almost entirely on GPU power.
 
 In my testing, saving an average map edit takes 0.3 - 1 second, depending on
 size. There are some easy optimizations I haven't implemented yet that should
