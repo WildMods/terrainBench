@@ -632,7 +632,7 @@ public struct TerrainRenderer {
         string tex1Path = Path.Combine("Model", "Terrain.Tex1.sbfres");
         string tex2Path = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex2.sbfres");
         
-        var res = BfresTextureReader.Create(game, texPath, tex1Path, tex2Path);
+        var res = BfresTextureReader.Create(game, texPath, tex1Path, tex2Path, "MaterialAlb");
         if (res.IsErr()) {
             Console.WriteLine("Unable to load terrain textures.\n{0}", res.Err()?.Message);
             return false;
@@ -662,37 +662,27 @@ public struct TerrainRenderer {
         GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
         GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.MirroredRepeat);
 
-        var data = bfresReader.deswizzledBase;
-        var mipData = bfresReader.deswizzledMip;
-        if (data.Length == 0) {
-            Console.WriteLine("Failed to decode texture");
-        }
-
-        int posInTexture = 0;
-        for (int mip = 0; mip < 11; mip++) {
+        for (int mip = 0; mip < bfresReader.mipCount; mip++) {
             var curWidth = width >> mip;
             var curHeight = height >> mip;
             var levelSize = Math.Max(8, curWidth * curHeight / 2);
             
             for (int i = 0, pos = 0; i < order.Length; i++) {
                 unsafe {
-                    fixed (byte* bp = mip == 0 ? data : mipData) {
-                        nint ptr = (IntPtr)bp + posInTexture;
+                    fixed (byte* bp = bfresReader.deswizzledMips[mip]) {
+                        nint ptr = (IntPtr)bp;
                         ptr += levelSize * order[i];
                         GL.CompressedTextureSubImage3D(terrainTexArray, mip, 0, 0, pos, curWidth, curHeight, 1, (PixelFormat)dxt1, levelSize, ptr);
                     }
                 }
                 pos++;
             }
-            if (mip > 0) {
-                posInTexture += (int)(levelSize * bfresReader.arrayLength);
-            }
         }
         bfresUpload.Dispose();
         Console.WriteLine("Generating mipmaps...");
 
         total.Stop();
-        Console.WriteLine("Loaded terrain textures in {0}ms (spent {1}ms deswizzling)", total.ElapsedMilliseconds, deswizzleTime.ElapsedMilliseconds);
+        Console.WriteLine("Loaded terrain textures in {0}ms", total.ElapsedMilliseconds);
 
         return true;
     }

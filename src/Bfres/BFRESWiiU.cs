@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using Entish;
 using static Entish.EndianUtils;
 using OperationResult;
@@ -212,68 +213,63 @@ public static class BFRESWiiU {
         }
     }
 
-    public static byte[] GetDeswizzledTextureData(ReadOnlySpan<byte> data, uint ftexOffset, FTexHeader ftex, bool mip) {
-        var swizzledData = GetRawTextureData(data, ftexOffset, ftex, mip);
+    public static byte[] GetDeswizzledTextureData(ReadOnlySpan<byte> data, uint ftexOffset, FTexHeader ftex, int mipLevel) {
+        var isMip = mipLevel != 0;
+        var swizzledData = GetRawTextureData(data, ftexOffset, ftex, isMip);
 
         // Alignment = 512 * bytes per pixel
         var blockSize = GX2.BlockSize((GX2SurfaceFormat)ftex.format);
         var bitsPerBlock = (ftex.alignment * 8) / 512;
         var bitsPerPixel = bitsPerBlock / (blockSize * blockSize);
 
-        var mipMin = mip ? 1 : 0;
-        var mipMax = mip ? Math.Min(FTexHeader.MAX_MIPS, ftex.mipCount) : 1;
-        var numMips = mipMax - mipMin;
+        var width = Math.Max(1, ftex.width >> mipLevel);
+        var height = Math.Max(1, ftex.height >> mipLevel);
 
-        uint outPos = 0;
-        var outBuf = new byte[swizzledData.Length];
-        for (int lvl = mipMin; lvl < mipMax; lvl++) {
-            var width = Math.Max(1, ftex.width >> lvl);
-            var height = Math.Max(1, ftex.height >> lvl);
+        // Size of a single array layer at this mip level
+        var layerSize = Math.Max(8, width * height * bitsPerPixel / 8);
+        // Size of this entire mip level
+        uint levelSize = (uint)(layerSize * ftex.arrayLength);
+        var outBuf = new byte[levelSize];
+        Console.WriteLine("Layer size {0} for mip {1} [{2}x{3}]", layerSize, mipLevel, width, height);
 
-            // Size of a single array layer at this mip level
-            var layerSize = Math.Max(8, width * height * bitsPerPixel / 8);
-            // Size of this entire mip level
-            uint levelSize = (uint)(layerSize * ftex.arrayLength);
-
-            uint startOffset = 0;
-            if (mip) {
-                unsafe {
-                    startOffset = ftex.mipmapOffsets[lvl - 1];
-                }
-                if (lvl == 1) {
-                    startOffset -= ftex.dataSize;
-                }
+        uint startOffset = 0;
+        if (isMip) {
+            unsafe {
+                startOffset = ftex.mipmapOffsets[mipLevel - 1];
             }
-            
-            // Tiling mode may change as we get smaller mips, we need to query
-            // the library for the correct info.
-            var surf = BfresLibrary.Swizzling.GX2.getSurfaceInfo(
-                (BfresLibrary.Swizzling.GX2.GX2SurfaceFormat)ftex.format, ftex.width, ftex.height, ftex.arrayLength, ftex.dimension, ftex.tileMode, ftex.aaMode, lvl);
-            uint curPitch = surf.pitch;
-            var layerSizeIn = surf.sliceSize;
-            
-            // Views of the entire mip level
-            var levelDataIn = ROSpanSegment<byte>(swizzledData, startOffset, (int)(layerSizeIn * ftex.arrayLength));
-            var levelDataOut = SpanSegment<byte>(outBuf, outPos, (int)(layerSize * ftex.arrayLength));
-            outPos += levelSize;
-            
-            // Deswizzle each array layer
-            for (uint i = 0; i < ftex.arrayLength; i++) {
-                // Views of a single array layer
-                var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSizeIn, (int)layerSizeIn);
-                var layerOut = SpanSegment<byte>(levelDataOut, i * layerSize, (int)layerSize);
-
-                BfresLibrary.Swizzling.GX2.swizzleSurf(width, height,
-                    i, ftex.format, ftex.aaMode, ftex.usage, surf.tileMode,
-                    ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
+            if (mipLevel == 1) {
+                startOffset -= ftex.dataSize;
             }
         }
+        
+        // Tiling mode may change as we get smaller mips, we need to query
+        // the library for the correct info.
+        var surf = BfresLibrary.Swizzling.GX2.getSurfaceInfo(
+            (BfresLibrary.Swizzling.GX2.GX2SurfaceFormat)ftex.format, ftex.width, ftex.height, ftex.arrayLength, ftex.dimension, ftex.tileMode, ftex.aaMode, mipLevel);
+        uint curPitch = surf.pitch;
+        var layerSizeIn = surf.sliceSize;
+        
+        // Views of the entire mip level
+        var levelDataIn = ROSpanSegment<byte>(swizzledData, startOffset, (int)(layerSizeIn * ftex.arrayLength));
+        var levelDataOut = SpanSegment<byte>(outBuf, 0, (int)(layerSize * ftex.arrayLength));
+        
+        // Deswizzle each array layer
+        for (uint i = 0; i < ftex.arrayLength; i++) {
+            // Views of a single array layer
+            var layerIn = ROSpanSegment<byte>(levelDataIn, i * layerSizeIn, (int)layerSizeIn);
+            var layerOut = SpanSegment<byte>(levelDataOut, i * layerSize, (int)layerSize);
+
+            BfresLibrary.Swizzling.GX2.swizzleSurf(width, height,
+                i, ftex.format, ftex.aaMode, ftex.usage, surf.tileMode,
+                ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
+        }
+        File.WriteAllBytes($"outmip{mipLevel}.bin", outBuf);
         
         return outBuf;
     }
     
     
-    public static byte[] GetDeswizzledByName(string name, ReadOnlySpan<byte> data, bool mip) {
+    public static byte[] GetDeswizzledByName(string name, ReadOnlySpan<byte> data, int mipLevel) {
         var ftexHandleRes = GetSubfile(data, SubfileTypeWiiU.FTEX);
         if (ftexHandleRes.IsErr()) {
             Console.WriteLine("Failed to find FTEX subfile!");
@@ -281,10 +277,10 @@ public static class BFRESWiiU {
 
         var ftexHandle = ftexHandleRes.Unwrap();
         Console.WriteLine("FTEX offset 0x{0:x}, {1} entries", ftexHandle.indexGroupOffset, ftexHandle.fileCount);
-        uint offset = FindSubfileEntry(data, ftexHandle, "MaterialAlb");
+        uint offset = FindSubfileEntry(data, ftexHandle, name);
 
         var ftex = GetFTEX(data, offset);
-        var result = GetDeswizzledTextureData(data, offset, ftex, mip);
+        var result = GetDeswizzledTextureData(data, offset, ftex, mipLevel);
         return result;
     }
     
@@ -302,23 +298,4 @@ public static class BFRESWiiU {
             return new SubfileHandle(t, offset, count);
         }
     }
-    
-    public static void ParseBFRES(ReadOnlySpan<byte> data) {
-        var ftexHandleRes = GetSubfile(data, SubfileTypeWiiU.FTEX);
-        if (ftexHandleRes.IsErr()) {
-            Console.WriteLine("Failed to find FTEX subfile!");
-        }
-
-        var ftexHandle = ftexHandleRes.Unwrap();
-        Console.WriteLine("FTEX offset 0x{0:x}, {1} entries", ftexHandle.indexGroupOffset, ftexHandle.fileCount);
-        uint offset = FindSubfileEntry(data, ftexHandle, "MaterialAlb");
-
-        unsafe {
-            var header = ReadUnsafe<ResFileHeaderWiiU>(data, 0);
-            var ftex = ReadUnsafe<FTexHeader>(data, offset);
-            FTexHeader.Swap(header.bom, &ftex);
-            Console.WriteLine("{0}", ftex);
-        }
-    }
-
 }

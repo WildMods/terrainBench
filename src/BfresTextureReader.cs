@@ -15,53 +15,53 @@ public class BfresTextureReader {
     public byte[] deswizzledBase = Array.Empty<byte>();
     public byte[] deswizzledMip = Array.Empty<byte>();
 
+    public List<byte[]> deswizzledMips = new List<byte[]>();
+
     public int width = 0;
     public int height = 0;
     public int arrayLength = 0;
+    public int mipCount = 0;
 
-    BfresTextureReader(Span<byte> baseData) {
-        var tex = BFRESSwitch.GetBNTXTexture(baseData, "MaterialAlb");
+    BfresTextureReader(Span<byte> baseData, string texName) {
+        var tex = BFRESSwitch.GetBNTXTexture(baseData, texName);
         if (tex is null) {
             Console.WriteLine("Couldn't find textures!");
         }
         width = tex.Width;
         height = tex.Height;
         arrayLength = tex.ArrayLength;
+        mipCount = tex.MipCount;
 
-        deswizzledBase = tex.GetDeswizzledDataForEntireLevel(0, out var baseLevelSize);
-        deswizzledMip = new byte[(int)(deswizzledBase.Length * 1.5)];
-
-        long posInMipBuffer = 0;
-        for (int i = 1; i < tex.MipCount; i++) {
-            Console.WriteLine("");
-            long levelSize = tex.CalcLayerLinearSize(i) * tex.ArrayLength;
-            var mipLevelData = new Span<byte>(deswizzledMip, (int)posInMipBuffer, (int)levelSize);
-
-            tex.GetDeswizzledDataForEntireLevel(i, mipLevelData, out levelSize);
-            posInMipBuffer += levelSize;
+        for (int i = 0; i < mipCount; i++) {
+            var deswizzledLevel = tex.GetDeswizzledDataForEntireLevel(i, out var levelSize);
+            deswizzledMips.Add(deswizzledLevel);
         }
         
     }
     
-    BfresTextureReader(Span<byte> baseData, Span<byte> mipData) {
-        string texName = "MaterialAlb";
-        
+    BfresTextureReader(Span<byte> baseData, Span<byte> mipData, string texName) {
         var baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
         var t = baseRes.Textures[texName];
         width = (int)t.Width;
         height = (int)t.Height;
         arrayLength = (int)t.ArrayLength;
+        mipCount = (int)t.MipCount;
         
         var deswizzleTime = Stopwatch.StartNew();
-        deswizzledBase = GetDeswizzled(texName, baseData, false);
-        deswizzledMip = GetDeswizzled(texName, mipData, true);
+        for (int i = 0; i < mipCount; i++) {
+            Console.WriteLine($"Deswizzling layer {i}");
+            var buf = (i == 0) ? baseData : mipData;
+            var deswizzledLevel = GetDeswizzled(texName, buf, i);
+            deswizzledMips.Add(deswizzledLevel);
+        }
+        
         deswizzleTime.Stop();
         Console.WriteLine("Loaded base textures in {0}ms", deswizzleTime.ElapsedMilliseconds);
     }
     
     /// <param name="basePath">e.g. "Model/Terrain" can read "Model/Terrain.Tex.sbfres",
     /// "Model/Terrain.Tex1.sbfres", or "model/Terrain.Tex2.sbfres"</param>
-    public static Result<BfresTextureReader, ErrorStack> Create(Game game, string texPath, string tex1Path, string tex2Path) {
+    public static Result<BfresTextureReader, ErrorStack> Create(Game game, string texPath, string tex1Path, string tex2Path, string texName) {
         // var texPath = $"{basePath}.Tex.sbfres";
         // var tex1Path = $"{basePath}.Tex1.sbfres";
         // var tex2Path = $"{basePath}.Tex2.sbfres";
@@ -70,7 +70,7 @@ public class BfresTextureReader {
             var texData = game.ReadFile(texPath, Game.Section.Base);
             if (texData.IsOk()) {
                 BFRESSwitch.ParseBFRES(texData.Unwrap());
-                return new BfresTextureReader(texData.Unwrap());
+                return new BfresTextureReader(texData.Unwrap(), texName);
             } else {
                 Console.WriteLine("Unable to find .Tex file:\n{0}", texData.Err()?.Message);
             }
@@ -92,7 +92,7 @@ public class BfresTextureReader {
         }
 
         try {
-            return new BfresTextureReader(tex1Data.Unwrap(), tex2Data.Unwrap());
+            return new BfresTextureReader(tex1Data.Unwrap(), tex2Data.Unwrap(), texName);
         } catch (Exception ex) {
             Console.WriteLine(ex.Message);
             return Err(new ErrorStack("Failed to load terrain textures", ex));
@@ -100,7 +100,7 @@ public class BfresTextureReader {
         
     }
     
-    public static byte[] GetDeswizzled(string name, ReadOnlySpan<byte> data, bool mip) {
-        return BFRESWiiU.GetDeswizzledByName(name, data, mip);
+    public static byte[] GetDeswizzled(string name, ReadOnlySpan<byte> data, int mipLevel) {
+        return BFRESWiiU.GetDeswizzledByName(name, data, mipLevel);
     }
 }
