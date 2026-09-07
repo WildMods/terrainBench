@@ -40,16 +40,21 @@ public class BfresTextureReader {
     }
     
     BfresTextureReader(Span<byte> baseData, Span<byte> mipData, string texName) {
-        var baseRes = new ResFile(new MemoryStream(baseData.ToArray()));
-        var t = baseRes.Textures[texName];
-        width = (int)t.Width;
-        height = (int)t.Height;
-        arrayLength = (int)t.ArrayLength;
-        mipCount = (int)t.MipCount;
+        var ftexRes = BFRESWiiU.GetFTEXByName(baseData, texName);
+        if (ftexRes.IsErr()) {
+            Console.WriteLine("Couldn't read texture metadata.");
+            Console.WriteLine(ftexRes.Err());
+            return;
+        }
+        
+        var ftex = ftexRes.Unwrap();
+        width  = (int)ftex.width;
+        height = (int)ftex.height;
+        arrayLength = (int)ftex.arrayLength;
+        mipCount    = (int)ftex.mipCount;
         
         var deswizzleTime = Stopwatch.StartNew();
         for (int i = 0; i < mipCount; i++) {
-            Console.WriteLine($"Deswizzling layer {i}");
             var buf = (i == 0) ? baseData : mipData;
             var deswizzledLevel = GetDeswizzled(texName, buf, i);
             deswizzledMips.Add(deswizzledLevel);

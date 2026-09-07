@@ -679,7 +679,6 @@ public struct TerrainRenderer {
             }
         }
         bfresUpload.Dispose();
-        Console.WriteLine("Generating mipmaps...");
 
         total.Stop();
         Console.WriteLine("Loaded terrain textures in {0}ms", total.ElapsedMilliseconds);

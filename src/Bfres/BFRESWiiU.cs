@@ -182,7 +182,6 @@ public static class BFRESWiiU {
 
             var namePtr = targetEntryPos + NAME_PTR_OFFSET_IN_ENTRY + child.nameOffset;
             var dataPtr = targetEntryPos + DATA_PTR_OFFSET_IN_ENTRY + child.dataOffset;
-            Console.WriteLine("Found '{0}' in entry {1}, name @ 0x{2:X}, data @ 0x{3:X}", name, childIdx, namePtr, dataPtr);
             return (uint)dataPtr;
         }
     }
@@ -197,6 +196,17 @@ public static class BFRESWiiU {
         return ftex;
     }
 
+    public static Result<FTexHeader, ErrorStack> GetFTEXByName(ReadOnlySpan<byte> data, string name) {
+        var ftexHandleRes = GetSubfile(data, SubfileTypeWiiU.FTEX);
+        if (ftexHandleRes.IsErr()) {
+            return Err(ftexHandleRes.Err().Context("Failed to find FTEX subfile"));
+        }
+
+        var ftexHandle = ftexHandleRes.Unwrap();
+        uint offset = FindSubfileEntry(data, ftexHandle, name);
+        return GetFTEX(data, offset);
+    }
+
     public static ReadOnlySpan<byte> GetRawTextureData(ReadOnlySpan<byte> data, uint ftexOffset, FTexHeader ftex, bool mip) {
         short BASE_OFFSET_POS = 0xB0;
         short MIP_OFFSET_POS = 0xB4;
@@ -208,7 +218,6 @@ public static class BFRESWiiU {
             return mipSpan;
         } else {
             var baseSpan = ROSpanSegment<byte>(data, baseDataOffset, (int)ftex.dataSize);
-            Console.WriteLine("Got swizzled span of {0} bytes of texture data", baseSpan.Length);
             return baseSpan;
         }
     }
@@ -230,7 +239,6 @@ public static class BFRESWiiU {
         // Size of this entire mip level
         uint levelSize = (uint)(layerSize * ftex.arrayLength);
         var outBuf = new byte[levelSize];
-        Console.WriteLine("Layer size {0} for mip {1} [{2}x{3}]", layerSize, mipLevel, width, height);
 
         uint startOffset = 0;
         if (isMip) {
@@ -276,7 +284,6 @@ public static class BFRESWiiU {
         }
 
         var ftexHandle = ftexHandleRes.Unwrap();
-        Console.WriteLine("FTEX offset 0x{0:x}, {1} entries", ftexHandle.indexGroupOffset, ftexHandle.fileCount);
         uint offset = FindSubfileEntry(data, ftexHandle, name);
 
         var ftex = GetFTEX(data, offset);
