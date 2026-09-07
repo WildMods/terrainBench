@@ -71,18 +71,14 @@ M
 
     public EditorState(string[] args) {
         var settings = Settings.Settings.Load();
-        if (!Settings.Settings.Validate(settings)) {
-            if (args.Length < 2) {
-                // printUsage();
-                return;
-            }
-
+        bool wantOverride = args.Length >= 3;
+        
+        if (wantOverride || !Settings.Settings.Validate(settings)) {
             settings.gameDir = args[0];
             settings.updateDir = args[1];
             settings.dlcDir = args.Length > 2 ? args[2] : "";
             settings.modDir =  args.Length > 3 ? args[3] : "";
             settings.Save();
-
         }
 
         if (settings.modDir.Length != 0 && !settings.modDir.IsWhiteSpace()) {
