@@ -253,16 +253,6 @@ public class Window : GameWindow {
             Close();
         }
 
-        if (shouldPickModFolder) {
-            var res = NativeFileDialogSharp.Dialog.FolderPicker();
-            if (res.IsOk) {
-                var s = Settings.Settings.Load();
-                s.modDir = res.Path;
-                editor.game.modPath = res.Path;
-                s.Save();
-                Console.WriteLine("Set mod folder to {0}", res.Path);
-            }
-        }
         if (shouldImportHeightmap) {
             var filters = "png,jpeg,webp,heif,heic,avif,jpegxl,jxl,ktx,ktx2,astc,bmp,pkm";
             var res = NativeFileDialogSharp.Dialog.FileOpen(filters);
