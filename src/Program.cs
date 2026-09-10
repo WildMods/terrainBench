@@ -1,8 +1,17 @@
 // Created Jul. 15 2026
 // @author Torphedo
 
+using SDL3;
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using terrainBench;
 using terrainBench.UI;
+
+public class SDLBindingsContext : OpenTK.IBindingsContext {
+    public IntPtr GetProcAddress(string procName) {
+        return SDL.GLGetProcAddress(procName);
+    }
+}
 
 public static class Program
 {
@@ -17,7 +26,7 @@ public static class Program
     {
         bool isDebug = false;
 #if DEBUG
-            isDebug = true;
+        isDebug = true;
 #endif
         if (!isDebug && !overrideEnableTracyProfiler) {
             Profiler.tracyDisabled = true;
@@ -36,8 +45,41 @@ public static class Program
             return;
         }
 
-        Window w = new(args);
-        w.Run();
-        w.OnClosed();
+        SDL.InitSubSystem(SDL.InitFlags.Video);
+
+        SDL.GLSetSwapInterval(1); // Enable VSync
+        SDL.GLSetAttribute(SDL.GLAttr.ContextMajorVersion, 4);
+        SDL.GLSetAttribute(SDL.GLAttr.ContextMinorVersion, 2);
+        SDL.GLSetAttribute(SDL.GLAttr.DoubleBuffer, 1);
+        SDL.GLSetAttribute(SDL.GLAttr.ContextProfileMask, (int)SDL.GLProfile.Core);
+        SDL.GLSetAttribute(SDL.GLAttr.ContextFlags, (int)SDL.GLContextFlag.Debug);
+
+        var flags = SDL.WindowFlags.OpenGL | SDL.WindowFlags.Resizable;
+        var win = SDL.CreateWindow("Terrain Workbench", 1280, 720, flags);
+
+        var glContext = SDL.GLCreateContext(win);
+        OpenTK.Graphics.OpenGL4.GL.LoadBindings(new SDLBindingsContext());
+
+        GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
+
+        bool running = true;
+        while (running) {
+            while (SDL.PollEvent(out var e)) {
+                var type = (SDL.EventType)e.Type;
+                if (type == SDL.EventType.Quit || type == SDL.EventType.WindowCloseRequested) {
+                    running = false;
+                }
+                if (type == SDL.EventType.PenAxis) {
+                    var axis = e.PAxis.Axis;
+                    if (axis == SDL.PenAxis.Pressure) {
+                        Console.WriteLine("Pressure: {0}", e.PAxis.Value);
+                    }
+                }
+            }
+            
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
+
+            SDL.GLSwapWindow(win);
+        }
     }
 }
