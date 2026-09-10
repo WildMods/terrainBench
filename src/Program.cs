@@ -62,9 +62,18 @@ public static class Program
 
         GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
 
+        Window openTKWin = new(args, win);
+        openTKWin.OnLoad();
+
+        double deltaTime = 0, now = 0, last = 0;
         bool running = true;
         while (running) {
+            now = SDL.GetPerformanceCounter();
+            deltaTime = (double)(now - last) / SDL.GetPerformanceFrequency(); 
+            
             while (SDL.PollEvent(out var e)) {
+                openTKWin.sdlBackend.ProcessEvent(e);
+                
                 var type = (SDL.EventType)e.Type;
                 if (type == SDL.EventType.Quit || type == SDL.EventType.WindowCloseRequested) {
                     running = false;
@@ -75,11 +84,22 @@ public static class Program
                         Console.WriteLine("Pressure: {0}", e.PAxis.Value);
                     }
                 }
+                if (type == SDL.EventType.WindowResized) {
+                    var size = new Vector2i(e.Window.Data1, e.Window.Data2);
+                    openTKWin.OnResize(size);
+                }
             }
             
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
+            try {
+                openTKWin.OnRenderFrame(deltaTime);
+            } catch (Exception e) {
+                Console.WriteLine("Exception thrown by OnRenderFrame(): {0}", e.Message);
+            }
 
             SDL.GLSwapWindow(win);
+            last = now;
         }
+
+        openTKWin.OnClosed();
     }
 }

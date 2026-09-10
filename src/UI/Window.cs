@@ -12,7 +12,8 @@ using terrainBench.Core;
 using static terrainBench.Core.EditorState.BootState;
 namespace terrainBench.UI;
 
-public class Window : GameWindow {
+public class Window {
+    public ImguiImplSDL3 sdlBackend;
     OpenGlFbo fbo = new();
     bool needResize = true;
     Vector2i newSize = new();
@@ -20,27 +21,21 @@ public class Window : GameWindow {
     bool showAbout = false;
     EditorState editor;
 
-    public Window(string[] args) : base(GameWindowSettings.Default, new NativeWindowSettings()
+    public Window(string[] args, nint sdlWindow) 
     {
-        ClientSize = new Vector2i(1600, 900),
-        APIVersion = new Version(4, 2)
-    })
-    {
-        this.VSync = VSyncMode.On;
+        ImGui.CreateContext();
         editor = new(args);
+        sdlBackend = new(sdlWindow);
     }
 
     void UpdateLoadingStateMachine(EditorState ed) {
         switch (ed.bootProgress) {
             case SHOW_UPLOAD_MSG:
-                Title = EditorState.gpuUploadWindowTitle;
+                // Title = EditorState.gpuUploadWindowTitle;
                 ed.bootProgress = LOAD_TERRAIN_TEXTURES;
                 return; // End frame to make sure title is applied
             case LOAD_TERRAIN_TEXTURES:
                 // Start the GPU uploads 1 frame after title is changed
-                using (Profiler.BeginZone("R_LoadTerrainTextures")) {
-                    ed.terrain.LoadTerrainTextures(ed.game);
-                }
                 ed.bootProgress = UPLOADING;
                 break;
             case UPLOADING:
@@ -51,21 +46,18 @@ public class Window : GameWindow {
                 ed.bootProgress = DONE;
                 Task.Run(ed.RendererUploadThread);
 
-                Title = EditorState.defaultWindowTitle;
+                // Title = EditorState.defaultWindowTitle;
                 break;
         }
     }
 
-    protected override void OnLoad() {
-        base.OnLoad();
-
-        Title = EditorState.defaultWindowTitle;
+    public void OnLoad() {
+        // Title = EditorState.defaultWindowTitle;
 
         GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
         GL.Enable(EnableCap.DebugOutput);
         GL.Enable(EnableCap.DebugOutputSynchronous);
 
-        ImGui.CreateContext();
         ImGuiIOPtr io = ImGui.GetIO();
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableGamepad;
@@ -83,7 +75,6 @@ public class Window : GameWindow {
             style.Colors[(int)ImGuiCol.WindowBg].W = 1.0f;
         }
 
-        ImguiImplOpenTK4.Init(this);
         ImguiImplOpenGL3.Init();
         
         var s = ImGui.GetStyle();
@@ -106,6 +97,10 @@ public class Window : GameWindow {
             (s.Colors[i].Y, s.Colors[i].Z) = (s.Colors[i].Z, s.Colors[i].Y);
         }
 
+        using (Profiler.BeginZone("R_LoadTerrainTextures")) {
+            editor.terrain.LoadTerrainTextures(editor.game);
+        }
+        
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);
         fbo.GLInit();
@@ -168,16 +163,20 @@ public class Window : GameWindow {
         Vector2 fbStart = new();
         Vector2 fbDisplayedSize = new();
         bool temp = false;
+        /*
         bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
         bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
+        */
         bool shouldImportHeightmap = false;
         bool isViewportHovered = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
                     shouldImportHeightmap = ImGui.MenuItem("Import heightmap image");
+                    /*
                     shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
                     shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
+                    */
                     ImGui.EndMenu();
                 }
                 if (ImGui.BeginMenu("Camera")) {
@@ -237,14 +236,15 @@ public class Window : GameWindow {
             fbDisplayedSize = (Vector2)ImGui.GetContentRegionAvail();
             ImGui.Image(fbo.colorTexture, (SNVector2)fbDisplayedSize, new SNVector2(0, 1), new SNVector2(1, 0));
             isViewportHovered = ImGui.IsItemHovered();
-            ImGui.End();
         }
+        ImGui.End();
 
         if (showDemo) {
             ImGui.ShowDemoWindow();
         }
         AboutMenu();
         
+        /*
         if (shouldSave) {
             editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
         }
@@ -252,6 +252,7 @@ public class Window : GameWindow {
         if (shouldClose) {
             Close();
         }
+        */
 
         if (shouldImportHeightmap) {
             var filters = "png,jpeg,webp,heif,heic,avif,jpegxl,jxl,ktx,ktx2,astc,bmp,pkm";
@@ -265,8 +266,8 @@ public class Window : GameWindow {
 
         bool shouldUseKeyboard = isViewportHovered;
         if (shouldUseKeyboard) {
-            editor.cam.update(KeyboardState, MouseState, delta);
-            editor.brush.UpdateFromInput(KeyboardState, MouseState, 1f);
+            // editor.cam.update(KeyboardState, MouseState, delta);
+            // editor.brush.UpdateFromInput(KeyboardState, MouseState, 1f);
         }
 
         
@@ -275,7 +276,8 @@ public class Window : GameWindow {
             return;
         }
 
-        Vector2 mouseVec;
+        /*
+        Vector2 mouseVec = new();
         unsafe {
             GLFW.GetCursorPos(this.WindowPtr, out var x, out var y);
             GLFW.GetFramebufferSize(WindowPtr, out var screenX, out var screenY);
@@ -296,7 +298,6 @@ public class Window : GameWindow {
             TerrainCoords.WorldPos wp = pp;
             
             editor.brush.center = pp;
-            editor.brushRenderer.modelT = Matrix4.CreateTranslation(wp);
         }
 
         bool leftPress = MouseState.IsButtonDown(MouseButton.Left);
@@ -309,19 +310,22 @@ public class Window : GameWindow {
                 editor.terrain.ScheduleTileUpdate(idx, lod, LodComponent.mate, editor.cache);
             }
         }
+        */
     }
 
-    protected override void OnRenderFrame(FrameEventArgs e)
-    {
-        base.OnRenderFrame(e);
+    public void OnRenderFrame(double delta) {
         Profiler.EmitFrameMark();
 
         ImguiImplOpenGL3.NewFrame();
-        ImguiImplOpenTK4.NewFrame();
+        sdlBackend.NewFrame();
         ImGui.NewFrame();
         
         using (Profiler.BeginZone("Update")) {
-            Update(e.Time);
+            try {
+                Update(delta);
+            } catch (Exception e) {
+                Console.WriteLine("Exception thrown by Update(): {0}", e.Message);
+            }
         }
 
         if (needResize) {
@@ -352,7 +356,7 @@ public class Window : GameWindow {
                 GL.TextureView(textures[1], target, texArray, fmt, 0, 1, editor.brush.textureIndices[1], 1);
 
                 editor.brushRenderer.radius = editor.brush.effectiveRadius() * TerrainCoords.PixelToWorldScale;
-                editor.brushRenderer.Draw(projT, viewT, textures[0], textures[1]);
+                editor.brushRenderer.Draw(editor.brush, projT, viewT, textures[0], textures[1]);
                 GL.DeleteTextures(2, textures);
             }
             fbo.Unbind();
@@ -360,7 +364,7 @@ public class Window : GameWindow {
 
         using (Profiler.BeginZone("ImGui Render")) {
             ImGui.Render();
-            GL.Viewport(0, 0, FramebufferSize.X, FramebufferSize.Y);
+            // GL.Viewport(0, 0, FramebufferSize.X, FramebufferSize.Y);
             GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
             ImguiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
@@ -368,26 +372,23 @@ public class Window : GameWindow {
             if (ImGui.GetIO().ConfigFlags.HasFlag(ImGuiConfigFlags.ViewportsEnable)) {
                 ImGui.UpdatePlatformWindows();
                 ImGui.RenderPlatformWindowsDefault();
-                Context.MakeCurrent();
+                // Context.MakeCurrent();
             }
-        }
-
-        using (Profiler.BeginZone("SwapBuffers")) {
-            SwapBuffers();
         }
     }
 
-    protected override void OnResize(ResizeEventArgs e) {
-        base.OnResize(e);
-        newSize = e.Size;
+    public void OnResize(Vector2i size) {
+        newSize = size;
         needResize = true;
     }
 
     public void OnClosed()
     {
         fbo.Dispose();
+        editor.terrain.GLUninit();
+        editor.brushRenderer.GLUninit();
         ImguiImplOpenGL3.Shutdown();
-        ImguiImplOpenTK4.Shutdown();
+        sdlBackend.Dispose();
     }
 
     public readonly static DebugProc DebugProcCallback = Window_DebugProc;
