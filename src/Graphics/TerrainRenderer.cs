@@ -216,7 +216,6 @@ public struct TerrainRenderer {
                         xTarget = HGHT_DIM * (UInt16)x;
                         yTarget = HGHT_DIM * (UInt16)y;
                     }
-                    int rowSize = MAX_SIZE * 2;
                     int linearIdx = GetLinearIndex(pos) * 2;
                     
                     var z2 = Profiler.BeginZone("UploadHGHT");
@@ -237,7 +236,6 @@ public struct TerrainRenderer {
                         xTarget = HGHT_DIM * (UInt16)x;
                         yTarget = HGHT_DIM * (UInt16)y;
                     }
-                    int rowSize = MAX_SIZE * 4;
                     int linearIdx = GetLinearIndex(pos) * 4;
                     
                     var z2 = Profiler.BeginZone("UploadMATE");
@@ -482,7 +480,7 @@ public struct TerrainRenderer {
     int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
     public int terrainTexArray = 0;
     int coverageTex = 0;
-    public CoverageMap lodCoverage;
+    public CoverageMap lodCoverage = new();
 
     TileRegion ring0;
     TileRegion ring1;
@@ -564,7 +562,7 @@ public struct TerrainRenderer {
     }
 
     public bool LoadTerrainTiles(Cache cache) {
-        lodCoverage = new(cache);
+        lodCoverage.BuildFromTiles(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 
@@ -578,7 +576,7 @@ public struct TerrainRenderer {
     }
 
     public void UnloadTerrainTiles() {
-        lodCoverage = null;
+        lodCoverage.Clear();
         GL.DeleteTexture(coverageTex);
         ring0.GLUninit();
     }

@@ -25,8 +25,6 @@ M
     
     public string creditInfo = "Written by Torphedo & Ginger Chody";
     
-    private string glInfo = "Graphics API info placeholder"; // Filled @ runtime
-
     public BootState bootProgress = BootState.INIT;
 
     public Game game;

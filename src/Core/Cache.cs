@@ -109,7 +109,7 @@ public class Cache
         for (int i = ZOrder.MAX_LOD; i >= 0; i--) {
             var res = DownscaleLevel((uint)i, component);
             if (res.IsErr()) {
-                return Err(res.Err().Context($"Failed to downscale level {i} -> {i - 1}"));
+                return Err(res.ExpectErr("").Context($"Failed to downscale level {i} -> {i - 1}"));
             };
         }
         return true;
@@ -135,7 +135,11 @@ public class Cache
             LodComponent.mate => ZOrder.GRID_SIZE,
             LodComponent.water => 64,
             LodComponent.grass => 64,
+            _ => 0,
         };
+        if (size == 0) {
+            return Err(new ErrorStack($"Invalid terrain component value ({component})!"));
+        }
 
         Vector2i pixelPosLow = TileScaling.GetLowDetailPos(tilePos, size);
         ushort lowIdx = (ushort)(idx >> 2);
@@ -176,7 +180,7 @@ public class Cache
         for (uint i = level; i > 0; i--) {
             var res = DownscaleTileByOne(idx, i, component);
             if (res.IsErr()) {
-                return Err(res.Err().Context($"Failed to downscale idx {idx} @ level {i}"));
+                return Err(res.ExpectErr("").Context($"Failed to downscale idx {idx} @ level {i}"));
             }
             idx >>= 2;
         }

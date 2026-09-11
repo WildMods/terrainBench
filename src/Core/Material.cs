@@ -29,6 +29,7 @@ public struct Material
             1 => Material1,
             2 => BlendWeight,
             3 => Unk3,
+            _ => 0,
         };
     }
     public void SetComponent(byte val, int comp) {

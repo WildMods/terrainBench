@@ -60,6 +60,7 @@ public class Game
             Section.Update => _updatePath,
             Section.DLC => _dlcPath,
             Section.Mod => modPath,
+            _ => "",
         };
         return folder;
     }
@@ -69,14 +70,9 @@ public class Game
     }
 
     private void IndexPath(string path, Section s) {
-        string folder = s switch {
-            Section.Base => _basePath,
-            Section.Update => _updatePath,
-            Section.DLC => _dlcPath,
-            Section.Mod => modPath,
-        };
-        if (folder == null) {
-            Console.WriteLine("{0} folder was null!", s.ToString());
+        string folder = GetSectionPath(s);
+        if (folder == null || folder.Length == 0) {
+            Console.WriteLine("{0} folder was not set!", s.ToString());
             return;
         }
         

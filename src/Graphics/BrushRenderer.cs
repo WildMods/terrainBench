@@ -25,8 +25,8 @@ public class BrushRenderer {
     }
     
     public void GLUninit() {
-        brushShader.FreeResources();
-        texShader.FreeResources();
+        brushShader?.FreeResources();
+        texShader?.FreeResources();
         GL.DeleteVertexArray(vaoBlank);
     }
 

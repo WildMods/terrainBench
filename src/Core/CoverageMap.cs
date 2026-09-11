@@ -5,10 +5,10 @@ namespace terrainBench.Core;
 /// A compact data structure to quickly find out what detail levels are available
 /// at any position in the level 8 tile grid
 /// </summary>
-public class CoverageMap {
+public class CoverageMap() {
     public readonly byte[] map = new byte[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
 
-    public CoverageMap(Cache cache) {
+    public void BuildFromTiles(Cache cache) {
         var zone = Profiler.BeginZone("C_CoverageMap");
         for (sbyte lvl = 8; lvl > 0; lvl--) {
             byte lvlDiff = (byte)(ZOrder.MAX_LOD - lvl);
@@ -124,5 +124,9 @@ public class CoverageMap {
         }
 
         return indices;
+    }
+
+    public void Clear() {
+        Array.Fill<byte>(map, 0);
     }
 }

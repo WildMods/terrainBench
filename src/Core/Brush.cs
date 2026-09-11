@@ -155,29 +155,12 @@ public struct Brush() {
     /// Calculate the distance between 2 points with specific settings
     /// </summary>
     /// <param name="type">The type of distance function to use</param>
-    /// <param name="is3D">Whether to take the 2D or 3D distance</param>
-    /// <returns>The distance between the 2 points</returns>
-    public static float EvalDistance(Vector3 a, Vector3 b, DistanceType type) {
-        // Assume 2D and ignore height
-        a.Y = b.Y = 0;
-
-        float dist = type switch {
-            DistanceType.EUCLIDEAN => Vector3.Distance(a, b),
-            DistanceType.MANHATTAN => Vector3.ManhattanDistance(a, b),
-        };
-
-        return dist;
-    }
-    
-    /// <summary>
-    /// Calculate the distance between 2 points with specific settings
-    /// </summary>
-    /// <param name="type">The type of distance function to use</param>
     /// <returns>The distance between the 2 points</returns>
     public static float EvalDistance2D(Vector2i a, Vector2i b, DistanceType type) {
         return type switch {
             DistanceType.EUCLIDEAN => Vector2i.Distance(a, b),
             DistanceType.MANHATTAN => Vector2i.ManhattanDistance(a, b),
+            _                      => 0,
         };
     }
 
@@ -188,6 +171,7 @@ public struct Brush() {
             EditFunc.MULTIPLY  => (int)(x * strength),
             EditFunc.DIVIDE    => (int)(x / strength),
             EditFunc.OVERWRITE => (int)strength,
+            _                  => x, // Apply no effect if enum value is bad
         };
     }
     public static ushort ApplyEditFunc16(ushort x, EditFunc func, float strength) {
@@ -209,11 +193,6 @@ public struct Brush() {
         return Brush.ApplyFalloffFunc(func, falloffStrength, x, baseStrength);
     }
     
-    public float EvalBrushStrength(Vector3 pos) {
-        float dist = EvalDistance(center, pos, falloffShape);
-        return EvalFalloff(dist);
-    }
-
     /// <summary>
     /// Iterate over all tiles that will be affected by the brush, based on its
     /// current settings
@@ -298,7 +277,7 @@ public struct Brush() {
                             val = ApplyEditFunc8(val, EditFunc.OVERWRITE, strength);
                             pixel.SetComponent(val, component);
                         }
-                    } catch (IndexOutOfRangeException e) {
+                    } catch (IndexOutOfRangeException) {
                         Console.WriteLine("Index {0} @ pos {1} was out-of-bounds", linearIdx, posInTile);
                     }
                 }
