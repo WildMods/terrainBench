@@ -17,6 +17,9 @@ public class ImguiImplSDL3 : IDisposable
     nint _mouseLastCursor = -1;
     int _mouseButtonsDown = 0;
 
+    bool[] keyStates = new bool[(int)SDL.Scancode.Count];
+    bool[] prevKeyStates = new bool[(int)SDL.Scancode.Count];
+
     public ImguiImplSDL3(nint window)
     {
         ImGuiIOPtr io = ImGui.GetIO();
@@ -59,7 +62,7 @@ public class ImguiImplSDL3 : IDisposable
         int displayW, displayH;
 
         SDL.GetWindowSize(Window, out w, out h);
-        if(SDL.GetWindowFlags(Window).HasFlag(SDL.WindowFlags.Minimized))
+        if (SDL.GetWindowFlags(Window).HasFlag(SDL.WindowFlags.Minimized))
         {
             w = h = 0;
         }
@@ -67,10 +70,10 @@ public class ImguiImplSDL3 : IDisposable
         SDL.GetWindowSizeInPixels(Window, out displayW, out displayH);
         io.DisplaySize = new System.Numerics.Vector2((float)w, (float)h);
 
-        if(w > 0 && h > 0)
+        if (w > 0 && h > 0)
             io.DisplayFramebufferScale = new System.Numerics.Vector2((float)displayW / w, (float)displayH / h);
 
-        if(_mousePendingLeaveFrame > 0 &&  _mousePendingLeaveFrame >= ImGui.GetFrameCount())
+        if (_mousePendingLeaveFrame > 0 && _mousePendingLeaveFrame >= ImGui.GetFrameCount())
         {
             _mouseWindowId = 0;
             _mousePendingLeaveFrame = 0;
@@ -80,6 +83,32 @@ public class ImguiImplSDL3 : IDisposable
         UpdateMouseData();
         UpdateMouseCursor();
     }
+
+
+    public void InputNewFrame() {
+        keyStates.CopyTo(prevKeyStates);
+    }
+    
+
+    private static bool CheckKeyState(bool[] stateArray, SDL.Scancode code) {
+        var i = (int)code;
+        if (i >= stateArray.Length) {
+            return false;
+        }
+        return stateArray[i];
+    }
+    
+    private static int CheckKeyStateI(bool[] stateArray, SDL.Scancode code) {
+        return CheckKeyState(stateArray, code) ? 1 : 0;
+    }
+
+    public bool IsKeyDown(SDL.Scancode code) => CheckKeyState(keyStates, code);
+    public bool WasKeyDown(SDL.Scancode code) => CheckKeyState(prevKeyStates, code);
+    public bool KeyRisingEdge(SDL.Scancode code) => IsKeyDown(code) && !WasKeyDown(code);
+    
+    public int IsKeyDownI(SDL.Scancode code) => CheckKeyStateI(keyStates, code);
+    public int WasKeyDownI(SDL.Scancode code) => CheckKeyStateI(prevKeyStates, code);
+    public int KeyRisingEdgeI(SDL.Scancode code) => KeyRisingEdge(code) ? 1 : 0;
 
     public bool ProcessEvent(SDL.Event e)
     {
@@ -135,9 +164,12 @@ public class ImguiImplSDL3 : IDisposable
                 if(GetViewportForWindowId(e.Key.WindowID) == null)
                     return false;
 
+                bool isDown = (SDL.EventType)e.Type == SDL.EventType.KeyDown;
+                keyStates[(int)e.Key.Scancode] = isDown;
+                
                 UpdateKeyModifiers(e.Key.Mod);
                 ImGuiKey key = KeyEventToImGui(e.Key.Key, e.Key.Scancode);
-                io.AddKeyEvent(key, (SDL.EventType)e.Type == SDL.EventType.KeyDown);
+                io.AddKeyEvent(key, isDown);
                 io.SetKeyEventNativeData(key, (int)e.Key.Key, (int)e.Key.Scancode, (int)e.Key.Scancode);
                 return true;
             case SDL.EventType.WindowMouseEnter:

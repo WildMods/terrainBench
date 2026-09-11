@@ -6,6 +6,7 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using terrainBench;
 using terrainBench.UI;
+using terrainBench.Core;
 
 public class SDLBindingsContext : OpenTK.IBindingsContext {
     public IntPtr GetProcAddress(string procName) {
@@ -55,7 +56,7 @@ public static class Program
         SDL.GLSetAttribute(SDL.GLAttr.ContextFlags, (int)SDL.GLContextFlag.Debug);
 
         var flags = SDL.WindowFlags.OpenGL | SDL.WindowFlags.Resizable;
-        var win = SDL.CreateWindow("Terrain Workbench", 1280, 720, flags);
+        var win = SDL.CreateWindow(EditorState.defaultWindowTitle, 1280, 720, flags);
 
         var glContext = SDL.GLCreateContext(win);
         OpenTK.Graphics.OpenGL4.GL.LoadBindings(new SDLBindingsContext());
@@ -66,8 +67,7 @@ public static class Program
         openTKWin.OnLoad();
 
         double deltaTime = 0, now = 0, last = 0;
-        bool running = true;
-        while (running) {
+        while (openTKWin.running) {
             now = SDL.GetPerformanceCounter();
             deltaTime = (double)(now - last) / SDL.GetPerformanceFrequency(); 
             
@@ -76,7 +76,7 @@ public static class Program
                 
                 var type = (SDL.EventType)e.Type;
                 if (type == SDL.EventType.Quit || type == SDL.EventType.WindowCloseRequested) {
-                    running = false;
+                    openTKWin.running = false;
                 }
                 if (type == SDL.EventType.PenAxis) {
                     var axis = e.PAxis.Axis;
@@ -91,7 +91,7 @@ public static class Program
             }
             
             try {
-                openTKWin.OnRenderFrame(deltaTime);
+                openTKWin.OnRenderFrame(deltaTime, win);
             } catch (Exception e) {
                 Console.WriteLine("Exception thrown by OnRenderFrame(): {0}", e.Message);
             }

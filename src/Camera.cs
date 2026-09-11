@@ -2,9 +2,10 @@
 // @author Torphedo
 
 using ImGuiNET;
-using OpenTK.Windowing.GraphicsLibraryFramework;
+using SDL3;
 using OpenTK.Mathematics;
 using static OpenTK.Mathematics.MathHelper;
+using terrainBench.UI;
 
 namespace terrainBench;
 
@@ -99,12 +100,12 @@ public class Camera {
     /// @brief Update the camera state (should be called each frame)
     /// @param The camera to modify
     /// @param delta_time Time elapsed since the last call
-    public void update(KeyboardState input, MouseState mouse, double delta_time) {
-        if (!input.WasKeyDown(Keys.M) && input.IsKeyDown(Keys.M)) {
+    public void update(ImguiImplSDL3 backend, double delta_time) {
+        if (backend.KeyRisingEdge(SDL.Scancode.M)) {
             mode = (Mode)(((int)mode + 1) % (int)Mode.MODE_ENUM_MAX);
         }
 
-        Vector2 cursor_delta = get_cursor_delta(mouse);
+        Vector2 cursor_delta = get_cursor_delta();
         // Vector2 scroll_delta = mouse.ScrollDelta;
         Vector2 scroll_delta = new();
 
@@ -112,9 +113,9 @@ public class Camera {
 
         float multiplier = (float)delta_time * move_speed;
 
-        float forward  = multiplier * ((input.IsKeyDown(Keys.W) ? 1f : 0f) - (input.IsKeyDown(Keys.S) ? 1f : 0f));
-        float side     = multiplier * ((input.IsKeyDown(Keys.A) ? 1f : 0f) - (input.IsKeyDown(Keys.D) ? 1f : 0f));
-        float vertical = multiplier * ((input.IsKeyDown(Keys.Space) ? 1f : 0f) - (input.IsKeyDown(Keys.LeftShift) ? 1f : 0f));
+        float forward  = multiplier * backend.IsKeyDownI(SDL.Scancode.W) - backend.IsKeyDownI(SDL.Scancode.S);
+        float side = multiplier * (backend.IsKeyDownI(SDL.Scancode.A) - backend.IsKeyDownI(SDL.Scancode.D));
+        float vertical = multiplier * (backend.IsKeyDownI(SDL.Scancode.Space) - backend.IsKeyDownI(SDL.Scancode.LShift));
 
         Vector3 cam_dir = facing();
 
@@ -195,13 +196,13 @@ public class Camera {
     /// @brief Screenspace cursor movement since last frame.
     ///
     /// This also applies mouse inversion if needed, and the gamepad's right stick.
-    private Vector2 get_cursor_delta(MouseState mouse) {
+    private Vector2 get_cursor_delta() {
         // Nullify movement unless click is held
-        if (!mouse.IsButtonDown(MouseButton.Middle)) {
+        if (!ImGui.IsMouseDown(ImGuiMouseButton.Middle)) {
             return Vector2.Zero;
         }
 
-        var delta = mouse.Delta;
+        var delta = ImGui.GetIO().MouseDelta;
         Vector2 cursor_delta = mouse_sens * new Vector2((float)delta.X, (float)delta.Y);
 
         // Invert sign as needed.

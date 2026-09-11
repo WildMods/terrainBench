@@ -1,10 +1,11 @@
 using ImGuiNET;
+using SDL3;
 using System.Diagnostics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
 
 namespace terrainBench.Core;
 using LodComponents;
+using terrainBench.UI;
 
 public struct Brush() {
     public enum Shape {
@@ -54,32 +55,22 @@ public struct Brush() {
     /// </summary>
     public float baseStrength = 20f;
 
-    private bool IsKeyJustPressed(KeyboardState input, Keys k) {
-        bool wasPressed = input.WasKeyDown(k);
-        bool isPressed = input.IsKeyDown(k);
-        return (!wasPressed && isPressed);
-    }
-    
-    private int IsKeyJustPressedI(KeyboardState input, Keys k) {
-        return IsKeyJustPressed(input, k) ? 1 : 0;
-    }
-    
-    public void UpdateFromInput(KeyboardState input, MouseState mouse, float pressure) {
-        int deltaA = IsKeyJustPressedI(input, Keys.Up) - IsKeyJustPressedI(input, Keys.Down);
-        int deltaB = IsKeyJustPressedI(input, Keys.Right) - IsKeyJustPressedI(input, Keys.Left);
+    public void UpdateFromInput(ImguiImplSDL3 backend, float pressure) {
+        int deltaA = backend.KeyRisingEdgeI(SDL.Scancode.Up) - backend.KeyRisingEdgeI(SDL.Scancode.Down);
+        int deltaB = backend.KeyRisingEdgeI(SDL.Scancode.Right) - backend.KeyRisingEdgeI(SDL.Scancode.Left);
         textureIndices[0] += deltaA;
         textureIndices[1] += deltaB;
        this.pressure = pressure;
         
-        if (input.IsKeyDown(Keys.LeftShift)) {
+        if (backend.IsKeyDown(SDL.Scancode.LShift)) {
             component = (int)Material.Component.BlendWeight; // Edit the texture blend
-        } else if (mouse.IsButtonDown(MouseButton.Left)) {
+        } else if (ImGui.IsMouseDown(ImGuiMouseButton.Left)) {
             component = (int)Material.Component.Material0;   // Edit texture A
-        } else if (mouse.IsButtonDown(MouseButton.Right)) {
+        } else if (ImGui.IsMouseDown(ImGuiMouseButton.Right)) {
             component = (int)Material.Component.Material1;   // Edit texture B
         }
 
-        bool changeTarget = IsKeyJustPressed(input, Keys.Q);
+        bool changeTarget = backend.KeyRisingEdge(SDL.Scancode.Q);
         if (changeTarget) {
             // I'm not using a ternary because more targets may be added  --torf
             if (target == LodComponent.hght) {

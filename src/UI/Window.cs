@@ -1,11 +1,8 @@
 ﻿using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Desktop;
+using SDL3;
 using System.Runtime.InteropServices;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using ErrorCode = OpenTK.Windowing.GraphicsLibraryFramework.ErrorCode;
 using SNVector2 = System.Numerics.Vector2;
 
 using terrainBench.Core;
@@ -20,6 +17,7 @@ public class Window {
     bool showDemo = false;
     bool showAbout = false;
     EditorState editor;
+    public bool running = true;
 
     public Window(string[] args, nint sdlWindow) 
     {
@@ -28,10 +26,10 @@ public class Window {
         sdlBackend = new(sdlWindow);
     }
 
-    void UpdateLoadingStateMachine(EditorState ed) {
+    void UpdateLoadingStateMachine(EditorState ed, nint sdlWindow) {
         switch (ed.bootProgress) {
             case SHOW_UPLOAD_MSG:
-                // Title = EditorState.gpuUploadWindowTitle;
+                SDL.SetWindowTitle(sdlWindow, EditorState.gpuUploadWindowTitle);
                 ed.bootProgress = LOAD_TERRAIN_TEXTURES;
                 return; // End frame to make sure title is applied
             case LOAD_TERRAIN_TEXTURES:
@@ -46,14 +44,12 @@ public class Window {
                 ed.bootProgress = DONE;
                 Task.Run(ed.RendererUploadThread);
 
-                // Title = EditorState.defaultWindowTitle;
+                SDL.SetWindowTitle(sdlWindow, EditorState.defaultWindowTitle);
                 break;
         }
     }
 
     public void OnLoad() {
-        // Title = EditorState.defaultWindowTitle;
-
         GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
         GL.Enable(EnableCap.DebugOutput);
         GL.Enable(EnableCap.DebugOutputSynchronous);
@@ -104,7 +100,6 @@ public class Window {
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);
         fbo.GLInit();
-        GLFWProvider.SetErrorCallback(GLFWErrorCallback);
         
         // Start terrain loading
         editor.bootProgress = TILES_LOADING;
@@ -148,8 +143,8 @@ public class Window {
         return false;
     }
     
-    void Update(double delta) {
-        UpdateLoadingStateMachine(editor);
+    void Update(double delta, nint sdlWindow) {
+        UpdateLoadingStateMachine(editor, sdlWindow);
         ImGui.DockSpaceOverViewport();
         
         // Pixels can be 2 or 4 bytes, so we use an average of 3 bytes
@@ -163,10 +158,8 @@ public class Window {
         Vector2 fbStart = new();
         Vector2 fbDisplayedSize = new();
         bool temp = false;
-        /*
-        bool shouldClose = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.Q);
-        bool shouldSave = KeyboardState.IsKeyDown(Keys.LeftControl) && KeyboardState.IsKeyDown(Keys.S);
-        */
+        bool shouldClose =  ImGui.IsKeyDown(ImGuiKey.LeftCtrl) && ImGui.IsKeyDown(ImGuiKey.Q);
+        bool shouldSave  =  ImGui.IsKeyDown(ImGuiKey.LeftCtrl) && ImGui.IsKeyDown(ImGuiKey.S);
         bool shouldImportHeightmap = false;
         bool isViewportHovered = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
@@ -244,15 +237,13 @@ public class Window {
         }
         AboutMenu();
         
-        /*
         if (shouldSave) {
             editor.cache.WriteAllTiles(editor.game.modPath, true, CsOead.Endianness.Big);
         }
 
         if (shouldClose) {
-            Close();
+            running = false;
         }
-        */
 
         if (shouldImportHeightmap) {
             var filters = "png,jpeg,webp,heif,heic,avif,jpegxl,jxl,ktx,ktx2,astc,bmp,pkm";
@@ -266,8 +257,8 @@ public class Window {
 
         bool shouldUseKeyboard = isViewportHovered;
         if (shouldUseKeyboard) {
-            // editor.cam.update(KeyboardState, MouseState, delta);
-            // editor.brush.UpdateFromInput(KeyboardState, MouseState, 1f);
+            editor.cam.update(sdlBackend, delta);
+            editor.brush.UpdateFromInput(sdlBackend, 1f);
         }
 
         
@@ -276,11 +267,13 @@ public class Window {
             return;
         }
 
-        /*
         Vector2 mouseVec = new();
         unsafe {
-            GLFW.GetCursorPos(this.WindowPtr, out var x, out var y);
-            GLFW.GetFramebufferSize(WindowPtr, out var screenX, out var screenY);
+            SDL.GetMouseState(out var x, out var y);
+            // TODO: Do we want GetWindowSize() or GetWindowSizeInPixels()?
+            // They differ on high DPI displays, just need to figure out what
+            // coordinate space the mouse coordinates are in.
+            SDL.GetWindowSize(sdlWindow, out var screenX, out var screenY);
             
             mouseVec = new Vector2((float)x, (float)y);
             var sizeDiff = new Vector2(screenX, screenY) - fbDisplayedSize;
@@ -300,8 +293,8 @@ public class Window {
             editor.brush.center = pp;
         }
 
-        bool leftPress = MouseState.IsButtonDown(MouseButton.Left);
-        bool rightPress = MouseState.IsButtonDown(MouseButton.Right);
+        bool leftPress = ImGui.IsMouseDown(ImGuiMouseButton.Left);
+        bool rightPress = ImGui.IsMouseDown(ImGuiMouseButton.Right);
         if (leftPress || rightPress) {
             var updatedTiles = editor.brush.ApplyToTiles(editor.cache, editor.terrain.lodCoverage, 1f);
             foreach (var packed in updatedTiles) {
@@ -310,10 +303,9 @@ public class Window {
                 editor.terrain.ScheduleTileUpdate(idx, lod, LodComponent.mate, editor.cache);
             }
         }
-        */
     }
 
-    public void OnRenderFrame(double delta) {
+    public void OnRenderFrame(double delta, nint sdlWindow) {
         Profiler.EmitFrameMark();
 
         ImguiImplOpenGL3.NewFrame();
@@ -322,7 +314,7 @@ public class Window {
         
         using (Profiler.BeginZone("Update")) {
             try {
-                Update(delta);
+                Update(delta, sdlWindow);
             } catch (Exception e) {
                 Console.WriteLine("Exception thrown by Update(): {0}", e.Message);
             }
@@ -368,13 +360,15 @@ public class Window {
             GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
             ImguiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
-    
+
             if (ImGui.GetIO().ConfigFlags.HasFlag(ImGuiConfigFlags.ViewportsEnable)) {
                 ImGui.UpdatePlatformWindows();
                 ImGui.RenderPlatformWindowsDefault();
                 // Context.MakeCurrent();
             }
         }
+
+        sdlBackend.InputNewFrame();
     }
 
     public void OnResize(Vector2i size) {
@@ -438,12 +432,5 @@ public class Window {
                     break;
             }
         }
-    }
-    
-    private static void GLFWErrorCallback(ErrorCode errorCode, string description) {
-        if (errorCode == ErrorCode.CursorUnavailable) {
-            return;
-        }
-        Console.WriteLine("GLFW error code {0}: '{1}'", errorCode, description);
     }
 }
