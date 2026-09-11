@@ -9,7 +9,7 @@ using terrainBench.Core;
 using static terrainBench.Core.EditorState.BootState;
 namespace terrainBench.UI;
 
-public class Window {
+public class TerrainbenchWindow {
     public ImguiImplSDL3 sdlBackend;
     OpenGlFbo fbo = new();
     bool needResize = true;
@@ -19,11 +19,9 @@ public class Window {
     EditorState editor;
     public bool running = true;
 
-    public Window(string[] args, nint sdlWindow) 
+    public TerrainbenchWindow(string[] args) 
     {
-        ImGui.CreateContext();
         editor = new(args);
-        sdlBackend = new(sdlWindow);
     }
 
     void UpdateLoadingStateMachine(EditorState ed, nint sdlWindow) {
@@ -49,7 +47,9 @@ public class Window {
         }
     }
 
-    public void OnLoad() {
+    public void GLInit(nint sdlWindow) {
+        ImGui.CreateContext();
+        sdlBackend = new(sdlWindow);
         GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
         GL.Enable(EnableCap.DebugOutput);
         GL.Enable(EnableCap.DebugOutputSynchronous);
@@ -129,6 +129,10 @@ public class Window {
         }
     }
 
+    /// <summary>
+    /// ImGui component for a non-editable text display with a button
+    /// to pick a folder in the OS file picker
+    /// </summary>
     bool PickablePath(string label, ref string txt) {
         ImGui.Text(String.Format("{0}: {1}", label, txt));
         ImGui.SameLine();
@@ -150,8 +154,8 @@ public class Window {
         // Pixels can be 2 or 4 bytes, so we use an average of 3 bytes
         var bytesPerTile = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE * 3;
         var bytesPerGB = (long)Math.Pow(1000, 3);
-        var loadedGB = ((long)editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
-        var totalGB = ((long)editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
+        var loadedGB = (editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
+        var totalGB = (editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
         var percent = (float)editor.asyncLoadedTiles.Value / editor.uiTotalTiles * 100f;
         editor.uiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
         
@@ -166,10 +170,8 @@ public class Window {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
                     shouldImportHeightmap = ImGui.MenuItem("Import heightmap image");
-                    /*
                     shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
                     shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
-                    */
                     ImGui.EndMenu();
                 }
                 if (ImGui.BeginMenu("Camera")) {
@@ -267,7 +269,7 @@ public class Window {
             return;
         }
 
-        Vector2 mouseVec = new();
+        Vector2 mouseVec;
         unsafe {
             SDL.GetMouseState(out var x, out var y);
             // TODO: Do we want GetWindowSize() or GetWindowSizeInPixels()?
@@ -313,11 +315,7 @@ public class Window {
         ImGui.NewFrame();
         
         using (Profiler.BeginZone("Update")) {
-            try {
-                Update(delta, sdlWindow);
-            } catch (Exception e) {
-                Console.WriteLine("Exception thrown by Update(): {0}", e.Message);
-            }
+            Update(delta, sdlWindow);
         }
 
         if (needResize) {
@@ -356,7 +354,6 @@ public class Window {
 
         using (Profiler.BeginZone("ImGui Render")) {
             ImGui.Render();
-            // GL.Viewport(0, 0, FramebufferSize.X, FramebufferSize.Y);
             GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
             ImguiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
@@ -364,7 +361,6 @@ public class Window {
             if (ImGui.GetIO().ConfigFlags.HasFlag(ImGuiConfigFlags.ViewportsEnable)) {
                 ImGui.UpdatePlatformWindows();
                 ImGui.RenderPlatformWindowsDefault();
-                // Context.MakeCurrent();
             }
         }
 
@@ -372,12 +368,13 @@ public class Window {
     }
 
     public void OnResize(Vector2i size) {
+        // We do this indirectly in case this is called from another thread
+        // (which doesn't have a GL context)
         newSize = size;
         needResize = true;
     }
 
-    public void OnClosed()
-    {
+    public void OnClosed() {
         fbo.Dispose();
         editor.terrain.GLUninit();
         editor.brushRenderer.GLUninit();
@@ -385,6 +382,7 @@ public class Window {
         sdlBackend.Dispose();
     }
 
+    // OpenGL debug logger callback
     public readonly static DebugProc DebugProcCallback = Window_DebugProc;
     private static void Window_DebugProc(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr messagePtr, IntPtr userParam)
     {

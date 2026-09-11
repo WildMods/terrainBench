@@ -1,3 +1,4 @@
+// Adapted from https://github.com/behindcurtain3/SDL3-ImGui/blob/master/ImGuiSDL3.cs
 using ImGuiNET;
 using SDL3;
 

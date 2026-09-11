@@ -46,37 +46,52 @@ public static class Program
             return;
         }
 
+        // Run the editor in graphical mode
+        GraphicalMain(args, true);
+    }
+
+    /// <summary>Run the graphical application</summary>
+    public static void GraphicalMain(string[] args, bool debugGL) {
         SDL.InitSubSystem(SDL.InitFlags.Video);
 
-        SDL.GLSetSwapInterval(1); // Enable VSync
+        // OpenGL init
         SDL.GLSetAttribute(SDL.GLAttr.ContextMajorVersion, 4);
         SDL.GLSetAttribute(SDL.GLAttr.ContextMinorVersion, 2);
-        SDL.GLSetAttribute(SDL.GLAttr.DoubleBuffer, 1);
         SDL.GLSetAttribute(SDL.GLAttr.ContextProfileMask, (int)SDL.GLProfile.Core);
-        SDL.GLSetAttribute(SDL.GLAttr.ContextFlags, (int)SDL.GLContextFlag.Debug);
+        SDL.GLSetAttribute(SDL.GLAttr.DoubleBuffer, 1);
+        SDL.GLSetSwapInterval(1); // Enable VSync
 
+        // Allow caller to disable a debug GL context for extra performance
+        if (debugGL) {
+            SDL.GLSetAttribute(SDL.GLAttr.ContextFlags, (int)SDL.GLContextFlag.Debug);
+        }
+
+        // SDL init
         var flags = SDL.WindowFlags.OpenGL | SDL.WindowFlags.Resizable;
-        var win = SDL.CreateWindow(EditorState.defaultWindowTitle, 1280, 720, flags);
+        var sdlWindow = SDL.CreateWindow(EditorState.defaultWindowTitle, 1280, 720, flags);
 
-        var glContext = SDL.GLCreateContext(win);
+        // Hook up OpenTK's GL bindings to SDL's GL context
+        var glContext = SDL.GLCreateContext(sdlWindow);
         OpenTK.Graphics.OpenGL4.GL.LoadBindings(new SDLBindingsContext());
 
-        GL.ClearColor(new Color4(0.2f, 0.3f, 0.3f, 1.0f));
+        // Init the actual editor
+        TerrainbenchWindow editorWindow = new(args);
+        editorWindow.GLInit(sdlWindow);
 
-        Window openTKWin = new(args, win);
-        openTKWin.OnLoad();
-
-        double deltaTime = 0, now = 0, last = 0;
-        while (openTKWin.running) {
+        double deltaTime, now;
+        double last = 0;
+        while (editorWindow.running) {
+            // Calc delta time
             now = SDL.GetPerformanceCounter();
             deltaTime = (double)(now - last) / SDL.GetPerformanceFrequency(); 
             
             while (SDL.PollEvent(out var e)) {
-                openTKWin.sdlBackend.ProcessEvent(e);
+                // Pass events to the ImGui backend
+                editorWindow.sdlBackend.ProcessEvent(e);
                 
                 var type = (SDL.EventType)e.Type;
                 if (type == SDL.EventType.Quit || type == SDL.EventType.WindowCloseRequested) {
-                    openTKWin.running = false;
+                    editorWindow.running = false;
                 }
                 if (type == SDL.EventType.PenAxis) {
                     var axis = e.PAxis.Axis;
@@ -86,20 +101,17 @@ public static class Program
                 }
                 if (type == SDL.EventType.WindowResized) {
                     var size = new Vector2i(e.Window.Data1, e.Window.Data2);
-                    openTKWin.OnResize(size);
+                    editorWindow.OnResize(size);
                 }
             }
             
-            try {
-                openTKWin.OnRenderFrame(deltaTime, win);
-            } catch (Exception e) {
-                Console.WriteLine("Exception thrown by OnRenderFrame(): {0}", e.Message);
-            }
+            editorWindow.OnRenderFrame(deltaTime, sdlWindow);
 
-            SDL.GLSwapWindow(win);
+            // Wait for VSync, assuming it's enabled and double buffered.
+            SDL.GLSwapWindow(sdlWindow);
             last = now;
         }
 
-        openTKWin.OnClosed();
+        editorWindow.OnClosed();
     }
 }
