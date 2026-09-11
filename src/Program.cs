@@ -93,12 +93,6 @@ public static class Program
                 if (type == SDL.EventType.Quit || type == SDL.EventType.WindowCloseRequested) {
                     editorWindow.running = false;
                 }
-                if (type == SDL.EventType.PenAxis) {
-                    var axis = e.PAxis.Axis;
-                    if (axis == SDL.PenAxis.Pressure) {
-                        Console.WriteLine("Pressure: {0}", e.PAxis.Value);
-                    }
-                }
                 if (type == SDL.EventType.WindowResized) {
                     var size = new Vector2i(e.Window.Data1, e.Window.Data2);
                     editorWindow.OnResize(size);

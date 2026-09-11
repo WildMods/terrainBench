@@ -21,6 +21,8 @@ public class ImguiImplSDL3 : IDisposable
     bool[] keyStates = new bool[(int)SDL.Scancode.Count];
     bool[] prevKeyStates = new bool[(int)SDL.Scancode.Count];
 
+    float[] penAxes = new float[(int)SDL.PenAxis.Count];
+
     public ImguiImplSDL3(nint window)
     {
         ImGuiIOPtr io = ImGui.GetIO();
@@ -91,6 +93,14 @@ public class ImguiImplSDL3 : IDisposable
     }
     
 
+    public float GetPenAxis(SDL.PenAxis a) {
+        var i = (int)a;
+        if (i >= penAxes.Length) {
+            return 0f;
+        }
+        return penAxes[i];
+    }
+    
     private static bool CheckKeyState(bool[] stateArray, SDL.Scancode code) {
         var i = (int)code;
         if (i >= stateArray.Length) {
@@ -111,6 +121,7 @@ public class ImguiImplSDL3 : IDisposable
     public int WasKeyDownI(SDL.Scancode code) => CheckKeyStateI(prevKeyStates, code);
     public int KeyRisingEdgeI(SDL.Scancode code) => KeyRisingEdge(code) ? 1 : 0;
 
+
     public bool ProcessEvent(SDL.Event e)
     {
         ImGuiIOPtr io = ImGui.GetIO();
@@ -121,8 +132,18 @@ public class ImguiImplSDL3 : IDisposable
                 if(GetViewportForWindowId(e.Motion.WindowID) == null)
                     return false;
 
-                io.AddMouseSourceEvent(e.Motion.Which == SDL.TouchMouseID ? ImGuiMouseSource.TouchScreen : ImGuiMouseSource.Mouse);
+                var source = ImGuiMouseSource.Mouse;
+                if (e.Motion.Which == SDL.TouchMouseID) {
+                    source = ImGuiMouseSource.TouchScreen;
+                }
+                if (e.Motion.Which == SDL.PenMouseID) {
+                    source = ImGuiMouseSource.Pen;
+                }
+                io.AddMouseSourceEvent(source);
                 io.AddMousePosEvent(e.Motion.X, e.Motion.Y);
+                return true;
+            case SDL.EventType.PenAxis:
+                penAxes[(int)e.PAxis.Axis] = e.PAxis.Value;
                 return true;
             case SDL.EventType.MouseWheel:
                 if(GetViewportForWindowId(e.Wheel.WindowID) == null)
