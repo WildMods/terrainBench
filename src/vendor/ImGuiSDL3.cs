@@ -22,6 +22,7 @@ public class ImguiImplSDL3 : IDisposable
     bool[] prevKeyStates = new bool[(int)SDL.Scancode.Count];
 
     float[] penAxes = new float[(int)SDL.PenAxis.Count];
+    public bool penDown;
 
     public ImguiImplSDL3(nint window)
     {
@@ -144,6 +145,12 @@ public class ImguiImplSDL3 : IDisposable
                 return true;
             case SDL.EventType.PenAxis:
                 penAxes[(int)e.PAxis.Axis] = e.PAxis.Value;
+                return true;
+            case SDL.EventType.PenDown:
+                penDown = true;
+                return true;
+            case SDL.EventType.PenUp:
+                penDown = false;
                 return true;
             case SDL.EventType.MouseWheel:
                 if(GetViewportForWindowId(e.Wheel.WindowID) == null)

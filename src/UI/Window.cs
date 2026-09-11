@@ -260,7 +260,11 @@ public class TerrainbenchWindow {
         bool shouldUseKeyboard = isViewportHovered;
         if (shouldUseKeyboard) {
             editor.cam.update(sdlBackend, delta);
-            editor.brush.UpdateFromInput(sdlBackend, 1f);
+
+            // When the pen is up (i.e. clicks can only come from
+            // non-pressure-sensitve sources), treat it as full pressure
+            var pressure = sdlBackend.penDown ? sdlBackend.GetPenAxis(SDL.PenAxis.Pressure) : 1f;
+            editor.brush.UpdateFromInput(sdlBackend, pressure);
         }
 
         
