@@ -32,6 +32,7 @@ namespace terrainBench.UI
             }
         }
 
+        [StructLayout(LayoutKind.Auto, Size = 48)]
         struct RendererData {
             public int FontTexture;
             public int ShaderHandle;
@@ -42,7 +43,6 @@ namespace terrainBench.UI
             public int AttribLocationVtxColor;
             public int VboHandle;
             public int EboHandle;
-            // FIXME: ??
             public bool HasPolygonMode;
             public bool HasClipOrigin;
 

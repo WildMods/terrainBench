@@ -9,7 +9,7 @@ public static class Profiler
 {
     // Plot names need to be cached for the lifetime of the program
     // seealso Tracy docs section 3.1
-    private static readonly Dictionary<string, CString> PlotNameCache = new Dictionary<string, CString>();
+    private static readonly Dictionary<string, CString> PlotNameCache = new();
     
     public static bool tracyDisabled = false;
 
@@ -37,13 +37,13 @@ public static class Profiler
     /// </param>
     /// <returns></returns>
     public static ProfilerZone BeginZone(
-        string zoneName = null,
+        string? zoneName = null,
         bool active = true,
         uint color = 0,
-        string text = null,
+        string? text = null,
         [CallerLineNumber] uint lineNumber = 0,
-        [CallerFilePath] string filePath = null,
-        [CallerMemberName] string memberName = null)
+        [CallerFilePath] string? filePath = null,
+        [CallerMemberName] string? memberName = null)
     {
         if (tracyDisabled) return new();
         using var filestr = GetCString(filePath, out var fileln);
