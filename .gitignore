@@ -68,6 +68,9 @@ _ReSharper*/
 # JetBrains IDE state folder
 .idea/
 
+# Zeditor state
+**/.zed/
+
 # Click-Once directory
 publish/
 
