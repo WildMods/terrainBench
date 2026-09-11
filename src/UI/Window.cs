@@ -154,8 +154,8 @@ public class TerrainbenchWindow {
         // Pixels can be 2 or 4 bytes, so we use an average of 3 bytes
         var bytesPerTile = ZOrder.GRID_SIZE * ZOrder.GRID_SIZE * 3;
         var bytesPerGB = (long)Math.Pow(1000, 3);
-        var loadedGB = (editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
-        var totalGB = (editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
+        var loadedGB = ((long)editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
+        var totalGB = ((long)editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
         var percent = (float)editor.asyncLoadedTiles.Value / editor.uiTotalTiles * 100f;
         editor.uiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
         
