@@ -34,6 +34,10 @@ M
     public Graphics.BrushRenderer brushRenderer = new();
     public Camera cam = new();
     public bool runRendererUpload = true;
+    public bool runDownscaler = true;
+
+    public HashSet<Int32> downscaleSet = new();
+    public Mutex downscaleSetLock = new();
 
     // Asynchronously updated progress data
     public ProgressReport asyncLoadedTiles = new();
@@ -49,10 +53,45 @@ M
             Thread.Sleep(1);
         }
     }
+    
+    public void DownscalingThread() {
+        while (runDownscaler) {
+            bool workToDo;
+            Int32 packed = 0;
+            
+            // Minimize locking by grabbing a single item to work on
+            downscaleSetLock.WaitOne();
+            workToDo = downscaleSet.Count != 0;
+            if (workToDo) {
+                foreach (var item in downscaleSet) {
+                    downscaleSet.Remove(item);
+                    packed = item;
+                    break;
+                }
+            }
+            downscaleSetLock.ReleaseMutex();
+
+            if (workToDo) {
+                ZOrder.UnpackIndex(packed, out var idx, out var lod);
+                cache.DownscaleTileCascade(idx, lod, LodComponent.hght);
+                cache.DownscaleTileCascade(idx, lod, LodComponent.mate);
+
+                var curIdx = idx;
+                for (int i = lod; i >= 0; i--) {
+                    terrain.ScheduleTileUpdate(curIdx, (byte)i, LodComponent.hght, cache);
+                    terrain.ScheduleTileUpdate(curIdx, (byte)i, LodComponent.mate, cache);
+                    curIdx >>= 2;
+                }
+            }
+            Thread.Sleep(1);
+        }
+        Console.WriteLine("Exiting downscaler thread.");
+    }
 
     public bool ReloadFromHeightmap(string path) {
         // Clear GPU state except textures which don't change
         runRendererUpload = false;
+        downscaleSet.Clear();
         Thread.Sleep(5); // Wait for renderer upload thread to exit
         terrain.UnloadTerrainTiles();
         

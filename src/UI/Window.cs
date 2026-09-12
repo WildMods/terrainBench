@@ -41,6 +41,7 @@ public class TerrainbenchWindow {
 
                 ed.bootProgress = DONE;
                 Task.Run(ed.RendererUploadThread);
+                Task.Run(ed.DownscalingThread);
 
                 SDL.SetWindowTitle(sdlWindow, EditorState.defaultWindowTitle);
                 break;
@@ -305,8 +306,11 @@ public class TerrainbenchWindow {
             var updatedTiles = editor.brush.ApplyToTiles(editor.cache, editor.terrain.lodCoverage, 1f);
             foreach (var packed in updatedTiles) {
                 ZOrder.UnpackIndex(packed, out var idx, out var lod);
-                editor.terrain.ScheduleTileUpdate(idx, lod, LodComponent.hght, editor.cache);
-                editor.terrain.ScheduleTileUpdate(idx, lod, LodComponent.mate, editor.cache);
+                editor.terrain.ScheduleTileUpdate(idx, lod, editor.brush.target, editor.cache);
+
+                editor.downscaleSetLock.WaitOne();
+                editor.downscaleSet.Add(packed);
+                editor.downscaleSetLock.ReleaseMutex();
             }
         }
     }

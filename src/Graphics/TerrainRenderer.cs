@@ -197,12 +197,6 @@ public struct TerrainRenderer {
             // Make the PBO that was being edited inactive so we can upload from it
             SwapPBOs();
 
-            // Tile uploads are done 1 row at a time, because OpenGL expects to
-            // find contiguous image data at whatever resolution we specify. The
-            // current PBO format is a contiguous image for the whole atlas, but
-            // we would need the entire tile to be contiguous to upload the tile
-            // in 1 call.
-            // 
             // TODO: Write a helper method to eliminate this code duplication
             GL.PixelStore(PixelStoreParameter.UnpackRowLength, MAX_SIZE);
             if (hghtDirty) {
@@ -356,7 +350,7 @@ public struct TerrainRenderer {
             zone.Dispose();
         }
 
-        public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
+        public void Draw(int tilesPerTexLoc, int indicesLocation) {
             var z = Profiler.BeginZone("R_DrawTileSheet");
             ProcessTileUpdates();
             
@@ -387,8 +381,12 @@ public struct TerrainRenderer {
     /// </summary>
     public struct TileRegion {
         public readonly List<CompactTileSheet> sheets = [];
+        readonly byte maxLOD;
+        readonly byte radius;
 
         public TileRegion(CoverageMap lodCoverage, Cache cache, byte sizeTiles, byte xCenter, byte yCenter, byte maxLOD = ZOrder.MAX_LOD) {
+            this.maxLOD = maxLOD;
+            radius = sizeTiles;
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
 
@@ -408,9 +406,12 @@ public struct TerrainRenderer {
             zone.Dispose();
         }
 
-        public void Draw(int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist, UInt16 centerTile) {
+        public void Draw(Shader s, int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist) {
+            var shiftAmount = ZOrder.MAX_LOD - maxLOD;
+            s.SetUniform("mask", 0xFF >> shiftAmount);
+            s.SetUniform("minDist", minDist);
             foreach (var lvl in sheets) {
-                lvl.Draw(tilesPerTexLoc, indicesLocation, minDist, maxDist, centerTile);
+                lvl.Draw(tilesPerTexLoc, indicesLocation);
             }
         }
 
@@ -465,7 +466,6 @@ public struct TerrainRenderer {
                 }
             }
             
-            Console.WriteLine("Unable to update tile {0} @ lvl {1}", idx, lod);
             return false;
         }
 
@@ -492,7 +492,11 @@ public struct TerrainRenderer {
     /// </summary>
     public bool ScheduleTileUpdate(UInt16 idx, byte lod, ReadOnlySpan<byte> data, LodComponent type)
     {
-        return ring0.ScheduleTileUpdate(idx, lod, data, type);
+        bool result = false;
+        // Try to update in all rings, because there may be overlap between them
+        result |= ring0.ScheduleTileUpdate(idx, lod, data, type);
+        result |= ring1.ScheduleTileUpdate(idx, lod, data, type);
+        return result;
     }
 
     public bool ScheduleTileUpdate(UInt16 idx, byte lod, LodComponent type, Cache cache)
@@ -567,7 +571,7 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(lodCoverage, cache, 32, 128, 128);
+        ring0 = new(lodCoverage, cache, (byte)renderRadius, 128, 128);
         ring1 = new(lodCoverage, cache, 255, 128, 128, 5);
         loadWatch.Stop();
         
@@ -712,16 +716,10 @@ public struct TerrainRenderer {
 
         var eyeTile = (TerrainCoords.TileGrid8Pos)eyeWorld;
         var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);
-
         tessShader.SetUniform("eyeIdx", center);
-        tessShader.SetUniform("mask", 0xFF);
-        tessShader.SetUniform("minDist", 0);
-        ring0.Draw(tilesPerTexLoc, indicesLocation, 0, renderRadius, center);
 
-        tessShader.SetUniform("eyeIdx", center);
-        tessShader.SetUniform("mask", 0xFF >> 3);
-        tessShader.SetUniform("minDist", renderRadius);
-        ring1.Draw(tilesPerTexLoc, indicesLocation, renderRadius, 256, center);
+        ring0.Draw(tessShader, tilesPerTexLoc, indicesLocation, 0, renderRadius);
+        ring1.Draw(tessShader, tilesPerTexLoc, indicesLocation, renderRadius, 256);
 
         GL.BindVertexArray(0);
         z.Dispose();

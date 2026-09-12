@@ -178,6 +178,8 @@ public class Cache
     public Result<bool, ErrorStack> DownscaleTileCascade(ushort idx, uint level, LodComponent component)
     {
         for (uint i = level; i > 0; i--) {
+            // TODO: When we downscale the lower LODs, only downscale the small
+            // sub-region affected by the higher-level change
             var res = DownscaleTileByOne(idx, i, component);
             if (res.IsErr()) {
                 return Err(res.ExpectErr("").Context($"Failed to downscale idx {idx} @ level {i}"));
