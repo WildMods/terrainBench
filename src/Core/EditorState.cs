@@ -72,9 +72,14 @@ M
             downscaleSetLock.ReleaseMutex();
 
             if (workToDo) {
+                var z = Profiler.BeginZone("Downscale single");
                 ZOrder.UnpackIndex(packed, out var idx, out var lod);
-                cache.DownscaleTileCascade(idx, lod, LodComponent.hght);
-                cache.DownscaleTileCascade(idx, lod, LodComponent.mate);
+                try {
+                    cache.DownscaleTileCascade(idx, lod, LodComponent.hght);
+                    cache.DownscaleTileCascade(idx, lod, LodComponent.mate);
+                } catch (Exception e) {
+                    Console.WriteLine("Exception while downscaling: {0}", e.Message);
+                }
 
                 var curIdx = idx;
                 for (int i = lod; i >= 0; i--) {
@@ -82,6 +87,7 @@ M
                     terrain.ScheduleTileUpdate(curIdx, (byte)i, LodComponent.mate, cache);
                     curIdx >>= 2;
                 }
+                z.Dispose();
             }
             Thread.Sleep(1);
         }

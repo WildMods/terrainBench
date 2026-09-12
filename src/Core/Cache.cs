@@ -115,7 +115,7 @@ public class Cache
         return true;
     }
 
-    Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, LodComponent component)
+    public Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, LodComponent component, int lodDiff = 0)
     {
         if (level >= _lods.Length) {
             return Err(new ErrorStack($"LOD {level} doesn't exist!"));
@@ -124,12 +124,6 @@ public class Cache
             return false; // Nothing to do, but not an error
         }
 
-        Vector2i tilePos;
-        {
-            ZOrder.Deinterleave16To8(idx, out var x, out var y);
-            tilePos = new(x, y);
-        }
-        
         int size = component switch {
             LodComponent.hght => ZOrder.GRID_SIZE,
             LodComponent.mate => ZOrder.GRID_SIZE,
@@ -137,12 +131,25 @@ public class Cache
             LodComponent.grass => 64,
             _ => 0,
         };
+        size >>= lodDiff;
         if (size == 0) {
             return Err(new ErrorStack($"Invalid terrain component value ({component})!"));
         }
 
-        Vector2i pixelPosLow = TileScaling.GetLowDetailPos(tilePos, size);
+        return DownscaleTileByOne(idx, level, size, Vector2i.Zero, component);
+    }
+
+    public Result<bool, ErrorStack> DownscaleTileByOne(ushort idx, uint level, int size, Vector2i highStartPos, LodComponent component) {
         ushort lowIdx = (ushort)(idx >> 2);
+        Vector2i tilePos;
+        {
+            ZOrder.Deinterleave16To8(idx, out var x, out var y);
+            tilePos = new(x, y);
+        }
+
+        Vector2i pixelPosLow = TileScaling.GetLowDetailPos(tilePos, size);
+        pixelPosLow += highStartPos / 2;
+        
         MakeTileDirty(lowIdx, component, (byte)(level - 1));
         switch (component) {
         case LodComponent.hght: {
@@ -177,13 +184,25 @@ public class Cache
 
     public Result<bool, ErrorStack> DownscaleTileCascade(ushort idx, uint level, LodComponent component)
     {
-        for (uint i = level; i > 0; i--) {
-            // TODO: When we downscale the lower LODs, only downscale the small
-            // sub-region affected by the higher-level change
-            var res = DownscaleTileByOne(idx, i, component);
+        int size = component switch {
+            LodComponent.hght => ZOrder.GRID_SIZE,
+            LodComponent.mate => ZOrder.GRID_SIZE,
+            LodComponent.water => 64,
+            LodComponent.grass => 64,
+            _ => 0,
+        };
+
+        var pixelOffset = Vector2i.Zero;
+        for (int i = (int)level; i > 0; i--) {
+            var pixelPosHigh = pixelOffset;
+
+            // TODO: Only downscale the affected area for smaller tiles
+            // e.g. only a quarter of the next lower LOD tile has changed and needs downscaling
+            var res = DownscaleTileByOne(idx, (uint)i, size, pixelPosHigh, component);
             if (res.IsErr()) {
                 return Err(res.ExpectErr("").Context($"Failed to downscale idx {idx} @ level {i}"));
             }
+
             idx >>= 2;
         }
 

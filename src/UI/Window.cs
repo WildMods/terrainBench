@@ -304,14 +304,18 @@ public class TerrainbenchWindow {
         bool rightPress = ImGui.IsMouseDown(ImGuiMouseButton.Right);
         if (leftPress || rightPress) {
             var updatedTiles = editor.brush.ApplyToTiles(editor.cache, editor.terrain.lodCoverage, 1f);
+
+            // Have the full-detail tiles updated with the renderer immediately
             foreach (var packed in updatedTiles) {
                 ZOrder.UnpackIndex(packed, out var idx, out var lod);
                 editor.terrain.ScheduleTileUpdate(idx, lod, editor.brush.target, editor.cache);
-
-                editor.downscaleSetLock.WaitOne();
-                editor.downscaleSet.Add(packed);
-                editor.downscaleSetLock.ReleaseMutex();
             }
+
+            // Submit the edited tiles for async downscaling, which automatically
+            // updates the lower-res tiles with the renderer
+            editor.downscaleSetLock.WaitOne();
+            editor.downscaleSet.UnionWith(updatedTiles);
+            editor.downscaleSetLock.ReleaseMutex();
         }
     }
 

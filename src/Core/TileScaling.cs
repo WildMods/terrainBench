@@ -71,4 +71,11 @@ public static class TileScaling {
         var p = new Vector2i(highTilePos.X & 1, highTilePos.Y & 1);
         return p * (size / 2);
     }
+    public static Vector2i GetLowDetailPos(ushort idx, int size) {
+        ZOrder.Deinterleave16To8(idx, out var x, out var y);
+        Vector2i tilePos = new(x, y);
+        // Even coords start at offset 0, odd ones start halfway. Just isolate the low bit
+        var p = new Vector2i(tilePos.X & 1, tilePos.Y & 1);
+        return p * (size / 2);
+    }
 }
