@@ -46,7 +46,7 @@ public class BfresTextureReader {
             Console.WriteLine(ftexRes.Err());
             return;
         }
-        
+
         var ftex = ftexRes.Unwrap();
         width  = (int)ftex.width;
         height = (int)ftex.height;
@@ -56,7 +56,7 @@ public class BfresTextureReader {
         var deswizzleTime = Stopwatch.StartNew();
         for (int i = 0; i < mipCount; i++) {
             var buf = (i == 0) ? baseData : mipData;
-            var deswizzledLevel = GetDeswizzled(texName, buf, i);
+            var deswizzledLevel = BFRESWiiU.GetDeswizzledByName(texName, buf, i);
             deswizzledMips.Add(deswizzledLevel);
         }
         
@@ -103,9 +103,5 @@ public class BfresTextureReader {
             return Err(new ErrorStack("Failed to load terrain textures", ex));
         }
         
-    }
-    
-    public static byte[] GetDeswizzled(string name, ReadOnlySpan<byte> data, int mipLevel) {
-        return BFRESWiiU.GetDeswizzledByName(name, data, mipLevel);
     }
 }

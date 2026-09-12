@@ -199,7 +199,7 @@ public static class BFRESWiiU {
     public static Result<FTexHeader, ErrorStack> GetFTEXByName(ReadOnlySpan<byte> data, string name) {
         var ftexHandleRes = GetSubfile(data, SubfileTypeWiiU.FTEX);
         if (ftexHandleRes.IsErr()) {
-            return Err(ftexHandleRes.ExpectErr("").Context("Failed to find FTEX subfile"));
+            return Err(ftexHandleRes.Err()!.Context("Failed to find FTEX subfile"));
         }
 
         var ftexHandle = ftexHandleRes.Unwrap();

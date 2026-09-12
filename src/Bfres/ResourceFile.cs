@@ -7,10 +7,8 @@ using static Entish.EndianUtils;
 using OperationResult;
 using static OperationResult.Helpers;
 
-using BfresLibrary;
 namespace terrainBench;
 using static UnsafeUtil;
-using Bfres;
 
 public class ResourceFile {
     public enum Platform {

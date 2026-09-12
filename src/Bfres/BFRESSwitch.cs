@@ -94,10 +94,10 @@ public static class BFRESSwitch {
         var platformRes = ResourceFile.GetBFRESPlatform(data);
         
         if (platformRes.IsErr()) {
-            return Err(platformRes.ExpectErr("").Context($"Unable to get embedded file {index} because the data isn't a BFRES"));
+            return Err(platformRes.Err()!.Context($"Unable to get embedded file {index} because the data isn't a BFRES"));
         }
         if (platformRes.Unwrap() != ResourceFile.Platform.Switch) {
-            return Err(platformRes.ExpectErr("").Context($"Unable to get embedded file {index} because the data isn't a Switch BFRES"));
+            return Err(platformRes.Err()!.Context($"Unable to get embedded file {index} because the data isn't a Switch BFRES"));
         }
         var header = UnsafeUtil.ReadUnsafe<ResFileHeaderSwitch>(data, 0);
         var embeddedFiles = UnsafeUtil.ROSpanSegment<EmbeddedFileSwitch>(data, header.embeddedInfo.arrayOffset, header.embeddedFileCount);
@@ -113,7 +113,7 @@ public static class BFRESSwitch {
         var res = GetEmbeddedFile(data, 0);
         if (res.IsErr())
         {
-            return Err(res.ExpectErr("").Context("Unable to get BNTX data"));
+            return Err(res.Err()!.Context("Unable to get BNTX data"));
         }
         return res.Unwrap();
     }
