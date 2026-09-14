@@ -2,7 +2,10 @@ Terrain Workbench is a PC editor for Zelda: Breath of the Wild's overworld map.
 The map is made of a terrain heightmap, ground material data, a grass
 color/heightmap, and a water/lava heightmap.
 Terrain Workbench currently supports editing the terrain heightmap and ground
-material (which also determines the footstep sounds).
+material (which also determines the footstep sounds and some particle effects).
+
+<img width="80%" alt="thumbnail" src="https://github.com/user-attachments/assets/b81f9d22-2434-4035-944c-7b554c21a103" />
+
 
 ## Setup & Usage
 To load the terrain data, Terrain Workbench needs your BOTW game files.
@@ -116,5 +119,18 @@ To support this, I'd also like to add the option of loading `AocField`. I
 tested this early on (which worked fine), but parts of the editor are currently
 hardcoded to use `MainField`.
 
-## Sources & Thanks
-This program was written entirely based on the file specifications on the ZeldaMods wiki, written mostly by [Zephenryus](https://github.com/zephenryus). I've written a higher-level summary linking to his wiki pages [here](https://zeldamods.org/wiki/Terrain). These pages also had contributions from [Ginger](https://github.com/GingerAvalanche), [Echocolat](https://github.com/Echocolat), [Greenlord / S41L0R](https://github.com/S41L0R), and [Waikuteru](https://www.youtube.com/@Waikuteru). Ginger also wrote the BCML/UKMM settings loader, terrain tile loader, and tile upscaler for Terrain Workbench.
+## Sources
+This program was written entirely based on the file specifications on the ZeldaMods wiki, written mostly by [Zephenryus](https://github.com/zephenryus). I've written a higher-level summary linking to his wiki pages [here](https://zeldamods.org/wiki/Terrain). These pages also had contributions from [Ginger](https://github.com/GingerAvalanche), [Echocolat](https://github.com/Echocolat), [Greenlord / S41L0R](https://github.com/S41L0R), and [Waikuteru](https://www.youtube.com/@Waikuteru).
+
+## Special Thanks
+### [Ginger](https://github.com/GingerAvalanche)  
+  - Wrote the BCML/UKMM settings loader, terrain tile loader, and tile upscaler for Terrain Workbench.
+### [Decaf Emu Team](https://github.com/decaf-emu/decaf-emu)
+  - Wrote the original Wii U texture decoder used by this editor (as well as Switch Toolbox)
+### [KillzXGaming](https://github.com/KillzXGaming)
+  - Ported the Decaf emulator's texture decoder to C# for Switch Toolbox, and made it available as a separate library
+### [MindStormMan06](https://github.com/mindstormman06)
+  - Created a great [Switch texture decoder library](https://github.com/BladesawStudios/BntxSharp) seemingly on a whim, saving me many hours of work
+### [Strong](https://github.com/strong-ery)
+  - A huge help with Wii U texture decoding, without which I would have given up on texture loading optimizations that cut the load time by ~4 seconds
+  
