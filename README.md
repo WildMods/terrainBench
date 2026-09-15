@@ -90,22 +90,24 @@ mouse by about 5% in seemingly random places.
 - The renderer uses a fixed amount of VRAM, so if you increase the render
 distance or go to a very dense area it may not all load at once.
 
-## Average Performance
-On my machine (a 2021 gaming laptop with a 6GB RTX 3060), startup takes 10-30
+## Minimum Requirements
+Terrain Workbench requires ~5.5GB system RAM, ~700MB VRAM, and a GPU with
+support for OpenGL 4.2 or higher. That version is from 2012, so you should be
+fine with any decent post-2013 hardware.
+
+## Expected Performance & Scaling
+On my machine (a 2021 gaming laptop with a 6GB RTX 3060), startup takes 7-10
 seconds (mostly depends on disk speed and how recently the files have been
-used). During normal use, Terrain Workbench uses about 4.7GB of RAM, and about
-1.5GB of VRAM. The minimum OpenGL version is 4.3, from 2012 (so you should be
-fine with any decent post-2013 hardware).
-It's generally stable at 165FPS (my refresh rate) at 80-100% GPU usage, but if
-the entire map is on screen, it drops to about 115FPS.
+used). It's generally stable at 165FPS (my refresh rate) at 80-100% GPU usage,
+but if the entire map is on screen, it drops to about 115FPS.
 Startup time mostly depends on disk speed (and multi-core CPU power), but the
 average framerate depends almost entirely on GPU power.
 
 In my testing, saving an average map edit takes 0.3 - 1 second, depending on
 size. There are some easy optimizations I haven't implemented yet that should
 make this much faster in the future. This isn't a huge concern for me, since it
-takes longer to teleport around and get the game to reload your changes than
-for the editor to save them.
+takes significantly longer to teleport around and get the game to reload your
+changes than for the editor to save them.
 
 ## Future Plans
 The terrain has a dynamic resolution, and at the moment you can't increase the
