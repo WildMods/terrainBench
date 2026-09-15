@@ -131,7 +131,7 @@ This program was written entirely based on the file specifications on the ZeldaM
   - Wrote the original Wii U texture decoder used by this editor (as well as Switch Toolbox)
 ### [KillzXGaming](https://github.com/KillzXGaming)
   - Ported the Decaf emulator's texture decoder to C# for Switch Toolbox, and made it available as a separate library
-### [MindStormMan06](https://github.com/mindstormman06)
+### [Mindstormman06](https://github.com/mindstormman06)
   - Created a great [Switch texture decoder library](https://github.com/BladesawStudios/BntxSharp) seemingly on a whim, saving me many hours of work
 ### [Strong](https://github.com/strong-ery)
   - A huge help with Wii U texture decoding, without which I would have given up on texture loading optimizations that cut the load time by ~4 seconds

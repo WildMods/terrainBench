@@ -12,7 +12,7 @@ public static class AboutSelf {
           Additional minor contributions to the relevant ZeldaMods wiki pages
     - Decaf Emu Team: Wrote the original Wii U texture decoder that Toolbox and this editor now use
     - KillzXGaming: C# port of Wii U texture decoder
-    - MindStormMan06: Switch texture decoder library for C#
+    - Mindstormman06: Switch texture decoder library for C#
     - The5thTear: Helped fix Wii U texture decoding (made startup time significantly better)
     - dt13269: Answered some questions about terrain collisions";
 
