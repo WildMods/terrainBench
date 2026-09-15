@@ -116,10 +116,10 @@ M
         var settings = Settings.Settings.Load();
         bool wantOverride = args.Length >= 3;
         
-        if (wantOverride || !Settings.Settings.Validate(settings)) {
+        if (wantOverride && !Settings.Settings.Validate(settings)) {
             settings.gameDir = args[0];
             settings.updateDir = args[1];
-            settings.dlcDir = args.Length > 2 ? args[2] : "";
+            settings.dlcDir = args[2];
             settings.modDir =  args.Length > 3 ? args[3] : "";
             settings.Save();
         }
