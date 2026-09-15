@@ -101,6 +101,9 @@ public class TerrainbenchWindow {
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);
         fbo.GLInit();
+        SDL.GetWindowSize(sdlWindow, out var width, out var height);
+        // The auto resizing code will use this new size later on
+        newSize = new(width, height);
         
         // Start terrain loading
         editor.bootProgress = TILES_LOADING;
