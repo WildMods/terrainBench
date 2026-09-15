@@ -92,8 +92,8 @@ distance or go to a very dense area it may not all load at once.
 
 ## Minimum Requirements
 Terrain Workbench requires ~5.5GB system RAM, ~700MB VRAM, and a GPU with
-support for OpenGL 4.2 or higher. That version is from 2012, so you should be
-fine with any decent post-2013 hardware.
+support for OpenGL 4.2 or higher. That version is from 2012, so it should at
+least run with any decent post-2013 hardware.
 
 ## Expected Performance & Scaling
 On my machine (a 2021 gaming laptop with a 6GB RTX 3060), startup takes 7-10
