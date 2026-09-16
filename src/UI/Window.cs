@@ -26,10 +26,21 @@ public class TerrainbenchWindow {
 
     void UpdateLoadingStateMachine(EditorState ed, nint sdlWindow) {
         switch (ed.bootProgress) {
+            case INIT:
+                // Start terrain loading
+                editor.bootProgress = TILES_LOADING;
+                editor.asyncLoadedTiles.Max = 18100;
+                Task.Run(delegate {
+                    ed.cache.Load(ed.game, ed.asyncLoadedTiles);
+                    ed.bootProgress = SHOW_UPLOAD_MSG;
+                });
+                break;
+            case TILES_LOADING:
+                break; // Do nothing, loader will eventually advance to the next state
             case SHOW_UPLOAD_MSG:
                 SDL.SetWindowTitle(sdlWindow, EditorState.gpuUploadWindowTitle);
                 ed.bootProgress = LOAD_TERRAIN_TEXTURES;
-                return; // End frame to make sure title is applied
+                break;
             case LOAD_TERRAIN_TEXTURES:
                 // Start the GPU uploads 1 frame after title is changed
                 ed.bootProgress = UPLOADING;
@@ -95,26 +106,21 @@ public class TerrainbenchWindow {
         }
 
         using (Profiler.BeginZone("R_LoadTerrainTextures")) {
-            editor.terrain.LoadTerrainTextures(editor.game);
+            if (!editor.terrain.LoadTerrainTextures(editor.game)) {
+                editor.bootProgress = FAILED;
+            }
         }
         
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);
+        
         fbo.GLInit();
         SDL.GetWindowSize(sdlWindow, out var width, out var height);
         // The auto resizing code will use this new size later on
         newSize = new(width, height);
         
-        // Start terrain loading
-        editor.bootProgress = TILES_LOADING;
-        editor.asyncLoadedTiles.Max = 18100;
         editor.terrain.GLInit();
         editor.brushRenderer.GLInit();
-        var ed = editor;
-        Task.Run(delegate {
-            ed.cache.Load(ed.game, ed.asyncLoadedTiles);
-            ed.bootProgress = SHOW_UPLOAD_MSG;
-        });
     }
 
     void AboutMenu() {

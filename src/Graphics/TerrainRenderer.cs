@@ -586,9 +586,8 @@ public struct TerrainRenderer {
     }
 
     public void GLUninit() {
-        foreach (var s in ring0.sheets) {
-            s.GLUninit();
-        }
+        ring0.GLUninit();
+        ring1.GLUninit();
         GL.DeleteTexture(coverageTex);
         GL.DeleteTexture(terrainTexArray);
         GL.DeleteVertexArray(vaoBlank);

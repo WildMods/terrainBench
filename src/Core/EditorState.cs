@@ -5,6 +5,7 @@ namespace terrainBench.Core;
 public partial class EditorState {
     public enum BootState {
         INIT, TILES_LOADING, SHOW_UPLOAD_MSG, LOAD_TERRAIN_TEXTURES, UPLOADING, DONE,
+        FAILED,
     }
     
     public static string defaultWindowTitle = $"{AboutSelf.name} {AboutSelf.version}";
@@ -116,7 +117,7 @@ M
         var settings = Settings.Settings.Load();
         bool wantOverride = args.Length >= 3;
         
-        if (wantOverride && !Settings.Settings.Validate(settings)) {
+        if (wantOverride) {
             settings.gameDir = args[0];
             settings.updateDir = args[1];
             settings.dlcDir = args[2];
@@ -126,6 +127,12 @@ M
 
         if (settings.modDir.Length != 0 && !settings.modDir.IsWhiteSpace()) {
             Directory.CreateDirectory(settings.modDir);
+        }
+        
+        bool valid = Settings.Settings.Validate(settings);
+        if (!valid) {
+            bootProgress = BootState.FAILED;
+            Console.WriteLine("Boot failed because one or more game paths were invalid.");
         }
 
         Console.WriteLine("Base: '{0}'", settings.gameDir);
