@@ -113,7 +113,7 @@ public class Camera {
 
         float multiplier = (float)delta_time * move_speed;
 
-        float forward  = multiplier * backend.IsKeyDownI(SDL.Scancode.W) - backend.IsKeyDownI(SDL.Scancode.S);
+        float forward  = multiplier * (backend.IsKeyDownI(SDL.Scancode.W) - backend.IsKeyDownI(SDL.Scancode.S));
         float side = multiplier * (backend.IsKeyDownI(SDL.Scancode.A) - backend.IsKeyDownI(SDL.Scancode.D));
         float vertical = multiplier * (backend.IsKeyDownI(SDL.Scancode.Space) - backend.IsKeyDownI(SDL.Scancode.LShift));
 
