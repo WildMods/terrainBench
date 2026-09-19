@@ -271,7 +271,6 @@ public static class BFRESWiiU {
                 i, ftex.format, ftex.aaMode, ftex.usage, surf.tileMode,
                 ftex.swizzleValue, curPitch, bitsPerBlock, ftex.firstSlice, 0, layerIn, layerOut, 0);
         }
-        File.WriteAllBytes($"outmip{mipLevel}.bin", outBuf);
         
         return outBuf;
     }
