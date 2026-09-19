@@ -114,7 +114,8 @@ M
     }
 
     public EditorState(string[] args) {
-        var settings = Settings.Settings.Load();
+        var settings = new Settings.Settings("", "", "", "", "", "");
+        settings = Settings.Settings.Load();
         bool wantOverride = args.Length >= 3;
         
         if (wantOverride) {
@@ -125,8 +126,16 @@ M
             settings.Save();
         }
 
-        if (settings.modDir.Length != 0 && !settings.modDir.IsWhiteSpace()) {
-            Directory.CreateDirectory(settings.modDir);
+        if (settings == null) {
+            Console.WriteLine("Settings object is somehow null!");
+        }
+
+        if (settings.modDir != null) {
+            if (settings.modDir.Length != 0 && !settings.modDir.IsWhiteSpace()) {
+                Directory.CreateDirectory(settings.modDir);
+            }
+        } else {
+            Console.WriteLine("Mod dir is somehow null, skipping");
         }
         
         bool valid = Settings.Settings.Validate(settings);
