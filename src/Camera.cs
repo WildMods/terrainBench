@@ -17,9 +17,9 @@ public class Camera {
         MODE_ENUM_MAX,
     };
 
-    static Vector3 camera_up = new Vector3(0, 1, 0);
+    static Vector3 camera_up = new(0, 1, 0);
 
-    Vector3 pos = new Vector3(0, 200, 0); // Position of the viewer
+    Vector3 pos = new(0, 200, 0); // Position of the viewer
     Quaternion orbit_angles = Quaternion.Identity;
     public float radius = 30.0f;
     public float move_speed = 500.0f;
@@ -64,7 +64,7 @@ public class Camera {
             // Set mode
             field = value;
         }
-    } = Mode.ORBIT;
+    } = Mode.MINECRAFT;
 
     public bool ImGuiEdit() {
         bool dirty = false;
@@ -90,7 +90,6 @@ public class Camera {
             dirty = true;
         }
         dirty |= ImGui.SliderFloat("Mouse sensitivity", ref mouse_sens, 0f, 0.5f);
-        dirty |= ImGui.SliderFloat("Zoom sensitivity", ref zoom_sens, 0.1f, 50f);
         dirty |= ImGui.Checkbox("Invert X", ref invert_mouse_x);
         dirty |= ImGui.Checkbox("Invert Y", ref invert_mouse_y);
 
