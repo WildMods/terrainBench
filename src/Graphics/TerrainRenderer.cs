@@ -200,7 +200,7 @@ public struct TerrainRenderer {
             // TODO: Write a helper method to eliminate this code duplication
             GL.PixelStore(PixelStoreParameter.UnpackRowLength, MAX_SIZE);
             if (hghtDirty) {
-                Console.WriteLine("Processing {0} HGHT updates", hghtUpdates.Count);
+                // Console.WriteLine("Processing {0} HGHT updates", hghtUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, hghtTex);
                 GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboHght[inactivePBO]);
                 foreach (var pos in hghtUpdates) {
@@ -220,7 +220,7 @@ public struct TerrainRenderer {
             }
             
             if (mateDirty) {
-                Console.WriteLine("Processing {0} MATE updates", mateUpdates.Count);
+                // Console.WriteLine("Processing {0} MATE updates", mateUpdates.Count);
                 GL.BindTexture(TextureTarget.Texture2D, mateTex);
                 GL.BindBuffer(BufferTarget.PixelUnpackBuffer, pboMate[inactivePBO]);
                 foreach (var pos in mateUpdates) {
