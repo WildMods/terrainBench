@@ -17,7 +17,7 @@ public struct TerrainRenderer {
     /// <summary>
     /// Builds a large atlas of textures which can be drawn in a single draw call
     /// </summary>
-    public struct CompactTileSheet {
+    public class CompactTileSheet {
         const int MAX_SIZE = 4096;
         const int MAX_TILES = MAX_SIZE / HGHT_DIM;
         // GL textures for the tile atlases
@@ -379,7 +379,7 @@ public struct TerrainRenderer {
     /// <summary>
     /// A region of tiles backed by potentially many atlases
     /// </summary>
-    public struct TileRegion {
+    public class TileRegion {
         public readonly List<CompactTileSheet> sheets = [];
         readonly byte maxLOD;
         readonly byte radius;
