@@ -47,7 +47,6 @@ int manhattanDist(ivec2 a, ivec2 b) {
 // Check if a vertex belongs to a low-res tile that should be culled to make
 // room for a higher-res one
 int cull_by_coverage(int idx, vec2 posInTile) {
-    
     int lod = idx >> 16;
     // Figure out this pixel's position within the level 8 tile grid
     int sizeofThisTile = (1 << (8 - lod));
@@ -72,31 +71,50 @@ int cull_by_coverage(int idx, vec2 posInTile) {
     return 0;
 }
 
+ivec2 quadInterpolate2i(ivec2 v00, ivec2 v01, ivec2 v10, ivec2 v11, vec2 interp) {
+    // Interpolate horizontally
+    vec2 t0 = mix(vec2(v00), vec2(v01), interp.x);
+    vec2 t1 = mix(vec2(v10), vec2(v11), interp.x);
+    // Interpolate vertically
+    ivec2 res = ivec2(round(mix(t0, t1, interp.y)));
+    return res;
+}
+
+vec3 quadInterpolate3(vec3 v00, vec3 v01, vec3 v10, vec3 v11, vec2 interp) {
+    // Interpolate horizontally
+    vec3 t0 = mix(v00, v01, interp.x);
+    vec3 t1 = mix(v10, v11, interp.x);
+    // Interpolate vertically
+    vec3 res = mix(t0, t1, interp.y);
+    return res;
+}
 
 void main() {
     // get patch coordinate
     int idx = tileIndex[0];
     int lod = idx >> 16;
     int sizeofThisTile = (1 << (8 - lod));
-    outData.posInTile = gl_TessCoord.xy * sizeofThisTile;
-    
+
+    ivec2 texelUV = quadInterpolate2i(uvOffset[0], uvOffset[1], uvOffset[2], uvOffset[3], gl_TessCoord.xy);
+    ivec2 texelInTile = texelUV & 0xFF; // Grab only position within the tile
+
+    outData.posInTile = vec2((texelInTile).yx) / float(0xFF) * sizeofThisTile;
     outData.shouldCull = cull_by_coverage(idx, outData.posInTile);
 
-    ivec2 texelUV = ivec2(gl_TessCoord.yx * 255) + uvOffset[0];
     outData.uv = vec2(texelUV) / (256 * tilesPerTex);
     float height = texelFetch(heightTex, texelUV, 0).x;
 
+    // Interpolate position across patch
     vec3 p00 = gl_in[0].gl_Position.xyz;
     vec3 p01 = gl_in[1].gl_Position.xyz;
     vec3 p10 = gl_in[2].gl_Position.xyz;
     vec3 p11 = gl_in[3].gl_Position.xyz;
-
-    // Interpolate position across patch
-    vec3 p0 = (p01 - p00) * gl_TessCoord.x + p00;
-    vec3 p1 = (p11 - p10) * gl_TessCoord.x + p10;
-    vec3 p = (p1 - p0) * gl_TessCoord.y + p0;
-
+    vec3 p = quadInterpolate3(p00, p01, p10, p11, gl_TessCoord.xy);
+    
+    // Pre-multiply these to increase the chance of the work being done while waiting on the texture fetch
+    mat4 mvp = matProjection * matView * matModel;
+    
     p.y += height * WORLD_HEIGHT;
 
-    gl_Position = matProjection * matView * matModel * vec4(p, 1);
+    gl_Position = mvp * vec4(p, 1);
 }

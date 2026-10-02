@@ -14,6 +14,12 @@ public struct TerrainRenderer {
     const int BYTES_PER_HGHT = HGHT_DIM * HGHT_DIM * 2;
     const int BYTES_PER_MATE = HGHT_DIM * HGHT_DIM * 4;
 
+    // We need a 256x256 grid of vertices, but GL_MAX_TESS_GEN_LEVEL has a
+    // minimum of 64 so we need 4 patches to get this.
+    const int PATCHES_PER_TILE_DIM = HGHT_DIM / 64;
+    const int VERTS_PER_PATCH = 4; // Our patches are quads
+    const int VERTS_PER_TILE = PATCHES_PER_TILE_DIM * PATCHES_PER_TILE_DIM * VERTS_PER_PATCH;
+
     /// <summary>
     /// Builds a large atlas of textures which can be drawn in a single draw call
     /// </summary>
@@ -360,7 +366,7 @@ public struct TerrainRenderer {
 
             var temp = indices;
             GL.Uniform1(indicesLocation, temp.Count, temp.ToArray());
-            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, 4, temp.Count);
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, VERTS_PER_TILE, temp.Count);
             z.Dispose();
         }
 
@@ -477,7 +483,8 @@ public struct TerrainRenderer {
     }
     
     Shader tessShader;
-    int vaoBlank = 0; // We need a blank VAO even when vertices are hardcoded in the shader
+    int vaoPatches = 0;
+    int vboPatches = 0; // All tiles share a static vertex buffer of patches
     public int terrainTexArray = 0;
     int coverageTex = 0;
     public CoverageMap lodCoverage = new();
@@ -558,8 +565,18 @@ public struct TerrainRenderer {
         using (Profiler.BeginZone("R_ShaderCompile")) {
             tessShader = new Shader(vert, tcs, tess, geom, frag);
         }
-        vaoBlank = GL.GenVertexArray();
-        GL.PatchParameter(PatchParameterInt.PatchVertices, 4);
+        
+        // Static vertex buffer of patches for 1 tile
+        Vector2[] patchVerts = GenerateTilePatchVerts();
+        GL.CreateBuffers(1, out vboPatches);
+        GL.NamedBufferStorage(vboPatches, patchVerts.Length * Vector2.SizeInBytes, patchVerts, BufferStorageFlags.None);
+
+        GL.CreateVertexArrays(1, out vaoPatches);
+        GL.VertexArrayVertexBuffer(vaoPatches, 0, vboPatches, 0, Vector2.SizeInBytes);
+        GL.VertexArrayAttribFormat(vaoPatches, 0, 2, VertexAttribType.Float, false, 0);
+        GL.VertexArrayAttribBinding(vaoPatches, 0, 0);
+        GL.EnableVertexArrayAttrib(vaoPatches, 0);
+        GL.PatchParameter(PatchParameterInt.PatchVertices, VERTS_PER_PATCH);
 
         zone.Dispose();
         return true;
@@ -590,7 +607,8 @@ public struct TerrainRenderer {
         ring1.GLUninit();
         GL.DeleteTexture(coverageTex);
         GL.DeleteTexture(terrainTexArray);
-        GL.DeleteVertexArray(vaoBlank);
+        GL.DeleteVertexArray(vaoPatches);
+        GL.DeleteBuffer(vboPatches);
         tessShader.FreeResources();
     }
 
@@ -612,6 +630,25 @@ public struct TerrainRenderer {
         
         zone.Dispose();
         return tex;
+    }
+
+    /// <summary>
+    /// Generate patch vertices to be used as a static vertex buffer
+    /// Positions are in units of tiles (0 - 1).
+    /// </summary>
+    static private Vector2[] GenerateTilePatchVerts() {
+        Vector2[] corners = [new(0, 0), new(0, 1), new(1, 0), new(1, 1)];
+        var verts = new Vector2[VERTS_PER_TILE];
+        for (int z = 0; z < PATCHES_PER_TILE_DIM; z++) {
+            for (int x = 0; x < PATCHES_PER_TILE_DIM; x++) {
+                int patch = z * PATCHES_PER_TILE_DIM + x;
+                for (int i = 0; i < VERTS_PER_PATCH; i++) {
+                    verts[patch * VERTS_PER_PATCH + i] = (new Vector2(x, z) + corners[i]) / PATCHES_PER_TILE_DIM;
+                }
+            }
+        }
+
+        return verts;
     }
 
     // Load terrain texture array from the game files
@@ -711,7 +748,7 @@ public struct TerrainRenderer {
         
         GL.BindTextureUnit(2, terrainTexArray);
         GL.BindTextureUnit(3, coverageTex);
-        GL.BindVertexArray(vaoBlank); // Required despite vertices being baked into the shader
+        GL.BindVertexArray(vaoPatches);
 
         var eyeTile = (TerrainCoords.TileGrid8Pos)eyeWorld;
         var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);

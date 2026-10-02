@@ -1,4 +1,5 @@
 #version 410 core
+layout (location = 0) in vec2 patchPos; // 2D patch vertices within a tile
 uniform int[512] indices;
 uniform int tilesPerTex;
 
@@ -6,7 +7,7 @@ uniform mat4 matModel;
 uniform mat4 matView;
 uniform mat4 matProjection;
 
-out ivec2 vertUVOffset;
+out ivec2 vertUVOffset; // Location of the vertex in the atlas
 out int tileIdx;
 
 // 1x1 quad vertices
@@ -33,10 +34,13 @@ ivec2 idxToGridPos(int idx) {
     return pos;
 }
 
-vec3 calcVertForIdx(int idx, int vertID, float tileFactor) {
+// @param idx Z-order index of the tile
+// @param posInTile Position of the vertex within the tile (i.e. units of tiles from 0 - 1)
+// @param tileFactor Final scale factor (usually for scaling by LOD level)
+vec3 calcVertForIdx(int idx, vec3 posInTile, float tileFactor) {
     ivec2 worldPos = idxToGridPos(idx);
 
-    vec3 pos = verts[vertID] + vec3(worldPos.x, 0, worldPos.y);
+    vec3 pos = posInTile + vec3(worldPos.x, 0, worldPos.y);
     pos *= tileFactor;
     return pos;
 }
@@ -48,8 +52,8 @@ void main() {
 
     // Figure out if this entire tile will be outside the frustum and can be culled
     bool outsideFrustum = true;
-    for (int i = 0; i < 4; i++) {
-        vec3 v = calcVertForIdx(idx, i, tileFactor);
+    for (int i = 0; i < 4 * 4; i++) {
+        vec3 v = calcVertForIdx(idx, verts[i], tileFactor);
         
         vec4 ndcCenter = matView * matModel * vec4(v, 1);
         // Ignore the Y component of the camera, to essentially do 2D clipping against the tile grid.
@@ -66,14 +70,17 @@ void main() {
 
     if (outsideFrustum) {
         tileIdx = -1;
+        vertUVOffset = ivec2(0);
         gl_Position = vec4(0, 0, 2, 1);
         return; // Cull the whole tile.
     }
     
-    vec3 pos = calcVertForIdx(idx, gl_VertexID, tileFactor);
+    // Multiply by 255 since that's the last pixel position in a tile
+    ivec2 texelInTile = ivec2(patchPos * 255);
+    vec3 pos = calcVertForIdx(idx, vec3(patchPos.x, 0, patchPos.y), tileFactor);
 
     gl_Position = vec4(pos, 1);
     ivec2 gridPos = idxToGridPos(gl_InstanceID);
-    vertUVOffset = ivec2(gridPos.xy) * 256;
+    vertUVOffset = gridPos * 256 + texelInTile;
     tileIdx = idx;
 }
