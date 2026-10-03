@@ -434,6 +434,7 @@ public struct TerrainRenderer {
             var shiftAmount = ZOrder.MAX_LOD - maxLOD;
             s.SetUniform("mask", 0xFF >> shiftAmount);
             s.SetUniform("minDist", minDist);
+            s.SetUniform("maxDist", maxDist);
             foreach (var lvl in sheets) {
                 lvl.Draw(tilesPerTexLoc, indicesLocation);
             }
@@ -606,8 +607,8 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 
         var loadWatch = Stopwatch.StartNew();
-        var ringRadii = new byte[] { 4, 4, 4, 16, 32, 64, 255 };
-        var ringLODs  = new byte[] { 8, 6, 5,  4,  3,  2,   1 };
+        var ringRadii = new byte[] { 2, 4, 4, 8, 16, 48, 255 };
+        var ringLODs  = new byte[] { 8, 6, 5, 4,  3,  2,   1 };
 
         byte ringPos = 0;
         for (int i = 0; i < ringRadii.Length; i++) {

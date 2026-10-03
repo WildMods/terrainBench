@@ -11,6 +11,7 @@ layout (binding = 3) uniform sampler2D coverageTex;
 uniform int mask;
 uniform int eyeIdx;
 uniform int minDist;
+uniform int maxDist;
 
 in ivec2 uvOffset[];
 in int tileIndex[];
@@ -54,7 +55,8 @@ int cull_by_coverage(int idx, vec2 posInTile) {
     index <<= (2 * (8 - lod)); // Convert to index in the level 8 grid
     ivec2 lvl8Pos = (idxToGridPos(index) + ivec2(posInTile.yx));
     
-    if (manhattanDist(idxToGridPos(eyeIdx), lvl8Pos) < minDist) {
+    int dist = manhattanDist(idxToGridPos(eyeIdx), lvl8Pos);
+    if (dist < minDist || dist > maxDist) {
         return 1; // Cull it
     }
 
