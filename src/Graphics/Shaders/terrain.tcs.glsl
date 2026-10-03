@@ -5,6 +5,9 @@ layout (vertices=4) out;
 uniform mat4 matModel;
 uniform mat4 matView;
 uniform mat4 matProjection;
+uniform int eyeIdx;
+uniform int minDist;
+uniform int maxDist;
 
 in ivec2 vertUVOffset[];
 in int tileIdx[];
@@ -13,8 +16,22 @@ out int tileIndex[];
 
 #define WORLD_HEIGHT 800.0
 
-// Check if the current patch can be culled
-bool canCullPatch() {
+// De-interleave the low 16 bits to get an 8-bit X/Z coordinate
+ivec2 idxToGridPos(int idx) {
+    ivec2 pos = ivec2(0);
+    for (int i = 0; i < 16; i+= 2) {
+        pos.y <<= 1;
+        pos.y |= ((idx >> 15) & 1);
+        idx <<= 1;
+
+        pos.x <<= 1;
+        pos.x |= ((idx >> 15) & 1);
+        idx <<= 1;
+    }
+    return pos;
+}
+
+bool canFrustumCullPatch() {
     // Get bounding box
     vec3 lo = min(min(gl_in[0].gl_Position.xyz, gl_in[1].gl_Position.xyz),
                   min(gl_in[2].gl_Position.xyz, gl_in[3].gl_Position.xyz));
@@ -49,6 +66,34 @@ bool canCullPatch() {
     return outside != 0;
 }
 
+// Try to cull an entire patch that's outside the allowed area of this ring.
+// These are also culled per-vertex in the next stage, in case of patches laying
+// on the edge.
+bool canCullPatchByDist() {
+    int idx = tileIdx[0];
+    int lod = idx >> 16;
+    int sizeofThisTile = (1 << (8 - lod));
+    // Position of the tile's corner within the level 8 grid
+    ivec2 tilePos = idxToGridPos((idx & 0xFFFF) << (2 * (8 - lod)));
+
+    // Bounding box of our patch within the tile
+    ivec2 patchLo = min(min(vertUVOffset[0], vertUVOffset[1]), min(vertUVOffset[2], vertUVOffset[3])) & 0xFF;
+    ivec2 patchHi = max(max(vertUVOffset[0], vertUVOffset[1]), max(vertUVOffset[2], vertUVOffset[3])) & 0xFF;
+
+    // Bounding box of our patch in the level 8 grid
+    ivec2 lo = tilePos + (patchLo * sizeofThisTile) / 255;
+    ivec2 hi = tilePos + (patchHi * sizeofThisTile) / 255;
+
+    // Min/max Manhattan distance from the eye to any cell in [lo, hi]
+    ivec2 eye = idxToGridPos(eyeIdx);
+    ivec2 dMin = max(max(lo - eye, eye - hi), ivec2(0));
+    ivec2 dMax = max(abs(lo - eye), abs(hi - eye));
+    int nearest = dMin.x + dMin.y;
+    int farthest = dMax.x + dMax.y;
+
+    return farthest < minDist || nearest > maxDist;
+}
+
 void main() {
     vec4 pos = gl_in[gl_InvocationID].gl_Position;
     gl_out[gl_InvocationID].gl_Position = pos;
@@ -66,7 +111,7 @@ void main() {
         int levelX = int(vertUVOffset[2].x) - int(vertUVOffset[0].x); // Along v (gl_TessCoord.y)
         int levelZ = int(vertUVOffset[1].y) - int(vertUVOffset[0].y); // Along u (gl_TessCoord.x)
         
-        if (tileIdx[0] == -1 || canCullPatch()) {
+        if (tileIdx[0] == -1 || canCullPatchByDist() || canFrustumCullPatch()) {
             // A tessellation level of 0 discards the patch
             levelX = 0;
             levelZ = 0;
