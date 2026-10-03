@@ -101,16 +101,20 @@ public class CoverageMap() {
     }
     
     public HashSet<Int32> FindAllTilesInManhattanRadius(byte xCenter, byte yCenter, ushort sizeTiles, byte maxLOD = ZOrder.MAX_LOD) {
-        byte xMin = (byte)Math.Max(0, xCenter - sizeTiles);
-        byte yMin = (byte)Math.Max(0, yCenter - sizeTiles);
-        byte xMax = (byte)Math.Min(0xFF, xCenter + sizeTiles);
-        byte yMax = (byte)Math.Min(0xFF, yCenter + sizeTiles);
+        return FindAllTilesInManhattanRing(xCenter, yCenter, 0, sizeTiles, maxLOD);
+    }
+    
+    public HashSet<Int32> FindAllTilesInManhattanRing(byte xCenter, byte yCenter, ushort innerRadius, ushort outerRadius, byte maxLOD = ZOrder.MAX_LOD) {
+        byte xMin = (byte)Math.Max(0, xCenter - outerRadius);
+        byte yMin = (byte)Math.Max(0, yCenter - outerRadius);
+        byte xMax = (byte)Math.Min(0xFF, xCenter + outerRadius);
+        byte yMax = (byte)Math.Min(0xFF, yCenter + outerRadius);
         
-        var indices = new HashSet<Int32>((sizeTiles * 2) * (sizeTiles * 2));
+        var indices = new HashSet<Int32>((outerRadius * 2) * (outerRadius * 2));
         for (short x = xMin; x <= xMax; x++) {
             for (short y = yMin; y <= yMax; y++) {
                 var d = Math.Abs(xCenter - x) +  Math.Abs(yCenter - y);
-                if (d > sizeTiles) {
+                if (d > outerRadius || d < innerRadius) {
                     continue;
                 }
                 

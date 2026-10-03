@@ -387,18 +387,32 @@ public struct TerrainRenderer {
     /// </summary>
     public class TileRegion {
         public readonly List<CompactTileSheet> sheets = [];
-        readonly byte maxLOD;
-        readonly byte radius;
+        public readonly byte maxLOD;
+        public int minDist = 0;
+        public int maxDist = 0;
+        public bool enabled = true;
+        public string name;
 
-        public TileRegion(CoverageMap lodCoverage, Cache cache, byte sizeTiles, byte xCenter, byte yCenter, byte maxLOD = ZOrder.MAX_LOD) {
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="lodCoverage">The coverage map</param>
+        /// <param name="cache">The tile data storage</param>
+        /// <param name="sizeTiles">The radius of the ring</param>
+        /// <param name="minDist">Tiles closer than this will not render</param>
+        /// <param name="xCenter">The X position to center loading around</param>
+        /// <param name="yCenter">The Y position to center loading around</param>
+        /// <param name="maxLOD">Tiles above this LOD will not be loaded or rendered.</param>
+        public TileRegion(CoverageMap lodCoverage, Cache cache, byte sizeTiles, byte minDist, byte xCenter, byte yCenter, byte maxLOD = ZOrder.MAX_LOD) {
             this.maxLOD = maxLOD;
-            radius = sizeTiles;
+            this.minDist = minDist;
+            maxDist = minDist + sizeTiles;
             var zone = Profiler.BeginZone("R_CreateTileRegion");
             zone.EmitValue(sizeTiles);
 
             // Build deduplicated set of packed index values
-            var indices = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles, maxLOD);
-            Console.WriteLine("Found {0} tiles in region via coverage texture", indices.Count);
+            var indices = lodCoverage.FindAllTilesInManhattanRing(xCenter, yCenter, minDist, (ushort)maxDist, maxLOD);
+            Console.WriteLine("Found {0} tiles in region from {1} - {2} @ max LOD {3} via coverage texture", indices.Count, minDist, maxDist, maxLOD);
 
             // Build tile atlases and do GPU upload
             var idxQ = new ConcurrentQueue<Int32>(indices);
@@ -412,7 +426,11 @@ public struct TerrainRenderer {
             zone.Dispose();
         }
 
-        public void Draw(Shader s, int tilesPerTexLoc, int indicesLocation, int minDist, int maxDist) {
+        public void Draw(Shader s, int tilesPerTexLoc, int indicesLocation) {
+            if (!enabled) {
+                return;
+            }
+            
             var shiftAmount = ZOrder.MAX_LOD - maxLOD;
             s.SetUniform("mask", 0xFF >> shiftAmount);
             s.SetUniform("minDist", minDist);
@@ -421,10 +439,10 @@ public struct TerrainRenderer {
             }
         }
 
-        public void UploadNewTiles(CoverageMap lodCoverage, Cache cache, byte xCenter, byte yCenter, byte sizeTiles, byte maxLOD = ZOrder.MAX_LOD) {
+        public void UploadNewTiles(CoverageMap lodCoverage, Cache cache, byte xCenter, byte yCenter) {
             var z = Profiler.BeginZone("R_FindNewTiles");
             // The set of tiles in the draw radius (i.e. that should be in VRAM)
-            var inGroup = lodCoverage.FindAllTilesInManhattanRadius(xCenter, yCenter, sizeTiles, maxLOD);
+            var inGroup = lodCoverage.FindAllTilesInManhattanRing(xCenter, yCenter, (byte)minDist, (byte)maxDist, maxLOD);
             // The set of tiles that should be in VRAM, but aren't yet
             var missingGroup = new HashSet<int>(inGroup);
             
@@ -489,9 +507,8 @@ public struct TerrainRenderer {
     int coverageTex = 0;
     public CoverageMap lodCoverage = new();
 
-    TileRegion ring0;
-    TileRegion ring1;
-    public int renderRadius = 32;
+    public List<TileRegion> rings = new();
+    public bool wireframe = false;
 
     /// <summary>
     /// Update a rendered tile.
@@ -501,8 +518,9 @@ public struct TerrainRenderer {
     {
         bool result = false;
         // Try to update in all rings, because there may be overlap between them
-        result |= ring0.ScheduleTileUpdate(idx, lod, data, type);
-        result |= ring1.ScheduleTileUpdate(idx, lod, data, type);
+        foreach (var r in rings) {
+            result |= r.ScheduleTileUpdate(idx, lod, data, type);
+        }
         return result;
     }
 
@@ -588,8 +606,16 @@ public struct TerrainRenderer {
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 
         var loadWatch = Stopwatch.StartNew();
-        ring0 = new(lodCoverage, cache, (byte)renderRadius, 128, 128);
-        ring1 = new(lodCoverage, cache, 255, 128, 128, 5);
+        var ringRadii = new byte[] { 4, 4, 4, 16, 32, 64, 255 };
+        var ringLODs  = new byte[] { 8, 6, 5,  4,  3,  2,   1 };
+
+        byte ringPos = 0;
+        for (int i = 0; i < ringRadii.Length; i++) {
+            var size = ringRadii[i];
+            rings.Add(new(lodCoverage, cache, size, ringPos, 128, 128, ringLODs[i]));
+            ringPos += size;
+        }
+        
         loadWatch.Stop();
         
         Console.WriteLine("Loaded all detail levels in {0}ms total.", loadWatch.ElapsedMilliseconds);
@@ -599,12 +625,15 @@ public struct TerrainRenderer {
     public void UnloadTerrainTiles() {
         lodCoverage.Clear();
         GL.DeleteTexture(coverageTex);
-        ring0.GLUninit();
+        foreach (var r in rings) {
+            r.GLUninit();
+        }
     }
 
     public void GLUninit() {
-        ring0.GLUninit();
-        ring1.GLUninit();
+        foreach (var r in rings) {
+            r.GLUninit();
+        }
         GL.DeleteTexture(coverageTex);
         GL.DeleteTexture(terrainTexArray);
         GL.DeleteVertexArray(vaoPatches);
@@ -725,7 +754,9 @@ public struct TerrainRenderer {
     }
 
     public void UpdateGPUTiles(Cache cache, Vector2i eyeTile) {
-        ring0.UploadNewTiles(lodCoverage, cache, (byte)eyeTile.X, (byte)eyeTile.Y, (byte)renderRadius);
+        foreach (var r in rings) {
+            r.UploadNewTiles(lodCoverage, cache, (byte)eyeTile.X, (byte)eyeTile.Y);
+        }
     }
 
     public void Render(Matrix4 projT, Matrix4 viewT, TerrainCoords.WorldPos eyeWorld) {
@@ -754,8 +785,15 @@ public struct TerrainRenderer {
         var center = ZOrder.Interleave8To16((byte)eyeTile.x, (byte)eyeTile.z);
         tessShader.SetUniform("eyeIdx", center);
 
-        ring0.Draw(tessShader, tilesPerTexLoc, indicesLocation, 0, renderRadius);
-        ring1.Draw(tessShader, tilesPerTexLoc, indicesLocation, renderRadius, 256);
+        if (wireframe) {
+            GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+        }
+        foreach (var r in rings) {
+            r.Draw(tessShader, tilesPerTexLoc, indicesLocation);
+        }
+        if (wireframe) {
+            GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+        }
 
         GL.BindVertexArray(0);
         z.Dispose();

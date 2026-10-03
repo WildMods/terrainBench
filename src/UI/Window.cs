@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using SNVector2 = System.Numerics.Vector2;
 
 using terrainBench.Core;
+using terrainBench.Graphics;
 using static terrainBench.Core.EditorState.BootState;
 namespace terrainBench.UI;
 
@@ -14,8 +15,11 @@ public class TerrainbenchWindow {
     OpenGlFbo fbo = new();
     bool needResize = true;
     Vector2i newSize = new();
+    
     bool showDemo = false;
     bool showAbout = false;
+    bool showRingEditor = false;
+    
     EditorState editor;
     public bool running = true;
 
@@ -156,6 +160,17 @@ public class TerrainbenchWindow {
 
         return false;
     }
+
+    bool EditTerrainRing(TerrainRenderer.TileRegion ring) {
+        bool res = false;
+        ImGui.Text($"'{ring.name}', max LOD {ring.maxLOD}");
+        
+        res |= ImGui.Checkbox("Enable ring", ref ring.enabled);
+        res |= ImGui.SliderInt("Inner radius", ref ring.minDist, 0, 256);
+        res |= ImGui.SliderInt("Outer radius", ref ring.maxDist, ring.minDist, 256);
+
+        return res;
+    }
     
     void Update(double delta, nint sdlWindow) {
         UpdateLoadingStateMachine(editor, sdlWindow);
@@ -194,7 +209,8 @@ public class TerrainbenchWindow {
                 }
                 
                 if (ImGui.BeginMenu("Render")) {
-                    ImGui.SliderInt("Render distance (tiles)", ref editor.terrain.renderRadius, 0, 128);
+                    ImGui.Checkbox("Show ring editor", ref showRingEditor);
+                    ImGui.Checkbox("Wireframe mode", ref editor.terrain.wireframe);
                     ImGui.EndMenu();
                 }
                 if (ImGui.BeginMenu("Settings")) {
@@ -283,6 +299,24 @@ public class TerrainbenchWindow {
             return;
         }
 
+        if (showRingEditor) {
+            ImGui.Begin("Ring Editor");
+            if (ImGui.BeginTabBar("Ring Editor tab bar")) {
+                for (int i = 0; i < editor.terrain.rings.Count; i++) {
+                    var ring = editor.terrain.rings[i];
+                    if (ImGui.BeginTabItem($"Ring {i}")) {
+                        EditTerrainRing(ring);
+                        ImGui.EndTabItem();
+                    }
+                }
+                ImGui.EndTabBar();
+            }
+
+            ImGui.End();
+        }
+        
+
+        // Update state, apply edits, etc.
         Vector2 mouseVec;
         unsafe {
             SDL.GetMouseState(out var x, out var y);
@@ -301,7 +335,7 @@ public class TerrainbenchWindow {
         TerrainCoords.WorldPos eyeWorld = new(editor.cam.eye());
         TerrainCoords.TileGrid8Pos eyeTile = eyeWorld;
         var dir = ray.Dir;
-        var r = Raycast.RaycastTerrain(editor.cache, eyeTile, dir, editor.terrain.renderRadius);
+        var r = Raycast.RaycastTerrain(editor.cache, eyeTile, dir, 32);
         if (r.IsOk()) {
             var pp = r.Unwrap();
             TerrainCoords.WorldPos wp = pp;
