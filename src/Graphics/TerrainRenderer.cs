@@ -266,6 +266,8 @@ public struct TerrainRenderer {
 
             // Reserve space for all our indices
             CollectionsMarshal.SetCount(indices, MAX_TILES * MAX_TILES);
+            // Mark every slot empty.
+            CollectionsMarshal.AsSpan(indices).Fill(-1);
             drawIndices = new Int32[MAX_TILES * MAX_TILES];
 
             // To avoid the GL driver having to synchronously copy all our texture
@@ -364,9 +366,13 @@ public struct TerrainRenderer {
             GL.BindTextureUnit(1, mateTex);
             Uniform.Set(tilesPerTexLoc, MAX_TILES);
 
-            var temp = indices;
-            GL.Uniform1(indicesLocation, temp.Count, temp.ToArray());
-            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, VERTS_PER_TILE, temp.Count);
+            // For some stupid reason, the GL bindings only allow uniforms to
+            // be uploaded from managed arrays and not lists. Here we copy to a
+            // pre-allocated array.
+            var arr = drawIndices;
+            indices.CopyTo(arr);
+            GL.Uniform1(indicesLocation, arr.Length, arr);
+            GL.DrawArraysInstanced(PrimitiveType.Patches, 0, VERTS_PER_TILE, arr.Length);
             z.Dispose();
         }
 
