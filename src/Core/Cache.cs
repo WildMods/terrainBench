@@ -171,7 +171,7 @@ public class Cache
                 lowTileRes = _lods[level - 1].GetMaterialTile(lowIdx);
             }
             
-            TileScaling.DownscaleTile(highTile, lowTileRes.Unwrap(), pixelPosLow, size);
+            TileScaling.DownscaleMaterialTile(highTile, lowTileRes.Unwrap(), pixelPosLow, size);
             break;
         }
         default:
