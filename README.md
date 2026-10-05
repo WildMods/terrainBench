@@ -98,10 +98,10 @@ least run with any decent post-2013 hardware.
 ## Expected Performance & Scaling
 On my machine (a 2021 gaming laptop with a 6GB RTX 3060), startup takes 7-10
 seconds (mostly depends on disk speed and how recently the files have been
-used). It's generally stable at 165FPS (my refresh rate) at 80-100% GPU usage,
-but if the entire map is on screen, it drops to about 115FPS.
+used). It's stable at 165FPS (my refresh rate) at 60-70% GPU usage,
+depending on how much of the map is on screen.
 Startup time mostly depends on disk speed (and multi-core CPU power), but the
-average framerate depends almost entirely on GPU power.
+average framerate depends mostly on GPU power.
 
 In my testing, saving an average map edit takes 0.3 - 1 second, depending on
 size. There are some easy optimizations I haven't implemented yet that should
