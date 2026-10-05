@@ -87,11 +87,8 @@ This is manual for now, but eventually Terrain Workbench will do this for you.
 - The brush targeting is still a bit buggy, it sometimes jumps away from the
 mouse by about 5% in seemingly random places.
 
-- The renderer uses a fixed amount of VRAM, so if you increase the render
-distance or go to a very dense area it may not all load at once.
-
 ## Minimum Requirements
-Terrain Workbench requires ~5.5GB system RAM, ~700MB VRAM, and a GPU with
+Terrain Workbench requires ~5.5GB system RAM, ~800MB VRAM, and a GPU with
 support for OpenGL 4.2 or higher. That version is from 2012, so it should at
 least run with any decent post-2013 hardware.
 
