@@ -2,7 +2,7 @@ namespace terrainBench;
 
 public static class AboutSelf {
     public static string name = "Terrain Workbench";
-    public static string version = "1.0";
+    public static string version = "1.1.0";
     public static string authors = "Torphedo & Ginger Chody";
     public static string resources = @"ZeldaMods wiki (see zeldamods.org/wiki/Terrain)";
     public static string specialThanks = @"
