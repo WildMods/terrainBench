@@ -53,7 +53,7 @@ public struct Brush() {
     /// The power of the brush before any falloff is applied.
     /// Implemented as the "b" to plug into the falloff function
     /// </summary>
-    public float baseStrength = 20f;
+    public float baseStrength = 5f;
 
     public void UpdateFromInput(ImguiImplSDL3 backend, float pressure) {
         int deltaA = backend.KeyRisingEdgeI(SDL.Scancode.Up) - backend.KeyRisingEdgeI(SDL.Scancode.Down);
