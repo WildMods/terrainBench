@@ -66,6 +66,9 @@ public static class Raycast {
         WorldPos worldDir = new(dir);
         Vector2 tileDir = worldDir.ToTileDir().xz.Normalized();
         Vector2 pixelDir = new PixelGrid8Pos(new Vector3(tileDir.X, 0, tileDir.Y)).xz.Normalized();
+        // Converts horizontal distance into distance along the world space ray
+        float tileRayToWorldRay = 1f / dir.Xz.Length;
+
         foreach (var (cell, uvInitial, tTile) in Iterate2DLine(source, tileDir, rangeTiles))
         {
             // Bounds check
@@ -105,8 +108,10 @@ public static class Raycast {
             }
             
             var tile = tileRes.Unwrap();
-            var tp = new TileGrid8Pos(new Vector3(cell.X, 0, cell.Y));
-            var startPixel = (Vector2i)(uv * new Vector2(255));
+            
+            // Multiplier for the size of a pixel in the level 8 grid
+            float lvl8PixelSize = (float)255 / (1 << lodDiff);
+            var startPixel = (Vector2i)(uv * 255);
             foreach (var (pixel, subpixel, tPixel) in Iterate2DLine(startPixel, pixelDir, Single.PositiveInfinity))
             {
                 bool oobHighPixel = (pixel.X >= ZOrder.GRID_SIZE || pixel.Y >= ZOrder.GRID_SIZE);
@@ -115,18 +120,15 @@ public static class Raycast {
                     break;
                 }
                 int linearIdx = pixel.X + pixel.Y * ZOrder.GRID_SIZE;
-                var normalizedHeight = (tile[linearIdx] / (float)0xFFFF) * WORLD_HEIGHT;
+                var normalizedHeight = (tile[linearIdx] / (float)UInt16.MaxValue) * WORLD_HEIGHT;
 
-                Vector2 tileOffset = (tTile + (tPixel / 255)) * tileDir;
-                TileGrid8Pos hitTilePos = startPos.xz + tileOffset;
-                WorldPos wp =  hitTilePos;
-                
-                var worldDist = ((Vector3)(wp - startPos)).Xz; // Make sure only 2D is considered
-                float t = worldDist.Length;
-                WorldPos hitPos = new((WorldPos)startPos + (Vector3)worldDir * t);
+                float tileDist = tTile + tPixel / lvl8PixelSize;
+                float t = tileDist * TileToWorldScale * tileRayToWorldRay;
+                WorldPos hitPos = new((WorldPos)startPos + dir * t);
 
-                if (hitPos.y < 0f || t < 0f) {
-                    continue; // Something's gone terribly wrong, ignore this
+                if (hitPos.y < 0f) {
+                    // Something's gone terribly wrong.
+                    return Err(new ErrorStack("The hit position is somehow negative."));
                 }
                 
                 if (normalizedHeight >= hitPos.y) {
