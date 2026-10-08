@@ -37,7 +37,7 @@ public struct Brush() {
     public Shape shape = Shape.CIRCLE;
     public EditFunc editFunc = EditFunc.ADD;
 
-    public FalloffFunc func = FalloffFunc.LINEAR;
+    public FalloffFunc func = FalloffFunc.SQUARE;
     public DistanceType falloffShape = DistanceType.EUCLIDEAN;
 
     public LodComponent target = LodComponent.hght;
