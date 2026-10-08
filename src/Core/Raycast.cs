@@ -23,7 +23,7 @@ public static class Raycast {
         var startCell = (Vector2i)start;
         Vector2 uvOffset = start - startCell;
         if (dir == Vector2.Zero) {
-            yield return (startCell, uvOffset.Yx, 0f);
+            yield return (startCell, uvOffset, 0f);
             yield break;
         }
         
@@ -32,13 +32,13 @@ public static class Raycast {
         var tile = start;
 
         float t = 0;
-        var dt = (tile + tileOffset - startCell) / dir;
+        var dt = (startCell + tileOffset - start) / dir;
         while (t <= maxDist)
         {
-            Vector2 uv = tile;
-            var tileOut = (Vector2i)uv.Truncate();
-            uv -= tileOut; // Get only the fractional part, i.e. the
-                              // offset within the tile we hit.
+            var tileOut = (Vector2i)tile.Truncate();
+            Vector2 uv = start + dir * t - tileOut;
+            uv = Vector2.Clamp(uv, Vector2.Zero, Vector2.One);
+            
             yield return (tileOut, uv, t);
 
             dt.X = Math.Abs(dt.X);
