@@ -190,7 +190,7 @@ public class TerrainbenchWindow {
         bool shouldClose =  ImGui.IsKeyDown(ImGuiKey.LeftCtrl) && ImGui.IsKeyDown(ImGuiKey.Q);
         bool shouldSave  =  ImGui.IsKeyDown(ImGuiKey.LeftCtrl) && ImGui.IsKeyDown(ImGuiKey.S);
         bool shouldImportHeightmap = false;
-        bool isViewportHovered = false;
+        bool isViewportActive = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
                 if (ImGui.BeginMenu("File")) {
@@ -256,7 +256,14 @@ public class TerrainbenchWindow {
             fbStart = (Vector2)ImGui.GetCursorScreenPos();
             fbDisplayedSize = (Vector2)ImGui.GetContentRegionAvail();
             ImGui.Image(fbo.colorTexture, (SNVector2)fbDisplayedSize, new SNVector2(0, 1), new SNVector2(1, 0));
-            isViewportHovered = ImGui.IsItemHovered();
+            
+            // IsItemHovered() will trip for our image even when in a menu or
+            // other window. We use an invisible button triggered on mouse
+            // inputs to silence mouse events instead.
+            ImGui.SetCursorPos((SNVector2)fbStart);
+            ImGui.InvisibleButton("viewport active checker", (SNVector2)fbDisplayedSize, ImGuiButtonFlags.MouseButtonMask);
+            
+            isViewportActive = ImGui.IsItemActive();
         }
         ImGui.End();
 
@@ -283,7 +290,8 @@ public class TerrainbenchWindow {
         
         editor.cam.aspect = (float)fbo.Size.X / (float)fbo.Size.Y;
 
-        bool shouldUseKeyboard = isViewportHovered;
+        bool shouldUseMouse = isViewportActive;
+        bool shouldUseKeyboard = true;
         if (shouldUseKeyboard) {
             editor.cam.update(sdlBackend, delta);
 
@@ -318,14 +326,14 @@ public class TerrainbenchWindow {
 
         // Update state, apply edits, etc.
         Vector2 mouseVec;
-        unsafe {
+        { // This scope is just to hide some temp variables from the outer scope
             SDL.GetMouseState(out var x, out var y);
             // TODO: Do we want GetWindowSize() or GetWindowSizeInPixels()?
             // They differ on high DPI displays, just need to figure out what
             // coordinate space the mouse coordinates are in.
             SDL.GetWindowSize(sdlWindow, out var screenX, out var screenY);
             
-            mouseVec = new Vector2((float)x, (float)y);
+            mouseVec = new Vector2(x, y);
             var sizeDiff = new Vector2(screenX, screenY) - fbDisplayedSize;
             mouseVec -= sizeDiff;
         }
@@ -343,8 +351,8 @@ public class TerrainbenchWindow {
             editor.brush.center = pp;
         }
 
-        bool leftPress = ImGui.IsMouseDown(ImGuiMouseButton.Left);
-        bool rightPress = ImGui.IsMouseDown(ImGuiMouseButton.Right);
+        bool leftPress  = shouldUseMouse && ImGui.IsMouseDown(ImGuiMouseButton.Left);
+        bool rightPress = shouldUseMouse && ImGui.IsMouseDown(ImGuiMouseButton.Right);
         if (leftPress || rightPress) {
             var updatedTiles = editor.brush.ApplyToTiles(editor.cache, editor.terrain.lodCoverage, 1f);
 

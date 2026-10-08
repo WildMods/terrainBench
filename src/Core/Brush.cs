@@ -60,7 +60,7 @@ public struct Brush() {
         int deltaB = backend.KeyRisingEdgeI(SDL.Scancode.Right) - backend.KeyRisingEdgeI(SDL.Scancode.Left);
         textureIndices[0] += deltaA;
         textureIndices[1] += deltaB;
-       this.pressure = pressure;
+        this.pressure = pressure;
         
         if (backend.IsKeyDown(SDL.Scancode.LShift)) {
             component = (int)Material.Component.BlendWeight; // Edit the texture blend
