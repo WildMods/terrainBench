@@ -4,6 +4,7 @@ using OpenTK.Mathematics;
 using System.Collections.Concurrent;
 using CommunityToolkit.HighPerformance;
 using System.Runtime.InteropServices;
+using OperationResult;
 
 namespace terrainBench.Graphics;
 using static GLUtil;
@@ -513,6 +514,9 @@ public struct TerrainRenderer {
     public int terrainTexArray = 0;
     int coverageTex = 0;
     public CoverageMap lodCoverage = new();
+    
+    // Deswizzled terrain textures loading in the background during boot
+    private Task<Result<BfresTextureReader, ErrorStack>> pendingTerrainTextures;
 
     public List<TileRegion> rings = new();
     public bool wireframe = false;
@@ -578,7 +582,7 @@ public struct TerrainRenderer {
 
     public TerrainRenderer() { }
 
-    public bool GLInit() {
+    public bool GLInit(EditorState ed) {
         var zone = Profiler.BeginZone("R_GLInit");
         string prefix = "terrainBench.Graphics.Shaders.";
         string vert = GetEmbeddedText(prefix + "terrain.vert.glsl");
@@ -603,6 +607,17 @@ public struct TerrainRenderer {
         GL.EnableVertexArrayAttrib(vaoPatches, 0);
         GL.PatchParameter(PatchParameterInt.PatchVertices, VERTS_PER_PATCH);
 
+        
+        string texPath = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex.sbfres");
+        string tex1Path = Path.Combine("Model", "Terrain.Tex1.sbfres");
+        string tex2Path = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex2.sbfres");
+        
+        pendingTerrainTextures = Task.Run(delegate {
+            var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
+            var res = BfresTextureReader.Create(ed.game, texPath, tex1Path, tex2Path, "MaterialAlb");
+            bfresLoad.Dispose();
+            return res;
+        });
         zone.Dispose();
         return true;
     }
@@ -701,12 +716,9 @@ public struct TerrainRenderer {
         Console.WriteLine("Loading terrain textures...");
         var total = Stopwatch.StartNew();
         var bfresLoad = Profiler.BeginZone("R_LoadTerrainBFRES");
-
-        string texPath = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex.sbfres");
-        string tex1Path = Path.Combine("Model", "Terrain.Tex1.sbfres");
-        string tex2Path = Path.Combine("Pack", "TitleBG.pack//Model//Terrain.Tex2.sbfres");
         
-        var res = BfresTextureReader.Create(game, texPath, tex1Path, tex2Path, "MaterialAlb");
+        // Wait for background thread to finish loading the textures if needed.
+        var res = pendingTerrainTextures.Result;
         if (res.IsErr()) {
             Console.WriteLine("Unable to load terrain textures.\n{0}", res.Err()?.Message);
             return false;

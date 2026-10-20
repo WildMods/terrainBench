@@ -16,6 +16,7 @@ public class TerrainbenchWindow {
     bool needResize = true;
     Vector2i newSize = new();
     
+    
     bool showDemo = false;
     bool showAbout = false;
     bool showRingEditor = false;
@@ -46,7 +47,12 @@ public class TerrainbenchWindow {
                 ed.bootProgress = LOAD_TERRAIN_TEXTURES;
                 break;
             case LOAD_TERRAIN_TEXTURES:
-                // Start the GPU uploads 1 frame after title is changed
+                using (Profiler.BeginZone("R_LoadTerrainTextures")) {
+                    if (!editor.terrain.LoadTerrainTextures(editor.game)) {
+                        editor.bootProgress = FAILED;
+                    }
+                }
+        
                 ed.bootProgress = UPLOADING;
                 break;
             case UPLOADING:
@@ -109,12 +115,6 @@ public class TerrainbenchWindow {
             (s.Colors[i].Y, s.Colors[i].Z) = (s.Colors[i].Z, s.Colors[i].Y);
         }
 
-        using (Profiler.BeginZone("R_LoadTerrainTextures")) {
-            if (!editor.terrain.LoadTerrainTextures(editor.game)) {
-                editor.bootProgress = FAILED;
-            }
-        }
-        
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);
         
@@ -123,7 +123,7 @@ public class TerrainbenchWindow {
         // The auto resizing code will use this new size later on
         newSize = new(width, height);
         
-        editor.terrain.GLInit();
+        editor.terrain.GLInit(editor);
         editor.brushRenderer.GLInit();
     }
 
