@@ -114,15 +114,12 @@ public class Lod
         
         foreach (var result in iter)
         {
-            if (result.IsErr()) return;
-            tasks.Add(Task.Run(delegate
-            {
+            tasks.Add(Task.Run(delegate {
+                var uncompressed = Yaz0.Decompress(result.AsBytes());
                 using (Profiler.BeginZone("LoadSSTERA_HGHT")) {
-                    if (result.IsErr()) return;
-                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
-                    foreach (var (name, data) in s)
-                    {
+                    foreach (var (name, data) in s) {
                         var tileId = ZOrder.IndexFromFilename(name);
                         if (tileId.IsErr()) continue;
                         using (Profiler.BeginZone("HGHT_ToArray")) {
@@ -130,8 +127,8 @@ public class Lod
                         }
                         progress.Increment();
                     }
-                    result.Unwrap().Dispose();
                 }
+                result.Dispose();
             }));
         }
         
@@ -145,12 +142,11 @@ public class Lod
         
         foreach (var result in iter)
         {
-            if (result.IsErr()) return;
             tasks.Add(Task.Run(delegate
             {
+                var uncompressed = Yaz0.Decompress(result.AsBytes());
                 using (Profiler.BeginZone("LoadSSTERA_MATE")) {
-                    if (result.IsErr()) return;
-                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
                     foreach (var (name, data) in s)
                     {
@@ -163,8 +159,8 @@ public class Lod
 
                         progress.Increment();
                     }
-                    result.Unwrap().Dispose();
                 }
+                result.Dispose();
             }));
         }
         
@@ -180,9 +176,9 @@ public class Lod
         {
             tasks.Add(Task.Run(delegate
             {
+                var uncompressed = Yaz0.Decompress(result.AsBytes());
                 using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
-                    if (result.IsErr()) return;
-                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
                     foreach (var (name, data) in s)
                     {
@@ -191,8 +187,8 @@ public class Lod
                         _grass[tileId.Unwrap()] = data.Cast<byte, GrassExtm>().ToArray();
                         progress.Increment();
                     }
-                    result.Unwrap().Dispose();
                 }
+                result.Dispose();
             }));
         }
         
@@ -203,14 +199,14 @@ public class Lod
     {
         var iter = game.IterLodComponent(_level, LodComponent.water);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
-        
-        foreach (var result in iter)
+
+        Parallel.ForEach(iter, result =>
         {
             tasks.Add(Task.Run(delegate
             {
+                var uncompressed = Yaz0.Decompress(result.AsBytes());
                 using (Profiler.BeginZone("LoadSSTERA_WATER")) {
-                    if (result.IsErr()) return;
-                    var reader = new Revrs.RevrsReader(result.Unwrap());
+                    var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
                     foreach (var (name, data) in s)
                     {
@@ -219,10 +215,10 @@ public class Lod
                         _water[tileId.Unwrap()] = data.Cast<byte, WaterExtm>().ToArray();
                         progress.Increment();
                     }
-                    result.Unwrap().Dispose();
                 }
+                result.Dispose();
             }));
-        }
+        });
         
         await Task.WhenAll(tasks);
     }

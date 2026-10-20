@@ -6,6 +6,8 @@ using OperationResult;
 using static OperationResult.Helpers;
 using CsOead;
 using System.Diagnostics;
+using System.IO.MemoryMappedFiles;
+using CommunityToolkit.HighPerformance;
 
 namespace terrainBench.Core;
 
@@ -90,11 +92,14 @@ public class Game
     public void IndexDefaultPaths() {
         string[] paths = { "Terrain/A/MainField", "Model", "Pack/TitleBG.pack" };
 
-        foreach (var p in paths) {
-            IndexPath(p, Section.Base);
-            IndexPath(p, Section.Update);
-            IndexPath(p, Section.DLC);
-            IndexPath(p, Section.Mod);
+        using (var zone = Profiler.BeginZone("IndexDefaultPaths")) {
+            foreach (var p in paths) {
+                IndexPath(p, Section.Base);
+                IndexPath(p, Section.Update);
+                IndexPath(p, Section.DLC);
+                IndexPath(p, Section.Mod);
+            }
+            zone.EmitText($"{fileIndex.Count} files indexed");
         }
     }
 
@@ -121,49 +126,51 @@ public class Game
             if (relativePath.Contains("//")) {
                 return Dump.GetNestedFile(GetSectionPath(s), relativePath);
             }
-            
-            var data = File.ReadAllBytes(path);
-            if (data.AsSpan().Length == 0) {
-                return Err(new ErrorStack($"Unable to load '{path}'"));
-            }
 
-            return data;
+            ;
+            using (var z2 = Profiler.BeginZone("ReadAllBytes")) {
+                var data = File.ReadAllBytes(path);
+                if (data.AsSpan().Length == 0) {
+                    return Err(new ErrorStack($"Unable to load '{path}'"));
+                }
+
+                return data;
+            }
         }
     }
 
     /// <summary>
     /// Iterate over all decompressed SSTERAs of a specific LOD and type
     /// </summary>
-    public IEnumerable<Result<DataMarshal, ErrorStack>> IterLodComponent(int level, LodComponent component)
+    public IEnumerable<MappedFile> IterLodComponent(int level, LodComponent component)
     {
         using (Profiler.BeginZone("IterLodComponent")) {
-            ConcurrentBag<DataMarshal> buffers = [];
+            ConcurrentBag<Task<Result<MappedFile, ErrorStack>>> mappings = [];
             int minIdx = 0;
             int maxIdx = (1 << level) * (1 << level);
             
-            // It's a bit faster to just decompress everything at once
-            var YazWatch = Stopwatch.StartNew();
-            Parallel.For(minIdx, maxIdx, i => {
+            
+            // Map all the input files into memory
+            var zone = Profiler.BeginZone("IterLodComponent.MapAll");
+            for (int i = minIdx; i < maxIdx; i++) {
                 var path = ZOrder.BuildFilename((ushort)i, level, component.ToString());
                 path = Path.Combine("Terrain/A/MainField", path + ".sstera");
                 if (!fileIndex.TryGetValue(path, out var s)) {
-                    return;
+                    continue;
                 }
                 path = ResolveSectionPath(path, s);
                 
-                using (var z = Profiler.BeginZone("oead::DecompressFile")) {
-                    z.EmitText(path);
-                    DataMarshal data = Yaz0.DecompressFile(path);
-                    if (data.AsSpan().Length > 0)
-                    {
-                        buffers.Add(data);
-                    }
-                }
-            });
-            YazWatch.Stop();
+                mappings.Add(IO.MapAsync(path));
+            }
+            zone.Dispose();
 
-            foreach (var data in buffers) {
-                yield return Ok(data);
+            foreach (var data in mappings) {
+                var mappedFile = data.Result;
+                if (mappedFile.IsErr()) {
+                    continue;
+                }
+
+                yield return mappedFile.Unwrap();
             }
         }
     }
