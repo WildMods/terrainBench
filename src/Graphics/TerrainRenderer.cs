@@ -744,7 +744,7 @@ public struct TerrainRenderer {
             Console.WriteLine("Failed to create texture array!");
         }
         var dxt1 = SizedInternalFormat.CompressedRgbS3tcDxt1Ext;
-        GL.TextureStorage3D(terrainTexArray, (int)Math.Log2(width), dxt1, width, height, (int)order.Length);
+        GL.TextureStorage3D(terrainTexArray, bfresReader.mipCount, dxt1, width, height, (int)order.Length);
         GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
         GL.TextureParameter(terrainTexArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.MirroredRepeat);
 
