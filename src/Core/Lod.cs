@@ -116,6 +116,7 @@ public class Lod
         {
             tasks.Add(Task.Run(delegate {
                 var uncompressed = Yaz0.Decompress(result.AsBytes());
+                result.Dispose();
                 using (Profiler.BeginZone("LoadSSTERA_HGHT")) {
                     var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
@@ -128,7 +129,6 @@ public class Lod
                         progress.Increment();
                     }
                 }
-                result.Dispose();
             }));
         }
         
@@ -145,6 +145,7 @@ public class Lod
             tasks.Add(Task.Run(delegate
             {
                 var uncompressed = Yaz0.Decompress(result.AsBytes());
+                result.Dispose();
                 using (Profiler.BeginZone("LoadSSTERA_MATE")) {
                     var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
@@ -160,7 +161,6 @@ public class Lod
                         progress.Increment();
                     }
                 }
-                result.Dispose();
             }));
         }
         
@@ -177,6 +177,7 @@ public class Lod
             tasks.Add(Task.Run(delegate
             {
                 var uncompressed = Yaz0.Decompress(result.AsBytes());
+                result.Dispose();
                 using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
                     var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
@@ -188,7 +189,6 @@ public class Lod
                         progress.Increment();
                     }
                 }
-                result.Dispose();
             }));
         }
         
@@ -205,6 +205,7 @@ public class Lod
             tasks.Add(Task.Run(delegate
             {
                 var uncompressed = Yaz0.Decompress(result.AsBytes());
+                result.Dispose();
                 using (Profiler.BeginZone("LoadSSTERA_WATER")) {
                     var reader = new Revrs.RevrsReader(uncompressed);
                     var s = new SarcLibrary.ImmutableSarc(ref reader);
@@ -216,7 +217,6 @@ public class Lod
                         progress.Increment();
                     }
                 }
-                result.Dispose();
             }));
         });
         
