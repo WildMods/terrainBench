@@ -107,6 +107,27 @@ public class Lod
         }
     }
 
+    private static void LoadMappedSSTERA<T>(ConcurrentDictionary<ushort, T[]> storage, MappedFile file, ProgressReport p)
+    where T : unmanaged
+    {
+        var yazZone = Profiler.BeginZone("DecompressSSTERA");
+        var uncompressed = Yaz0.Decompress(file.AsBytes());
+        yazZone.Dispose();
+        file.Dispose();
+        using (Profiler.BeginZone("LoadSSTERA")) {
+            var reader = new Revrs.RevrsReader(uncompressed);
+            var s = new SarcLibrary.ImmutableSarc(ref reader);
+            foreach (var (name, data) in s) {
+                var tileId = ZOrder.IndexFromFilename(name);
+                if (tileId.IsErr()) continue;
+                using (Profiler.BeginZone("TILE_ToArray")) {
+                    storage[tileId.Unwrap()] = data.Cast<byte, T>().ToArray();
+                }
+                p.Increment();
+            }
+        }
+    }
+
     private async Task LoadHeightmapTiles(Game game, ProgressReport progress)
     {
         var iter = game.IterLodComponent(_level, LodComponent.hght);
@@ -115,20 +136,7 @@ public class Lod
         foreach (var result in iter)
         {
             tasks.Add(Task.Run(delegate {
-                var uncompressed = Yaz0.Decompress(result.AsBytes());
-                result.Dispose();
-                using (Profiler.BeginZone("LoadSSTERA_HGHT")) {
-                    var reader = new Revrs.RevrsReader(uncompressed);
-                    var s = new SarcLibrary.ImmutableSarc(ref reader);
-                    foreach (var (name, data) in s) {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        using (Profiler.BeginZone("HGHT_ToArray")) {
-                            _hghts[tileId.Unwrap()] = data.Cast<byte, ushort>().ToArray();
-                        }
-                        progress.Increment();
-                    }
-                }
+                LoadMappedSSTERA(_hghts, result, progress);
             }));
         }
         
@@ -142,25 +150,8 @@ public class Lod
         
         foreach (var result in iter)
         {
-            tasks.Add(Task.Run(delegate
-            {
-                var uncompressed = Yaz0.Decompress(result.AsBytes());
-                result.Dispose();
-                using (Profiler.BeginZone("LoadSSTERA_MATE")) {
-                    var reader = new Revrs.RevrsReader(uncompressed);
-                    var s = new SarcLibrary.ImmutableSarc(ref reader);
-                    foreach (var (name, data) in s)
-                    {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        using (Profiler.BeginZone("MATE_ToArray"))
-                        {
-                            _mates[tileId.Unwrap()] = data.Cast<byte, Material>().ToArray();
-                        }
-
-                        progress.Increment();
-                    }
-                }
+            tasks.Add(Task.Run(delegate {
+                LoadMappedSSTERA<Material>(_mates, result, progress);
             }));
         }
         
@@ -174,21 +165,8 @@ public class Lod
         
         foreach (var result in iter)
         {
-            tasks.Add(Task.Run(delegate
-            {
-                var uncompressed = Yaz0.Decompress(result.AsBytes());
-                result.Dispose();
-                using (Profiler.BeginZone("LoadSSTERA_GRASS")) {
-                    var reader = new Revrs.RevrsReader(uncompressed);
-                    var s = new SarcLibrary.ImmutableSarc(ref reader);
-                    foreach (var (name, data) in s)
-                    {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        _grass[tileId.Unwrap()] = data.Cast<byte, GrassExtm>().ToArray();
-                        progress.Increment();
-                    }
-                }
+            tasks.Add(Task.Run(delegate {
+                LoadMappedSSTERA<GrassExtm>(_grass, result, progress);
             }));
         }
         
@@ -200,25 +178,11 @@ public class Lod
         var iter = game.IterLodComponent(_level, LodComponent.water);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
 
-        Parallel.ForEach(iter, result =>
-        {
-            tasks.Add(Task.Run(delegate
-            {
-                var uncompressed = Yaz0.Decompress(result.AsBytes());
-                result.Dispose();
-                using (Profiler.BeginZone("LoadSSTERA_WATER")) {
-                    var reader = new Revrs.RevrsReader(uncompressed);
-                    var s = new SarcLibrary.ImmutableSarc(ref reader);
-                    foreach (var (name, data) in s)
-                    {
-                        var tileId = ZOrder.IndexFromFilename(name);
-                        if (tileId.IsErr()) continue;
-                        _water[tileId.Unwrap()] = data.Cast<byte, WaterExtm>().ToArray();
-                        progress.Increment();
-                    }
-                }
+        foreach (var result in iter) {
+            tasks.Add(Task.Run(delegate {
+                LoadMappedSSTERA<WaterExtm>(_water, result, progress);
             }));
-        });
+        }
         
         await Task.WhenAll(tasks);
     }
