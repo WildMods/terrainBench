@@ -145,13 +145,8 @@ public class Game
     public IEnumerable<MappedFile> IterLodComponent(int level, LodComponent component)
     {
         using (Profiler.BeginZone("IterLodComponent")) {
-            ConcurrentBag<Task<Result<MappedFile, ErrorStack>>> mappings = [];
             int minIdx = 0;
             int maxIdx = (1 << level) * (1 << level);
-            
-            
-            // Map all the input files into memory
-            var zone = Profiler.BeginZone("IterLodComponent.MapAll");
             for (int i = minIdx; i < maxIdx; i++) {
                 var path = ZOrder.BuildFilename((ushort)i, level, component.ToString());
                 path = Path.Combine("Terrain/A/MainField", path + ".sstera");
@@ -160,12 +155,7 @@ public class Game
                 }
                 path = ResolveSectionPath(path, s);
                 
-                mappings.Add(IO.MapAsync(path));
-            }
-            zone.Dispose();
-
-            foreach (var data in mappings) {
-                var mappedFile = data.Result;
+                var mappedFile = MappedFile.Create(path);
                 if (mappedFile.IsErr()) {
                     continue;
                 }
