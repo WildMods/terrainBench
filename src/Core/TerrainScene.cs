@@ -16,6 +16,8 @@ public class TerrainScene {
         public uint unknown3;
         public bool hasGrass;
         public bool hasWater;
+        public ushort zIndex;
+        public byte lod;
 
         /// <summary>
         /// Calculate the size of this tile in world space (which is 10k x 10k in vanilla)

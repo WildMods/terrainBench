@@ -244,6 +244,7 @@ public readonly ref struct TerrainSceneBinary
         var basenameLen = data.Slice(basenamePos).IndexOf((byte)0);
         var basenameSpan = data.Slice(basenamePos, basenameLen);
         target.basename = Encoding.ASCII.GetString(basenameSpan);
+        ZOrder.ParseTileBasename(target.basename, out target.zIndex, out target.lod);
 
         // We're done if there's no extra grass/water data
         if (src.extraInfoPresent == 0) {

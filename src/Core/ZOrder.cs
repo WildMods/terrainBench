@@ -1,6 +1,8 @@
 // Created Jul. 15 2026, partially copied from:
 // https://github.com/Torphedo/BOTWTerrain/blob/trunk/util.h
 // @author Torphedo
+
+using System.Diagnostics;
 using OperationResult;
 using static OperationResult.Helpers;
 namespace terrainBench.Core;
@@ -69,6 +71,21 @@ public static class ZOrder {
         return (UInt16)((idx >> 2) << 2);
     }
 
+    public static void ParseTileBasename(string basename, out UInt16 idx, out byte lodOut) {
+        Debug.Assert(basename.Length == 10);
+        char lodChar = basename[1];
+        var lod = lodChar - '0';
+        
+        var idxStr = basename.Remove(0, 2);
+        UInt32 res = Convert.ToUInt32(idxStr, 16);
+        if (res > UInt16.MaxValue) {
+            res = UInt16.MaxValue;
+        }
+
+        idx = (UInt16)res;
+        lodOut = (byte)lod;
+    }
+    
     /// <summary>
     /// Parse the Z-index from a tile's filename (expects a tile, not its containing SSTERA)
     /// </summary>
@@ -86,13 +103,9 @@ public static class ZOrder {
         }
 
         filename = Path.GetFileNameWithoutExtension(filename);
-        filename = filename.Remove(0, 2);
-        UInt32 res = Convert.ToUInt32(filename, 16);
-        if (res > 0xFFFF) {
-            return Err(new ErrorStack($"Invalid filename (gave out of bounds Z-order index {res}): {filename}"));
-        }
+        ParseTileBasename(filename, out var idx, out var lod);
 
-        return (UInt16)res;
+        return idx;
     }
 
     /// <summary>
