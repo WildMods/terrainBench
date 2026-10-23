@@ -30,6 +30,7 @@ M
 
     public Game game;
     public Cache cache = new();
+    public TerrainScene tscb = new();
     public Graphics.TerrainRenderer terrain = new();
     public Brush brush = new();
     public Graphics.BrushRenderer brushRenderer = new();

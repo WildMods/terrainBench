@@ -594,6 +594,7 @@ public struct TerrainRenderer {
         using (Profiler.BeginZone("R_ShaderCompile")) {
             tessShader = new Shader(vert, tcs, tess, geom, frag);
         }
+        lodCoverage.BuildFromTSCB(ed.tscb);
         
         // Static vertex buffer of patches for 1 tile
         Vector2[] patchVerts = GenerateTilePatchVerts();
@@ -623,7 +624,6 @@ public struct TerrainRenderer {
     }
 
     public bool LoadTerrainTiles(Cache cache) {
-        lodCoverage.BuildFromTiles(cache);
         coverageTex = CreateTileTexture(SizedInternalFormat.R8, HGHT_DIM);
         GL.TextureSubImage2D(coverageTex, 0, 0, 0, HGHT_DIM, HGHT_DIM, PixelFormat.Red, PixelType.UnsignedByte, lodCoverage.map);
 

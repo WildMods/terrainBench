@@ -3,6 +3,7 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using SDL3;
 using System.Runtime.InteropServices;
+using CommunityToolkit.HighPerformance;
 using SNVector2 = System.Numerics.Vector2;
 
 using terrainBench.Core;
@@ -27,7 +28,18 @@ public class TerrainbenchWindow {
     public TerrainbenchWindow(string[] args) 
     {
         editor = new(args);
+
+        var tscbRes = editor.game.ReadFile("Terrain/A/MainField.tscb", Game.Section.Update);
+        if (tscbRes.IsOk()) {
+            using (Profiler.BeginZone("ParseTSCB")) {
+                var tscbData = tscbRes.Unwrap().AsBytes();
+                editor.tscb = TerrainSceneBinary.BuildManagedFromData(tscbData);
+            }
+        } else {
+            Console.WriteLine("Failed to parse TSCB because: '{0}'", tscbRes.Err()?.Message);
+        }
     }
+
 
     void UpdateLoadingStateMachine(EditorState ed, nint sdlWindow) {
         switch (ed.bootProgress) {

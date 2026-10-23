@@ -7,42 +7,35 @@ namespace terrainBench.Core;
 /// </summary>
 public class CoverageMap() {
     public readonly byte[] map = new byte[ZOrder.GRID_SIZE * ZOrder.GRID_SIZE];
-
-    public void BuildFromTiles(Cache cache) {
+    
+    public void BuildFromTSCB(TerrainScene tscb) {
         var zone = Profiler.BeginZone("C_CoverageMap");
-        for (sbyte lvl = 8; lvl > 0; lvl--) {
+        int tilesWritten = 0;
+        foreach (var t in tscb.tiles) {
+            var lvl = t.lod;
+            if (lvl == 0) {
+                continue; // Not included in coverage map
+            }
+            
             byte lvlDiff = (byte)(ZOrder.MAX_LOD - lvl);
             UInt32 drawSize = (UInt32)((1 << lvlDiff) * (1 << lvlDiff));
-            int sizeofLevel = (int)((1 << lvl) * (1 << lvl));
 
-            // Index is an int because level 8 uses the whole 16-bit range, so
-            // otherwise the loop will never end
-            int tilesFound = 0;
-            int tilesWritten = 0;
-            for (int idx = 0; idx < sizeofLevel; idx++) {
-                var res = cache.GetHeightmapTile(lvl, (UInt16)idx, false);
-                if (res.IsErr()) {
-                    continue;
-                }
-                tilesFound++;
+            // Find the index of this tile's starting point on the level 8 grid
+            UInt16 lvl8Idx = (UInt16)(t.zIndex << (2 * lvlDiff));
+            byte val = (byte)(1 << (lvl - 1));
+            for (int i = 0; i < drawSize; i++) {
+                int targetPos = lvl8Idx + i;
+                ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
+                int linearIdx = ZOrder.GRID_SIZE * y + x;
 
-                // Find the index of this tile's starting point on the level 8 grid
-                UInt16 lvl8Idx = (UInt16)(idx << (2 * lvlDiff));
-                byte val = (byte)(1 << (lvl - 1));
-                for (int i = 0; i < drawSize; i++) {
-                    int targetPos = lvl8Idx + i;
-                    ZOrder.Deinterleave16To8((UInt16)targetPos, out var x, out var y);
-                    int linearIdx = ZOrder.GRID_SIZE * y + x;
-
-                    // We have 8 bits and 9 detail levels, so exclude level 0.
-                    Debug.Assert(lvl > 0);
-                    // MSB = level 8, LSB = level 1.
-                    map[linearIdx] |= val;
-                    tilesWritten++;
-                }
+                // We have 8 bits and 9 detail levels, so exclude level 0.
+                Debug.Assert(lvl > 0);
+                // MSB = level 8, LSB = level 1.
+                map[linearIdx] |= val;
+                tilesWritten++;
             }
-            Console.WriteLine("Found {0}/{1} level {2} tiles, covering {3} level 8 tiles", tilesFound, sizeofLevel, lvl, tilesWritten);
         }
+        Console.WriteLine("Found {0} tiles, covering {1} level 8 tiles", tscb.tiles.Count, tilesWritten);
 
         zone.Dispose();
     }
