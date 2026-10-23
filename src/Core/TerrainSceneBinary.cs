@@ -1,21 +1,20 @@
 using System.Text;
-using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Entish;
-using Entish.Attributes;
 using terrainBench.Core;
 using static Entish.EndianUtils;
 namespace terrainBench;
 
-// Represents data loaded from the Terrain Scene Binary (TSCB) file
+// Represents data loaded from the Terrain Scene Binary (TSCB) file.
+// This is always big endian (even on Switch), except for the version number.
+// https://zeldamods.org/wiki/TSCB
 public readonly ref struct TerrainSceneBinary
 {
     // https://zeldamods.org/wiki/TSCB#Header
     private const int TSCB_HEADER_SIZE = 0x30;
     [StructLayout(LayoutKind.Sequential, Size = 0x30)]
-    public struct TSCBHeader : ISwappable<TSCBHeader>
-    {
+    public struct TSCBHeader : ISwappable<TSCBHeader> {
         public uint magic;
         public uint version;
         public uint unknown; // Always 1
@@ -29,13 +28,12 @@ public readonly ref struct TerrainSceneBinary
         public float tileBaseSize; // Default 32
         public uint unknown4; // Always 8
 
-        public static unsafe void Swap(TSCBHeader* header)
-        {
+        public static unsafe void Swap(TSCBHeader* header) {
             if (GetSystemEndianness() == Endianness.Big) {
                 return;
             }
             EndianUtils.Swap(&header->magic);
-            EndianUtils.Swap(&header->version);
+            // The version is in little endian for some reason, so we don't swap it.
             EndianUtils.Swap(&header->unknown);
             EndianUtils.Swap(&header->basenamesOffset);
             EndianUtils.Swap(&header->worldScale);
@@ -49,11 +47,11 @@ public readonly ref struct TerrainSceneBinary
         }
     }
     
+    // Seemingly metadata for entries in the terrain texture array, unclear purpose.
     // https://zeldamods.org/wiki/TSCB#Material_Information_Value_Table
     private const int MATERIAL_INFO_SIZE = 0x14;
     [StructLayout(LayoutKind.Sequential, Size = 0x14)]
-    public struct MaterialInfo : ISwappable<MaterialInfo>
-    {
+    public struct MaterialInfo : ISwappable<MaterialInfo> {
         public uint index;
         public float textureU;
         public float textureV;
@@ -159,8 +157,6 @@ public readonly ref struct TerrainSceneBinary
     
     public TerrainSceneBinary(ReadOnlySpan<byte> data) {
         this.data = data;
-        uint matInfoCount;
-        uint tileInfoCount;
         unsafe {
             var headerRef = ReadUnsafe<TSCBHeader>(data, 0);
             TSCBHeader.Swap(&headerRef);
@@ -169,21 +165,23 @@ public readonly ref struct TerrainSceneBinary
             // Parse material info.
             // See https://zeldamods.org/wiki/TSCB#Material_Information_Array
             int matInfoSize = Swap(ReadUnsafe<int>(data, sizeof(TSCBHeader)));
-            matInfoCount = header.matInfoCount;
+            int matInfoCount = (int)header.matInfoCount;
             matInfoPos = sizeof(TSCBHeader) + 4;
-            matInfoOffsets = SpanSegment<uint>(data, matInfoPos, (int)matInfoCount);
+            matInfoOffsets = SpanSegment<uint>(data, matInfoPos, matInfoCount);
 
             // Parse tile info (wiki uses "tile" and "area" interchangeably).
             // See https://zeldamods.org/wiki/TSCB#Area_Array
             tileInfoPos = sizeof(TSCBHeader) + matInfoSize;
-            tileInfoCount = header.areaCount;
-            tileInfoOffsets = SpanSegment<uint>(data, tileInfoPos, (int)tileInfoCount);
+            int tileInfoCount = (int)header.areaCount;
+            tileInfoOffsets = SpanSegment<uint>(data, tileInfoPos, tileInfoCount);
         }
-        Console.WriteLine("World scale = {0}, world height = {1}", header.worldScale, header.worldHeight);
     }
 
-    public TerrainScene BuildManaged()
-    {
+    /// <summary>
+    /// Build a high-level managed object from the low-level ref struct that's
+    /// still depending on references into a span.
+    /// </summary>
+    public TerrainScene BuildManaged() {
         TerrainScene scene = new();
         scene.maxTerrainHeight = header.worldHeight;
         scene.tileSize = header.tileBaseSize;
@@ -208,11 +206,21 @@ public readonly ref struct TerrainSceneBinary
         return scene;
     }
 
+    /// <summary>
+    /// Build a high-level managed object representing a TSCB file.
+    /// </summary>
     public static TerrainScene BuildManagedFromData(ReadOnlySpan<byte> data) {
         TerrainSceneBinary bin = new(data);
         return bin.BuildManaged();
     }
 
+    /// <summary>
+    /// Read tile metadata from the TSCB, and convert it to a high-level managed
+    /// object.
+    /// </summary>
+    /// <param name="data">The TSCB data</param>
+    /// <param name="offset">The offset of the tile entry</param>
+    /// <returns>High-level tile object</returns>
     public static TerrainScene.TileInfo ReadManagedTile(ReadOnlySpan<byte> data, long offset)
     {
         TerrainScene.TileInfo target = new();
@@ -220,8 +228,7 @@ public readonly ref struct TerrainSceneBinary
         unsafe {
             TileInfo.Swap(&src);
         }
-        target.x = src.x;
-        target.z = src.z;
+        target.center = new(src.x, src.z);
         target.tileSize = src.tileSize;
         target.minLandHeight = src.minLandHeight;
         target.maxLandHeight = src.maxLandHeight;
@@ -280,17 +287,19 @@ public readonly ref struct TerrainSceneBinary
         return target;
     }
 
+    // Get a tile offset from the array that's relative to its own offset, and
+    // turn that into a usable absolute offset.
     public long ResolveSelfRelativeTileOffset(int idx) {
         uint offset = Swap(tileInfoOffsets[idx]);
         int offsetPos = tileInfoPos + idx * 4;
-        long finalPos = offsetPos + offset; // Offset is relative to itself
-        return finalPos;
+        return offsetPos + offset;
     }
     
-    public long ResolveSelfRelativeMaterialoffset(int idx) {
+    // Get a material offset from the array that's relative to its own offset,
+    // and turn that into a usable absolute offset.
+    public long ResolveSelfRelativeMaterialOffset(int idx) {
         uint offset = Swap(matInfoOffsets[idx]);
         int offsetPos = matInfoPos + idx * 4;
-        long finalPos = offsetPos + offset; // Offset is relative to itself
-        return finalPos;
+        return offsetPos + offset;
     }
 }
