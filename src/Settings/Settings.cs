@@ -5,7 +5,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace terrainBench.Settings
 {
-    internal class Settings(string gameDir, string updateDir, string dlcDir, string gameDirNx, string dlcDirNx)
+    internal class Settings(string gameDir, string updateDir, string dlcDir, string gameDirNx, string dlcDirNx, string modDir)
     {
         private static JsonSerializerOptions _jsOpt = new() { WriteIndented = true };
         private static readonly string SettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "botw_tools", "settings.json");
@@ -20,6 +20,8 @@ namespace terrainBench.Settings
         public string dlcDir = dlcDir;
         [JsonInclude]
         public string dlcDirNx = dlcDirNx;
+        [JsonInclude]
+        public string modDir = modDir;
 
         public static Settings Load()
         {
@@ -53,7 +55,8 @@ namespace terrainBench.Settings
                     ukmmSettings.WiiuConfig?.Dump?.Source?.UpdateDir ?? "",
                     ukmmSettings.WiiuConfig?.Dump?.Source?.AocDir ?? "",
                     ukmmSettings.SwitchConfig?.Dump?.Source?.ContentDir ?? "",
-                    ukmmSettings.SwitchConfig?.Dump?.Source?.AocDir ?? ""
+                    ukmmSettings.SwitchConfig?.Dump?.Source?.AocDir ?? "",
+                    ""
                 );
             }
             else if (
@@ -74,12 +77,13 @@ namespace terrainBench.Settings
                     bcmlSettings?.UpdateDir ?? "",
                     bcmlSettings?.DlcDir ?? "",
                     bcmlSettings?.GameDirNx ?? "",
-                    bcmlSettings?.DlcDirNx ?? ""
+                    bcmlSettings?.DlcDirNx ?? "",
+                    ""
                 );
             }
             else
             {
-                value = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
+                value = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
             }
 
             if (!Directory.Exists(Directory.GetParent(SettingsPath)!.FullName))

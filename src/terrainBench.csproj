@@ -12,32 +12,44 @@
 
     <PropertyGroup>
         <LibraryPath>$(MSBuildProjectDirectory)/../lib</LibraryPath>
-        <OeadLibFile>$(LibraryPath)/cs-oead/native/build/cs_oead</OeadLibFile>
-        <NIOLibFile>$(LibraryPath)/cs-oead/lib/Native.IO/native/build/native_io</NIOLibFile>
+        <BinaryPath>$(MSBuildProjectDirectory)/../bin</BinaryPath>
+        <OeadLibFile>$(BinaryPath)/cs_oead</OeadLibFile>
+        <NIOLibFile>$(BinaryPath)/native_io</NIOLibFile>
     </PropertyGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Shaders/terrain.vert.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.tcs.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.tess.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.geom.glsl" />
-        <EmbeddedResource Include="Shaders/terrain.frag.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.vert.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.tcs.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.tess.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.geom.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/terrain.frag.glsl" />
 
-        <EmbeddedResource Include="Shaders/brush.vert.glsl" />
-        <EmbeddedResource Include="Shaders/brush.frag.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/brush.vert.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/brush.frag.glsl" />
+        
+        <EmbeddedResource Include="Graphics/Shaders/texQuad.vert.glsl" />
+        <EmbeddedResource Include="Graphics/Shaders/texQuad.frag.glsl" />
     </ItemGroup>
 
     <ItemGroup>
-	    <PackageReference Include="Entish" Version="1.1.2" />
-	    <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
+        <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+        <PackageReference Include="NativeFileDialogSharp" Version="0.5.0" />
+        <PackageReference Include="SDL3-CS" Version="3.4.16" />
+        <PackageReference Include="SDL3-CS.Linux" Version="3.4.16" />
+        <PackageReference Include="SDL3-CS.Windows" Version="3.4.16" />
+        <PackageReference Include="SkiaSharp" Version="4.151.2" />
+        <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.151.2" />
+        <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.151.2" />
+
+        <PackageReference Include="Tracy-CSharp" Version="0.13.1" />
 	    <ProjectReference Include="$(LibraryPath)/BfresLibrary/BfresLibrary/BfresLibrary.csproj" />
+	    <ProjectReference Include="$(LibraryPath)/BntxSharp/src/BntxSharp/BntxSharp.csproj" />
         <PackageReference Include="YamlDotNet" Version="18.1.0" />
         <ProjectReference Include="$(LibraryPath)/SarcLibrary/src/SarcLibrary/SarcLibrary.csproj" Version="1.0.0" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/lib/Native.IO/src/Native.IO.csproj" />
         <ProjectReference Include="$(LibraryPath)/cs-oead/src/CsOead.csproj" />
         <ProjectReference Include="$(LibraryPath)/OperationResult/OperationResult/OperationResult.csproj" />
         <PackageReference Include="OpenTK" Version="4.9.4" />
-        <PackageReference Include="SmoothGL" Version="1.2.0" />
 
         <Content Condition="Exists('$(NIOLibFile).so')" Include="$(NIOLibFile).so" Link="Lib/native_io.so" TargetPath="native_io.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(NIOLibFile).dll')" Include="$(NIOLibFile).dll" Link="Lib/native_io.dll" TargetPath="native_io.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
@@ -46,8 +58,7 @@
         <Content Condition="Exists('$(OeadLibFile).so')" Include="$(OeadLibFile).so" Link="Lib/cs_oead.so" TargetPath="cs_oead.so" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dll')" Include="$(OeadLibFile).dll" Link="Lib/cs_oead.dll" TargetPath="cs_oead.dll" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
         <Content Condition="Exists('$(OeadLibFile).dylib')" Include="$(OeadLibFile).dylib" Link="Lib/cs_oead.dylib" TargetPath="cs_oead.dylib" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+        
+        <Content Condition="Exists('$(MSBuildProjectDirectory)')" Include="$(MSBuildProjectDirectory)/ProFontIIx.ttf" Link="ProFontIIx.ttf" TargetPath="ProFontIIx.ttf" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
-
-
-
 </Project>
