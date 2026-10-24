@@ -45,13 +45,46 @@ public class Game
     }
 
     public void IndexDefaultPaths() {
-        string[] paths = { "Terrain/A/MainField", "Model", "Pack/TitleBG.pack" };
-
+        string[] paths = { "Terrain/A/MainField" };
         using (Profiler.BeginZone("IndexDefaultPaths")) {
             foreach (var p in paths) {
                 layerFS.PreIndexPath(p);
             }
         }
+    }
+    
+    /// <summary>Read a (potentially compressed) file inside a SARC.</summary>
+    public static RefResult<Span<byte>, ErrorStack> GetNestedFile(string relative, string nested) {
+        if (!File.Exists(relative)) {
+            return Err(new ErrorStack($"Loose file not found: {relative}"));
+        }
+
+        Sarc sarc;
+        Span<byte> span = File.ReadAllBytes(relative);
+        
+        var nest = nested.Replace("//", "/");
+        // Handle compressed and uncompressed SARCs
+        var sarcData = span;
+        if (Yaz0.TryDecompress(span, out var data)) {
+            sarcData = data.AsSpan();
+        } try {
+            sarc = Sarc.FromBinary(sarcData);
+        } catch (Exception e) {
+            return Err(new ErrorStack(e.Message, e.StackTrace));
+        }
+        if (!sarc.TryGetFile(nest, out span)) {
+            return Err(new ErrorStack($"Nested file not found: {nest}"));
+        }
+        
+        // Handle compressed data inside a SARC
+        var decompressedData = Yaz0.Decompress(span);
+        if (decompressedData.Length > 0) {
+            span = decompressedData;
+        }
+        sarc.Clear();
+        sarc.Close();
+
+        return Ok(span);
     }
 
     /// <summary>
@@ -95,7 +128,7 @@ public class Game
             var finalpath = resolveRes.Unwrap();
 
             if (isNested) {
-                return Dump.GetNestedFile(finalpath, nestedPart);
+                return GetNestedFile(finalpath, nestedPart);
             }
 
             using (var z2 = Profiler.BeginZone("ReadAllBytes")) {
