@@ -140,15 +140,13 @@ public class Game
     }
 
     /// <summary>
-    /// Iterate over all decompressed SSTERAs of a specific LOD and type
+    /// Iterate over all SSTERAs of a specific LOD and type
     /// </summary>
-    public IEnumerable<MappedFile> IterLodComponent(int level, LodComponent component)
+    public IEnumerable<MappedFile> IterLodComponent(IEnumerable<UInt16> tiles, int level, LodComponent component)
     {
         using (Profiler.BeginZone("IterLodComponent")) {
-            int minIdx = 0;
-            int maxIdx = (1 << level) * (1 << level);
-            for (int i = minIdx; i < maxIdx; i++) {
-                var path = ZOrder.BuildFilename((ushort)i, level, component.ToString());
+            foreach (var idx in tiles) {
+                var path = ZOrder.BuildFilename(idx, level, component.ToString());
                 path = Path.Combine("Terrain/A/MainField", path + ".sstera");
                 if (!fileIndex.TryGetValue(path, out var s)) {
                     continue;

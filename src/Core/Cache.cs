@@ -64,13 +64,22 @@ public class Cache
         return res;
     }
 
-    public void Load(Game game, ProgressReport tilesLoadedOut) {
+    public void Load(TerrainScene tscb, Game game, ProgressReport tilesLoadedOut) {
         var timer = Stopwatch.StartNew();
-        using (Profiler.BeginZone("CacheLoad"))
-        {
-            for (int i = 0; i < 9; ++i)
-            {
-                _lods[i].Load(game, tilesLoadedOut);
+        List<HashSet<UInt16>> lodSets = new();
+        for (int i = 0; i < ZOrder.MAX_LOD + 1; ++i) {
+            lodSets.Add(new());
+        }
+        
+        using (Profiler.BeginZone("CacheBuildSSTERAList")) {
+            foreach (var t in tscb.tiles) {
+                lodSets[t.lod].Add(ZOrder.RoundToSSTERAIdx(t.zIndex));
+            }
+        }
+        
+        using (Profiler.BeginZone("CacheLoad")) {
+            for (int i = 0; i < 9; ++i) {
+                _lods[i].Load(lodSets[i], game, tilesLoadedOut);
             }
         }
         timer.Stop();

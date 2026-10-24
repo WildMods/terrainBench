@@ -87,14 +87,14 @@ public class Lod
         return true;
     }
 
-    public void Load(Game game, ProgressReport progress)
+    public void Load(IEnumerable<UInt16> tiles, Game game, ProgressReport progress)
     {
         var tasks = new List<Task>()
         {
-            LoadHeightmapTiles(game, progress),
-            LoadMaterialTiles(game, progress),
-            LoadGrassTiles(game, progress),
-            LoadWaterTiles(game, progress)
+            LoadHeightmapTiles(tiles, game, progress),
+            LoadMaterialTiles(tiles, game, progress),
+            LoadGrassTiles(tiles, game, progress),
+            LoadWaterTiles(tiles, game, progress)
         };
         Task.WaitAll(tasks);
         loadFinished = true;
@@ -128,9 +128,9 @@ public class Lod
         }
     }
 
-    private async Task LoadHeightmapTiles(Game game, ProgressReport progress)
+    private async Task LoadHeightmapTiles(IEnumerable<UInt16> tiles, Game game, ProgressReport progress)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.hght);
+        var iter = game.IterLodComponent(tiles, _level, LodComponent.hght);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
         foreach (var result in iter)
@@ -143,9 +143,9 @@ public class Lod
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadMaterialTiles(Game game, ProgressReport progress)
+    private async Task LoadMaterialTiles(IEnumerable<UInt16> tiles, Game game, ProgressReport progress)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.mate);
+        var iter = game.IterLodComponent(tiles, _level, LodComponent.mate);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
         foreach (var result in iter)
@@ -158,9 +158,9 @@ public class Lod
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadGrassTiles(Game game, ProgressReport progress)
+    private async Task LoadGrassTiles(IEnumerable<UInt16> tiles, Game game, ProgressReport progress)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.grass);
+        var iter = game.IterLodComponent(tiles, _level, LodComponent.grass);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
         
         foreach (var result in iter)
@@ -173,9 +173,9 @@ public class Lod
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadWaterTiles(Game game, ProgressReport progress)
+    private async Task LoadWaterTiles(IEnumerable<UInt16> tiles, Game game, ProgressReport progress)
     {
-        var iter = game.IterLodComponent(_level, LodComponent.water);
+        var iter = game.IterLodComponent(tiles, _level, LodComponent.water);
         var tasks = new List<Task>(TILE_COUNTS[_level]);
 
         foreach (var result in iter) {

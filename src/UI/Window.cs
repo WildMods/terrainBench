@@ -48,7 +48,7 @@ public class TerrainbenchWindow {
                 editor.bootProgress = TILES_LOADING;
                 editor.asyncLoadedTiles.Max = 18100;
                 Task.Run(delegate {
-                    ed.cache.Load(ed.game, ed.asyncLoadedTiles);
+                    ed.cache.Load(ed.tscb, ed.game, ed.asyncLoadedTiles);
                     ed.bootProgress = SHOW_UPLOAD_MSG;
                 });
                 break;
