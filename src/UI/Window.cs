@@ -29,7 +29,7 @@ public class TerrainbenchWindow {
     {
         editor = new(args);
 
-        var tscbRes = editor.game.ReadFile("Terrain/A/MainField.tscb", Game.Section.Update);
+        var tscbRes = editor.game.ReadFile("Terrain/A/MainField.tscb");
         if (tscbRes.IsOk()) {
             using (Profiler.BeginZone("ParseTSCB")) {
                 var tscbData = tscbRes.Unwrap().AsBytes();

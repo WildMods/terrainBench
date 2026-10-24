@@ -25,23 +25,10 @@ public enum LodComponent
 
 public class Game
 {
-    /// <summary>
-    /// Specifies a game folder to use for file operations
-    /// </summary>
-    public enum Section
-    {
-        [System.ComponentModel.Description("base game")]
-        Base,
-        [System.ComponentModel.Description("update")]
-        Update,
-        DLC, // This can stay capitalized
-        Mod,
-    }
-
     // We build a set of known game file paths and what folder they belong to.
     // Instead of checking each game folder for each file, we look up the
     // canonical path here and find out which folder (if any) to find it in.
-    private ConcurrentDictionary<string, Section> fileIndex = new();
+    private LayeredFilesystem layerFS;
     public string _basePath;
     public string _updatePath;
     public string _dlcPath;
@@ -53,53 +40,17 @@ public class Game
         _updatePath = updatePath;
         _dlcPath = dlcPath;
         this.modPath = modPath;
+        layerFS = new([modPath, dlcPath, updatePath, basePath]);
         IndexDefaultPaths();
-    }
-
-    string GetSectionPath(Section s) {
-        string folder = s switch {
-            Section.Base => _basePath,
-            Section.Update => _updatePath,
-            Section.DLC => _dlcPath,
-            Section.Mod => modPath,
-            _ => "",
-        };
-        return folder;
-    }
-
-    string ResolveSectionPath(string path, Section s) {
-        return Path.Combine(GetSectionPath(s), path);
-    }
-
-    private void IndexPath(string path, Section s) {
-        string folder = GetSectionPath(s);
-        if (folder == null || folder.Length == 0) {
-            Console.WriteLine("{0} folder was not set!", s.ToString());
-            return;
-        }
-        
-        var finalpath = Path.Combine(folder, path);
-        if (File.Exists(finalpath)) {
-            fileIndex[path] = s;
-        } else if (Directory.Exists(finalpath)) {
-            foreach (var f in Directory.EnumerateFiles(finalpath)) {
-                var filename = Path.Combine(path, Path.GetFileName(f));
-                fileIndex[filename] = s;
-            }
-        }
     }
 
     public void IndexDefaultPaths() {
         string[] paths = { "Terrain/A/MainField", "Model", "Pack/TitleBG.pack" };
 
-        using (var zone = Profiler.BeginZone("IndexDefaultPaths")) {
+        using (Profiler.BeginZone("IndexDefaultPaths")) {
             foreach (var p in paths) {
-                IndexPath(p, Section.Base);
-                IndexPath(p, Section.Update);
-                IndexPath(p, Section.DLC);
-                IndexPath(p, Section.Mod);
+                layerFS.PreIndexPath(p);
             }
-            zone.EmitText($"{fileIndex.Count} files indexed");
         }
     }
 
@@ -107,11 +58,15 @@ public class Game
     /// Decompress a game file into memory
     /// </summary>
     /// <param name="s">The game folder to look for the file in</param>
-    public Result<DataMarshal, ErrorStack> ReadDecompressed(string relativePath, Section s) {
+    public Result<DataMarshal, ErrorStack> ReadDecompressed(string relativePath) {
         using (var z = Profiler.BeginZone("ReadDecompressed")) {
             z.EmitText(relativePath);
-            var finalpath = ResolveSectionPath(relativePath, s);
-            var data = Yaz0.DecompressFile(finalpath);
+            var finalpath = layerFS.ResolvePath(relativePath);
+            if (finalpath.IsErr()) {
+                return Err(finalpath.Err().Context("Failed to read compressed file"));
+            }
+            
+            var data = Yaz0.DecompressFile(finalpath.Unwrap());
             if (data.AsSpan().Length == 0) {
                 return Err(new ErrorStack($"Unable to map & decompress '{finalpath}'"));
             }
@@ -119,19 +74,34 @@ public class Game
         }
     }
     
-    public RefResult<Span<byte>, ErrorStack> ReadFile(string relativePath, Section s) {
+    public RefResult<Span<byte>, ErrorStack> ReadFile(string relativePath) {
         using (var z = Profiler.BeginZone("ReadFile")) {
             z.EmitText(relativePath);
-            var path = ResolveSectionPath(relativePath, s);
-            if (relativePath.Contains("//")) {
-                return Dump.GetNestedFile(GetSectionPath(s), relativePath);
+            bool isNested = relativePath.Contains("//");
+            var loose = relativePath;
+            string nestedPart = "";
+            
+            if (isNested) {
+                var parts = relativePath.Split("//", 2);
+                loose = parts[0];
+                nestedPart = parts[1];
+            }
+            
+            var resolveRes = layerFS.ResolvePath(loose);
+            if (resolveRes.IsErr()) {
+                return Err(resolveRes.Err().Context("Failed to read file"));
             }
 
-            ;
+            var finalpath = resolveRes.Unwrap();
+
+            if (isNested) {
+                return Dump.GetNestedFile(finalpath, nestedPart);
+            }
+
             using (var z2 = Profiler.BeginZone("ReadAllBytes")) {
-                var data = File.ReadAllBytes(path);
+                var data = File.ReadAllBytes(finalpath);
                 if (data.AsSpan().Length == 0) {
-                    return Err(new ErrorStack($"Unable to load '{path}'"));
+                    return Err(new ErrorStack($"Unable to load '{finalpath}'"));
                 }
 
                 return data;
@@ -148,17 +118,13 @@ public class Game
             foreach (var idx in tiles) {
                 var path = ZOrder.BuildFilename(idx, level, component.ToString());
                 path = Path.Combine("Terrain/A/MainField", path + ".sstera");
-                if (!fileIndex.TryGetValue(path, out var s)) {
-                    continue;
-                }
-                path = ResolveSectionPath(path, s);
-                
-                var mappedFile = MappedFile.Create(path);
-                if (mappedFile.IsErr()) {
+
+                var mappedRes = layerFS.MapPath(path);
+                if (mappedRes.IsErr()) {
                     continue;
                 }
 
-                yield return mappedFile.Unwrap();
+                yield return mappedRes.Unwrap();
             }
         }
     }

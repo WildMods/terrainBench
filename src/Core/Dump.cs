@@ -6,52 +6,19 @@ using static OperationResult.Helpers;
 
 namespace terrainBench.Core;
 
-/// <summary>
-/// Represents a game folder in the game dump (i.e. base, update, or DLC folder)
-/// </summary>
-public class Dump
+public static class Dump
 {
-    /// <summary>
-    /// Open a game file for writing
-    /// </summary>
-    public Result<Stream, ErrorStack> OpenWrite(string loose) {
-        string baseErr = $"Unable to open ${loose} for writing: ";
-        try {
-            var f = File.OpenWrite(loose);
-            return f;
-        } catch (DirectoryNotFoundException) {
-            return Err(new ErrorStack($"${baseErr} The containing directory couldn't be found"));
-        } catch (UnauthorizedAccessException) {
-            return Err(new ErrorStack($"${baseErr} Unauthorized access"));
-        } catch (PathTooLongException) {
-            return Err(new ErrorStack($"${baseErr} path too long"));
-        } catch (Exception e) {
-            return Err(new ErrorStack($"${baseErr} '${e.Message}'"));
-        }
-    }
-
-    /// <summary>
-    /// Read a file inside a SARC. The path to the SARC is specified normally,
-    /// but folders inside the SARC use a double slash.
-    /// e.g. "Pack/TitleBG.pack//Model//Link.sbfres"
-    /// </summary>
-    public static RefResult<Span<byte>, ErrorStack> GetNestedFile(string sectionPath, string relative)
+    /// <summary>Read a file inside a SARC.</summary>
+    public static RefResult<Span<byte>, ErrorStack> GetNestedFile(string relative, string nested)
     {
-        string[] parts = relative.Split("//", 2);
-        if (parts.Length == 1)
-        {
-            return Err(new ErrorStack($"relative path must be nested file. Use GetFile for loose files: {relative}"));
-        }
-        string loose = Path.Combine(sectionPath, parts[0]);
-        if (!File.Exists(loose))
-        {
-            return Err(new ErrorStack($"Loose file not found: {loose}"));
+        if (!File.Exists(relative)) {
+            return Err(new ErrorStack($"Loose file not found: {relative}"));
         }
 
         Sarc sarc;
-        Span<byte> span = File.ReadAllBytes(loose);
+        Span<byte> span = File.ReadAllBytes(relative);
         
-        var nest = parts[1].Replace("//", "/");
+        var nest = nested.Replace("//", "/");
         // Handle compressed and uncompressed SARCs
         var sarcData = span;
         if (Yaz0.TryDecompress(span, out var data)) {

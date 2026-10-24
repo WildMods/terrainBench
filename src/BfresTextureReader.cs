@@ -12,10 +12,7 @@ using Core;
 /// different names and split mipmaps differently.
 /// </summary>
 public class BfresTextureReader {
-    public byte[] deswizzledBase = Array.Empty<byte>();
-    public byte[] deswizzledMip = Array.Empty<byte>();
-
-    public List<byte[]> deswizzledMips = new List<byte[]>();
+    public List<byte[]> deswizzledMips = new();
 
     public int width = 0;
     public int height = 0;
@@ -67,25 +64,20 @@ public class BfresTextureReader {
     /// <param name="basePath">e.g. "Model/Terrain" can read "Model/Terrain.Tex.sbfres",
     /// "Model/Terrain.Tex1.sbfres", or "model/Terrain.Tex2.sbfres"</param>
     public static Result<BfresTextureReader, ErrorStack> Create(Game game, string texPath, string tex1Path, string tex2Path, string texName) {
-        // var texPath = $"{basePath}.Tex.sbfres";
-        // var tex1Path = $"{basePath}.Tex1.sbfres";
-        // var tex2Path = $"{basePath}.Tex2.sbfres";
-
         try {
-            var texData = game.ReadFile(texPath, Game.Section.Base);
+            var texData = game.ReadFile(texPath);
             if (texData.IsOk()) {
                 BFRESSwitch.ParseBFRES(texData.Unwrap());
                 return new BfresTextureReader(texData.Unwrap(), texName);
-            } else {
-                Console.WriteLine("Unable to find .Tex file:\n{0}", texData.Err()?.Message);
             }
+            Console.WriteLine("Unable to find .Tex file:\n{0}", texData.Err()?.Message);
         } catch (Exception e) {
             Console.WriteLine(e);
             return Err(new ErrorStack("Failed to load terrain textures from Switch files", e));
         }
         
-        var tex1Data = game.ReadDecompressed(tex1Path, Game.Section.Base);
-        var tex2Data = game.ReadFile(tex2Path, Game.Section.Base);
+        var tex1Data = game.ReadDecompressed(tex1Path);
+        var tex2Data = game.ReadFile(tex2Path);
         if (tex1Data.IsErr() && tex2Data.IsErr()) {
             return Err(new ErrorStack($"Unable to find '{texPath}', '{tex1Path}', or '{tex2Path}'. Are your dump paths correct?"));
         } else if (tex1Data.IsErr()) {

@@ -27,4 +27,24 @@ public static class IO {
             return MappedFile.Create(path);
         });
     }
+    
+    /// <summary>
+    /// OpenWrite wrapper without exceptions
+    /// </summary>
+    public static Result<Stream, ErrorStack> OpenWrite(string loose) {
+        string baseErr = $"Unable to open ${loose} for writing: ";
+        try {
+            var f = File.OpenWrite(loose);
+            return f;
+        } catch (DirectoryNotFoundException) {
+            return Err(new ErrorStack($"${baseErr} The containing directory couldn't be found"));
+        } catch (UnauthorizedAccessException) {
+            return Err(new ErrorStack($"${baseErr} Unauthorized access"));
+        } catch (PathTooLongException) {
+            return Err(new ErrorStack($"${baseErr} path too long"));
+        } catch (Exception e) {
+            return Err(new ErrorStack($"${baseErr} '${e.Message}'"));
+        }
+    }
+
 }

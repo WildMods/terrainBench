@@ -86,14 +86,6 @@ public class Cache
         Console.WriteLine("Loaded all terrain data in {0}ms", timer.ElapsedMilliseconds);
     }
 
-    public IEnumerable<Result<ushort[], ErrorStack>> GetHeightmapForEntireLevel(int level)
-    {
-        for (ushort i = 0; i < Math.Pow(4, level); ++i)
-        {
-            yield return GetHeightmapTile(level, i);
-        }
-    }
-
     public Result<bool, ErrorStack> DownscaleLevel(uint level, LodComponent component)
     {
         if (level >= _lods.Length) {

@@ -87,14 +87,14 @@ public class Lod
         return true;
     }
 
-    public void Load(IEnumerable<UInt16> tiles, Game game, ProgressReport progress)
+    public void Load(ICollection<UInt16> tiles, Game game, ProgressReport progress)
     {
         var tasks = new List<Task>()
         {
             LoadHeightmapTiles(tiles, game, progress),
             LoadMaterialTiles(tiles, game, progress),
-            LoadGrassTiles(tiles, game, progress),
-            LoadWaterTiles(tiles, game, progress)
+            // LoadGrassTiles(tiles, game, progress),
+            // LoadWaterTiles(tiles, game, progress)
         };
         Task.WaitAll(tasks);
         loadFinished = true;
