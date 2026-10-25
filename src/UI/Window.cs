@@ -376,9 +376,11 @@ public class TerrainbenchWindow {
 
             // Submit the edited tiles for async downscaling, which automatically
             // updates the lower-res tiles with the renderer
-            editor.downscaleSetLock.WaitOne();
-            editor.downscaleSet.UnionWith(updatedTiles);
-            editor.downscaleSetLock.ReleaseMutex();
+            lock (editor.downscaleSet) {
+                foreach (var packed in updatedTiles) {
+                    editor.downscaleSet.Add((packed, editor.brush.target));
+                }
+            }
         }
     }
 

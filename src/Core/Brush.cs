@@ -40,6 +40,7 @@ public struct Brush() {
     public FalloffFunc func = FalloffFunc.SQUARE;
     public DistanceType falloffShape = DistanceType.EUCLIDEAN;
 
+    /// <summary>The terrain component the brush is editing</summary>
     public LodComponent target = LodComponent.hght;
     public int[] textureIndices = { 0, 1 };
     

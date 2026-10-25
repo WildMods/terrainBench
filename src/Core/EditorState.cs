@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using System.Diagnostics;
+using OpenTK.Mathematics;
 
 namespace terrainBench.Core;
 
@@ -38,8 +39,7 @@ M
     public bool runRendererUpload = true;
     public bool runDownscaler = true;
 
-    public HashSet<Int32> downscaleSet = new();
-    public Mutex downscaleSetLock = new();
+    public HashSet<(Int32, LodComponent)> downscaleSet = new();
 
     // Asynchronously updated progress data
     public ProgressReport asyncLoadedTiles = new();
@@ -57,41 +57,48 @@ M
     }
     
     public void DownscalingThread() {
+        const int interval = 1;
         while (runDownscaler) {
             bool workToDo;
-            Int32 packed = 0;
             
             // Minimize locking by grabbing a single item to work on
-            downscaleSetLock.WaitOne();
-            workToDo = downscaleSet.Count != 0;
-            if (workToDo) {
+            lock (downscaleSet) {
+                workToDo = downscaleSet.Count > 0;
+            }
+            if (!workToDo) {
+                Thread.Sleep(interval);
+                continue;
+            }
+
+            Debug.Assert(workToDo);
+            Int32 packed = 0;
+            LodComponent c = LodComponent.hght;
+            
+            // Grab an item off the top
+            lock (downscaleSet) {
                 foreach (var item in downscaleSet) {
                     downscaleSet.Remove(item);
-                    packed = item;
+                    packed = item.Item1;
+                    c = item.Item2;
                     break;
                 }
             }
-            downscaleSetLock.ReleaseMutex();
 
-            if (workToDo) {
-                var z = Profiler.BeginZone("Downscale single");
-                ZOrder.UnpackIndex(packed, out var idx, out var lod);
-                try {
-                    cache.DownscaleTileCascade(idx, lod, LodComponent.hght);
-                    cache.DownscaleTileCascade(idx, lod, LodComponent.mate);
-                } catch (Exception e) {
-                    Console.WriteLine("Exception while downscaling: {0}", e.Message);
-                }
-
-                var curIdx = idx;
-                for (int i = lod; i >= 0; i--) {
-                    terrain.ScheduleTileUpdate(curIdx, (byte)i, LodComponent.hght, cache);
-                    terrain.ScheduleTileUpdate(curIdx, (byte)i, LodComponent.mate, cache);
-                    curIdx >>= 2;
-                }
-                z.Dispose();
+            var z = Profiler.BeginZone("Downscale single");
+            ZOrder.UnpackIndex(packed, out var idx, out var lod);
+            try {
+                cache.DownscaleTileCascade(idx, lod, c);
+            } catch (Exception e) {
+                Console.WriteLine("Exception while downscaling: {0}", e.Message);
             }
-            Thread.Sleep(1);
+
+            var curIdx = idx;
+            for (int i = lod; i >= 0; i--) {
+                terrain.ScheduleTileUpdate(curIdx, (byte)i, c, cache);
+                curIdx >>= 2;
+            }
+            z.Dispose();
+            Thread.Sleep(interval);
         }
         Console.WriteLine("Exiting downscaler thread.");
     }
