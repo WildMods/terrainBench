@@ -7,7 +7,7 @@ namespace terrainBench.Core;
 using LodComponents;
 using terrainBench.UI;
 
-public struct Brush() {
+public struct Brush {
     public enum Shape {
         CIRCLE, SQUARE,
     }
@@ -55,6 +55,37 @@ public struct Brush() {
     /// Implemented as the "b" to plug into the falloff function
     /// </summary>
     public float baseStrength = 5f;
+    
+
+    /// <summary>
+    /// Pre-computed brush strength at each pixel in its radius
+    /// </summary>
+    private float[,] strengthTable;
+    private int Width => (int)(effectiveRadius() * 2 + 1);
+
+    public Brush() {
+        UpdateStrengthTable();
+    }
+
+    public void UpdateStrengthTable() {
+        strengthTable = new float[Width, Width];
+        Vector2i c = new(radius, radius);
+        for (int x = 0; x < Width; x++) {
+            for (int y = 0; y < Width; y++) {
+                Vector2i posInBrush = new(x, y);
+
+                var dist = EvalDistance2D(posInBrush, c, falloffShape);
+                var strength = 0.0f;
+                if (shape != Shape.SQUARE &&  dist > effectiveRadius()) {
+                    // Pixel out of range
+                } else {
+                    strength = EvalFalloff(dist / effectiveRadius());
+                }
+
+                strengthTable[x, y] = strength;
+            }
+        }
+    }
 
     public void UpdateFromInput(ImguiImplSDL3 backend, float pressure) {
         int deltaA = backend.KeyRisingEdgeI(SDL.Scancode.Up) - backend.KeyRisingEdgeI(SDL.Scancode.Down);
@@ -92,6 +123,7 @@ public struct Brush() {
             foreach (var s in Enum.GetValues<Shape>()) {
                 if (ImGui.Selectable(s.ToString())) {
                     shape = s;
+                    dirty = true;
                 }
             }
             ImGui.EndCombo();
@@ -101,6 +133,7 @@ public struct Brush() {
             foreach (var f in Enum.GetValues<EditFunc>()) {
                 if (ImGui.Selectable(f.ToString())) {
                     editFunc = f;
+                    dirty = true;
                 }
             }
             ImGui.EndCombo();
@@ -110,6 +143,7 @@ public struct Brush() {
             foreach (var f in Enum.GetValues<FalloffFunc>()) {
                 if (ImGui.Selectable(f.ToString())) {
                     func = f;
+                    dirty = true;
                 }
             }
             ImGui.EndCombo();
@@ -119,6 +153,7 @@ public struct Brush() {
             foreach (var f in Enum.GetValues<DistanceType>()) {
                 if (ImGui.Selectable(f.ToString())) {
                     falloffShape = f;
+                    dirty = true;
                 }
             }
             ImGui.EndCombo();
@@ -127,13 +162,18 @@ public struct Brush() {
         if (ImGui.BeginCombo("Brush Mode", target.ToString())) {
             if (ImGui.Selectable(LodComponent.hght.ToString())) {
                 target = LodComponent.hght;
+                dirty = true;
             }
             if (ImGui.Selectable(LodComponent.mate.ToString())) {
                 target = LodComponent.mate;
+                dirty = true;
             }
             ImGui.EndCombo();
         }
 
+        if (dirty) {
+            UpdateStrengthTable();
+        }
         return dirty;
     }
 
@@ -226,6 +266,7 @@ public struct Brush() {
         }
         List<int> updatedTiles = new();
         var c = new Vector2i((int)center.X, (int)center.Z);
+        var brushTopLeft = c - new Vector2i((int)effectiveRadius());
         
         foreach (var packed in IterAffectedTiles(coverage)) {
             var tileOps = Profiler.BeginZone("BrushPerTileCalc");
@@ -251,18 +292,20 @@ public struct Brush() {
             for (int x = 0; x < ZOrder.GRID_SIZE; x++) {
                 for (int y = 0; y < ZOrder.GRID_SIZE; y++) {
                     Vector2i posInTile = new(x, y);
-
                     Vector2i p = (Vector2i)pp.xz + posInTile * pixelSize;
-                    var dist = EvalDistance2D(p, c, falloffShape);
-                    if (shape == Shape.SQUARE) {
-                        // The point is always within the radius
-                    } else if (dist > effectiveRadius()) {
-                        continue; // Pixel out of range
-                    }
 
-                    int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
-                    var strength = EvalFalloff(dist / effectiveRadius()) * multiplier;
+                    var posInBrush = p - brushTopLeft;
+                    if (posInBrush.X >= Width || posInBrush.Y >= Width || posInBrush.X < 0 || posInBrush.Y < 0)
+                    {
+                        continue;
+                    }
                     
+                    var strength = strengthTable[posInBrush.X, posInBrush.Y] * multiplier;
+                    if (strength == 0.0f) {
+                        continue;
+                    }
+                    
+                    int linearIdx = posInTile.Y * ZOrder.GRID_SIZE + posInTile.X;
                     try {
                         if (target == LodComponent.hght) {
                             ref var value = ref hghtTile[linearIdx];
