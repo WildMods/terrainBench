@@ -193,8 +193,8 @@ public class TerrainbenchWindow {
         var bytesPerGB = (long)Math.Pow(1000, 3);
         var loadedGB = ((long)editor.asyncLoadedTiles.Value * bytesPerTile) / (float)bytesPerGB;
         var totalGB = ((long)editor.asyncLoadedTiles.Max * bytesPerTile) / (float)bytesPerGB;
-        var percent = (float)editor.asyncLoadedTiles.Value / editor.uiTotalTiles * 100f;
-        editor.uiProgressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
+        var percent = editor.asyncLoadedTiles.Percent * 100f;
+        var progressText = String.Format("Loaded {0:F1}/{2:F1}GB ({1:F0}%)", loadedGB, percent, totalGB);
         
         Vector2 fbStart = new();
         Vector2 fbDisplayedSize = new();
@@ -260,7 +260,7 @@ public class TerrainbenchWindow {
                     ImGui.EndMenu();
                 }
 
-                ImGui.ProgressBar(percent / 100f, new SNVector2(), editor.uiProgressText);
+                ImGui.ProgressBar(percent / 100f, new SNVector2(), progressText);
                 ImGui.EndMenuBar();
             }
 

@@ -3,7 +3,7 @@ using OpenTK.Mathematics;
 
 namespace terrainBench.Core;
 
-public partial class EditorState {
+public class EditorState {
     public enum BootState {
         INIT, TILES_LOADING, SHOW_UPLOAD_MSG, LOAD_TERRAIN_TEXTURES, UPLOADING, DONE,
         FAILED,
@@ -45,8 +45,6 @@ M
     public ProgressReport asyncLoadedTiles = new();
     public int uiTotalTiles = 18100;
     
-    public string uiProgressText = "Loaded {0}/{3} tiles ({1:0}%)";
-
     public void RendererUploadThread() {
         while (runRendererUpload) {
             var eyeWorld = new TerrainCoords.WorldPos(cam.eye());

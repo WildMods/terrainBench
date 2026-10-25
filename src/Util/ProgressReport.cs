@@ -16,6 +16,13 @@ public class ProgressReport {
         }
     }
 
+    public float Percent {
+        get {
+            var range = Max - Min;
+            return (Value - Min) / (float)range;
+        }    
+    }
+
     /// <summary>
     /// If this is set, the end point of the progress bar is unknown
     /// </summary>
