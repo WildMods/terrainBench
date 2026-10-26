@@ -22,6 +22,26 @@ public static class IO {
         }
     }
 
+    public static Result<string, ErrorStack> ReadAllText(string path) {
+        string msg = "Unable to read text file";
+        try {
+            return File.ReadAllText(path);
+        } catch (PathTooLongException) {
+            return Err(new ErrorStack($"{msg}, the path was too long: '{path}'"));
+        } catch (DirectoryNotFoundException) {
+            return Err(new ErrorStack($"{msg}, a directory in the path wasn't found. '{path}'"));
+        } catch (FileNotFoundException) {
+            return Err(new ErrorStack($"{msg}, because it couldn't be found: '{path}'"));
+        } catch (IOException e) {
+            return Err(new ErrorStack($"{msg} due to an I/O error: '{e.Message}'"));
+        } catch (Exception e) {
+            // There are more potential exception classes, but I can't be
+            // bothered to add all the handling. 
+            // -- torf
+            return Err(new ErrorStack($"{msg} because: '{e.Message}'"));
+        }
+    }
+
     public static Task<Result<MappedFile, ErrorStack>> MapAsync(string path) {
         return Task.Run(() => {
             return MappedFile.Create(path);

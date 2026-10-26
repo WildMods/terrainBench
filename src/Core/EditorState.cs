@@ -155,5 +155,13 @@ M
         Console.WriteLine("DLC: '{0}'", settings.dlcDir);
         Console.WriteLine("Mod folder: '{0}'", settings.modDir);
         game = new Game(settings.gameDir, settings.updateDir, settings.dlcDir, settings.modDir);
+
+        var localRes = Localization.Load();
+        if (localRes.IsOk()) {
+            GMsg.l = localRes.Unwrap();
+        } else {
+            var err = localRes.Err();
+            Console.WriteLine("Failed to load localization file because: {0}", err.Message);
+        }
     }
 }

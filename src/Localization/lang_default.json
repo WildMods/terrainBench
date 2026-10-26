@@ -1,0 +1,23 @@
+{
+  "menus": {
+    "file": "File",
+    "camera": "Camera",
+    "brush": "Brush",
+    "render": "Render",
+    "settings": "Settings",
+    "help": "Help"
+  },
+  
+  "camera": {
+    "mode": "Control Mode",
+    "modeOrbit": "Orbit",
+    "modeMinecraft": "Minecraft",
+    "modeFly": "TF2 Freecam",
+    
+    "moveSpeed": "Move speed",
+    "fov": "FOV",
+    "mouseSens": "Mouse sensitivity",
+    "invertX": "Invert X",
+    "invertY": "Invert Y"
+  }
+}

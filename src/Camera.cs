@@ -6,6 +6,7 @@ using SDL3;
 using OpenTK.Mathematics;
 using static OpenTK.Mathematics.MathHelper;
 using terrainBench.UI;
+using static terrainBench.EnumLocalizers;
 
 namespace terrainBench;
 
@@ -68,11 +69,12 @@ public class Camera {
 
     public bool ImGuiEdit() {
         bool dirty = false;
+        var msg = GMsg.l.camera;
 
-        Mode[] modeOptions = {Mode.ORBIT, Mode.MINECRAFT, Mode.FLY };
-        if (ImGui.BeginCombo("Mode", mode.ToString())) {
+        Mode[] modeOptions = { Mode.ORBIT, Mode.MINECRAFT, Mode.FLY };
+        if (ImGui.BeginCombo(msg.mode, Localize(mode))) {
             foreach (var m in modeOptions) {
-                if (ImGui.Selectable(m.ToString())) {
+                if (ImGui.Selectable(Localize(m))) {
                     mode = m;
                 }
                 if (mode == m) {
@@ -83,15 +85,15 @@ public class Camera {
         }
         
         
-        dirty |= ImGui.SliderFloat("Move Speed", ref move_speed, 0f, 500f);
+        dirty |= ImGui.SliderFloat(msg.moveSpeed, ref move_speed, 0f, 500f);
         var fov_temp = fov_degrees;
-        if (ImGui.SliderFloat("FOV", ref fov_temp, 10f, 120f)) {
+        if (ImGui.SliderFloat(msg.fov, ref fov_temp, 10f, 120f)) {
             fov_degrees = fov_temp;
             dirty = true;
         }
-        dirty |= ImGui.SliderFloat("Mouse sensitivity", ref mouse_sens, 0f, 0.5f);
-        dirty |= ImGui.Checkbox("Invert X", ref invert_mouse_x);
-        dirty |= ImGui.Checkbox("Invert Y", ref invert_mouse_y);
+        dirty |= ImGui.SliderFloat(msg.mouseSens, ref mouse_sens, 0f, 0.5f);
+        dirty |= ImGui.Checkbox(msg.invertX, ref invert_mouse_x);
+        dirty |= ImGui.Checkbox(msg.invertY, ref invert_mouse_y);
 
         return dirty;
     }
