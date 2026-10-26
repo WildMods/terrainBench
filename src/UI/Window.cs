@@ -136,7 +136,7 @@ public class TerrainbenchWindow {
         newSize = new(width, height);
         
         editor.terrain.GLInit(editor);
-        editor.brushRenderer.GLInit();
+        editor.brushRenderer.GLInit(editor.brush);
     }
 
     void AboutMenu() {
@@ -216,7 +216,10 @@ public class TerrainbenchWindow {
                     ImGui.EndMenu();
                 }
                 if (ImGui.BeginMenu("Brush")) {
-                    editor.brush.ImGuiEdit();
+                    if (editor.brush.ImGuiEdit()) {
+                        editor.brushRenderer.UploadBrushStrengthTex(editor.brush);
+                    }
+                    editor.brushRenderer.ImGuiShowBrushTex(editor.brush);
                     ImGui.EndMenu();
                 }
                 

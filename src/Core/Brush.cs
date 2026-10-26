@@ -5,7 +5,7 @@ using OpenTK.Mathematics;
 
 namespace terrainBench.Core;
 using LodComponents;
-using terrainBench.UI;
+using UI;
 
 public struct Brush {
     public enum Shape {
@@ -60,8 +60,8 @@ public struct Brush {
     /// <summary>
     /// Pre-computed brush strength at each pixel in its radius
     /// </summary>
-    private float[,] strengthTable;
-    private int Width => (int)(effectiveRadius() * 2 + 1);
+    public float[,] strengthTable;
+    public int Width => (int)(effectiveRadius() * 2 + 1);
 
     public Brush() {
         UpdateStrengthTable();
