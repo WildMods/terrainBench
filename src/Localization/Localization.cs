@@ -15,13 +15,27 @@ public class Localization {
     private static JsonSerializerOptions _jsOpt = new() { WriteIndented = true };
     static string jsonPath = "Localization/lang_default.json";
 
+    public sealed class StdStrings {
+        [JsonInclude] public string save;
+        [JsonInclude] public string quit;
+        [JsonInclude] public string open;
+        [JsonInclude] public string close;
+        [JsonInclude] public string apply;
+        [JsonInclude] public string browse;
+    }
+
     public sealed class MenuStrings {
         [JsonInclude] public string file;
+        [JsonInclude] public string fileImportHeightmap;
         [JsonInclude] public string camera;
         [JsonInclude] public string brush;
         [JsonInclude] public string render;
         [JsonInclude] public string settings;
         [JsonInclude] public string help;
+        [JsonInclude] public string about;
+        [JsonInclude] public string showDemo;
+        [JsonInclude] public string ringSettings;
+        [JsonInclude] public string wireframeMode;
     }
 
     public sealed class CameraStrings {
@@ -59,6 +73,7 @@ public class Localization {
         [JsonInclude] public string tileTypeWATER;
     }
 
+    [JsonInclude] public StdStrings std;
     [JsonInclude] public MenuStrings menus;
     [JsonInclude] public CameraStrings camera;
     [JsonInclude] public BrushStrings brush;

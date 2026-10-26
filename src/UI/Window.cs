@@ -143,7 +143,7 @@ public class TerrainbenchWindow {
         if (!showAbout) {
             return;
         }
-        if (ImGui.Begin("About")) {
+        if (ImGui.Begin(GMsg.l.menus.about)) {
             ImGui.Text(AboutSelf.AboutText());
 
             var glVersion = GL.GetString(StringName.Version);
@@ -203,19 +203,21 @@ public class TerrainbenchWindow {
         bool shouldSave  =  ImGui.IsKeyDown(ImGuiKey.LeftCtrl) && ImGui.IsKeyDown(ImGuiKey.S);
         bool shouldImportHeightmap = false;
         bool isViewportActive = false;
+
+        var msg = GMsg.l;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
-                if (ImGui.BeginMenu(GMsg.l.menus.file)) {
-                    shouldImportHeightmap = ImGui.MenuItem("Import heightmap image");
-                    shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
-                    shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
+                if (ImGui.BeginMenu(msg.menus.file)) {
+                    shouldImportHeightmap = ImGui.MenuItem(msg.menus.fileImportHeightmap);
+                    shouldSave |= ImGui.MenuItem(msg.std.save, "Ctrl-S");
+                    shouldClose |= ImGui.MenuItem(msg.std.quit, "Ctrl-Q");
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu(GMsg.l.menus.camera)) {
+                if (ImGui.BeginMenu(msg.menus.camera)) {
                     editor.cam.ImGuiEdit();
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu(GMsg.l.menus.brush)) {
+                if (ImGui.BeginMenu(msg.menus.brush)) {
                     if (editor.brush.ImGuiEdit()) {
                         editor.brushRenderer.UploadBrushStrengthTex(editor.brush);
                     }
@@ -223,12 +225,12 @@ public class TerrainbenchWindow {
                     ImGui.EndMenu();
                 }
                 
-                if (ImGui.BeginMenu(GMsg.l.menus.render)) {
-                    ImGui.Checkbox("Show ring editor", ref showRingEditor);
-                    ImGui.Checkbox("Wireframe mode", ref editor.terrain.wireframe);
+                if (ImGui.BeginMenu(msg.menus.render)) {
+                    ImGui.Checkbox(msg.menus.ringSettings, ref showRingEditor);
+                    ImGui.Checkbox(msg.menus.wireframeMode, ref editor.terrain.wireframe);
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu(GMsg.l.menus.settings)) {
+                if (ImGui.BeginMenu(msg.menus.settings)) {
                     if (PickablePath("Base game folder", ref editor.game._basePath)) {
                         var s = Settings.Settings.Load();
                         s.gameDir = editor.game._basePath;
@@ -252,11 +254,11 @@ public class TerrainbenchWindow {
                     ImGui.EndMenu();
                 }
                 
-                if (ImGui.BeginMenu(GMsg.l.menus.help)) {
-                    if (ImGui.MenuItem("About")) {
+                if (ImGui.BeginMenu(msg.menus.help)) {
+                    if (ImGui.MenuItem(msg.menus.about)) {
                         showAbout = !showAbout;
                     }
-                    if (ImGui.MenuItem("Show demo window")) {
+                    if (ImGui.MenuItem(msg.menus.showDemo)) {
                         // TODO: There's a MenuItem overload for this, just dont know how the bindings expose it.
                         showDemo = !showDemo;
                     }
@@ -323,7 +325,7 @@ public class TerrainbenchWindow {
         }
 
         if (showRingEditor) {
-            ImGui.Begin("Ring Editor");
+            ImGui.Begin(msg.menus.ringSettings);
             if (ImGui.BeginTabBar("Ring Editor tab bar")) {
                 for (int i = 0; i < editor.terrain.rings.Count; i++) {
                     var ring = editor.terrain.rings[i];

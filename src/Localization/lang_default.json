@@ -1,11 +1,25 @@
 {
+    "std": {
+        "save": "Save",
+        "quit": "Quit",
+        "open": "Open",
+        "close": "Close",
+        "apply": "Apply",
+        "browse": "Browse"
+    },
+  
     "menus": {
         "file": "File",
+        "fileImportHeightmap": "Import heightmap image",
         "camera": "Camera",
         "brush": "Brush",
         "render": "Render",
         "settings": "Settings",
-        "help": "Help"
+        "help": "Help",
+        "about": "About",
+        "showDemo": "Show demo window",
+        "ringSettings": "LOD Ring Settings",
+        "wireframeMode": "Wireframe mode"
     },
     
     "camera": {
