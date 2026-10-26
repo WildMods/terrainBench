@@ -36,9 +36,32 @@ public class Localization {
         [JsonInclude] public string invertX;
         [JsonInclude] public string invertY;
     }
+    
+    public sealed class BrushStrings {
+        [JsonInclude] public string strength;
+        [JsonInclude] public string falloff;
+        [JsonInclude] public string radiusPixels;
+        [JsonInclude] public string editFunction;
+        [JsonInclude] public string falloffFunction;
+        [JsonInclude] public string falloffShape;
+        [JsonInclude] public string brushMode;
+        
+        [JsonInclude] public string falloffLinear;
+        [JsonInclude] public string falloffInverse;
+        [JsonInclude] public string falloffSquare;
+        [JsonInclude] public string falloffInverseSquare;
+        [JsonInclude] public string shapeSquare;
+        [JsonInclude] public string shapeCircle;
+        
+        [JsonInclude] public string tileTypeHGHT;
+        [JsonInclude] public string tileTypeMATE;
+        [JsonInclude] public string tileTypeGRASS;
+        [JsonInclude] public string tileTypeWATER;
+    }
 
     [JsonInclude] public MenuStrings menus;
     [JsonInclude] public CameraStrings camera;
+    [JsonInclude] public BrushStrings brush;
 
     public static Result<Localization, ErrorStack> Load() {
         var txtRes = IO.ReadAllText(jsonPath);

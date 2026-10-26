@@ -205,17 +205,17 @@ public class TerrainbenchWindow {
         bool isViewportActive = false;
         if (ImGui.Begin("Terrain Workbench", ref temp, ImGuiWindowFlags.MenuBar)) {
             if (ImGui.BeginMenuBar()) {
-                if (ImGui.BeginMenu("File")) {
+                if (ImGui.BeginMenu(GMsg.l.menus.file)) {
                     shouldImportHeightmap = ImGui.MenuItem("Import heightmap image");
                     shouldSave |= ImGui.MenuItem("Save", "Ctrl-S");
                     shouldClose |= ImGui.MenuItem("Quit", "Ctrl-Q");
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu("Camera")) {
+                if (ImGui.BeginMenu(GMsg.l.menus.camera)) {
                     editor.cam.ImGuiEdit();
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu("Brush")) {
+                if (ImGui.BeginMenu(GMsg.l.menus.brush)) {
                     if (editor.brush.ImGuiEdit()) {
                         editor.brushRenderer.UploadBrushStrengthTex(editor.brush);
                     }
@@ -223,12 +223,12 @@ public class TerrainbenchWindow {
                     ImGui.EndMenu();
                 }
                 
-                if (ImGui.BeginMenu("Render")) {
+                if (ImGui.BeginMenu(GMsg.l.menus.render)) {
                     ImGui.Checkbox("Show ring editor", ref showRingEditor);
                     ImGui.Checkbox("Wireframe mode", ref editor.terrain.wireframe);
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu("Settings")) {
+                if (ImGui.BeginMenu(GMsg.l.menus.settings)) {
                     if (PickablePath("Base game folder", ref editor.game._basePath)) {
                         var s = Settings.Settings.Load();
                         s.gameDir = editor.game._basePath;
@@ -252,7 +252,7 @@ public class TerrainbenchWindow {
                     ImGui.EndMenu();
                 }
                 
-                if (ImGui.BeginMenu("Help")) {
+                if (ImGui.BeginMenu(GMsg.l.menus.help)) {
                     if (ImGui.MenuItem("About")) {
                         showAbout = !showAbout;
                     }

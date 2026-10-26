@@ -4,14 +4,11 @@ using System.Diagnostics;
 using OpenTK.Mathematics;
 
 namespace terrainBench.Core;
+using static EnumLocalizers;
 using LodComponents;
 using UI;
 
 public struct Brush {
-    public enum Shape {
-        CIRCLE, SQUARE,
-    }
-    
     public enum FalloffFunc {
         LINEAR,         // mx + b
         INVERSE,        // (m / x) + b
@@ -29,12 +26,11 @@ public struct Brush {
     }
 
     public Vector3 center = new();
-    public int radius = 50;
+    public int rawRadius = 50;
     public float pressure = 1f;
-    public float effectiveRadius() => radius * pressure;
+    public float effectiveRadius() => rawRadius * pressure;
     public int component = 0; // The component index in a pixel to edit
     
-    public Shape shape = Shape.CIRCLE;
     public EditFunc editFunc = EditFunc.ADD;
 
     public FalloffFunc func = FalloffFunc.SQUARE;
@@ -69,14 +65,14 @@ public struct Brush {
 
     public void UpdateStrengthTable() {
         strengthTable = new float[Width, Width];
-        Vector2i c = new(radius, radius);
+        Vector2i c = new(rawRadius, rawRadius);
         for (int x = 0; x < Width; x++) {
             for (int y = 0; y < Width; y++) {
                 Vector2i posInBrush = new(x, y);
 
                 var dist = EvalDistance2D(posInBrush, c, falloffShape);
                 var strength = 0.0f;
-                if (shape != Shape.SQUARE &&  dist > effectiveRadius()) {
+                if (dist > effectiveRadius()) {
                     // Pixel out of range
                 } else {
                     strength = EvalFalloff(dist / effectiveRadius());
@@ -115,21 +111,13 @@ public struct Brush {
 
     public bool ImGuiEdit() {
         bool dirty = false;
-        dirty |= ImGui.SliderFloat("Strength", ref baseStrength, 0f, 100f);
-        dirty |= ImGui.SliderFloat("Falloff", ref falloffStrength, -50f, 50f);
-        dirty |= ImGui.SliderInt("Radius (pixels)", ref radius, 0, 500);
+        var msg = GMsg.l.brush;
+        dirty |= ImGui.SliderFloat(msg.strength, ref baseStrength, 0f, 100f);
+        dirty |= ImGui.SliderFloat(msg.falloff, ref falloffStrength, -50f, 50f);
+        dirty |= ImGui.SliderInt(msg.radiusPixels, ref rawRadius, 0, 500);
         
-        if (ImGui.BeginCombo("Shape", shape.ToString())) {
-            foreach (var s in Enum.GetValues<Shape>()) {
-                if (ImGui.Selectable(s.ToString())) {
-                    shape = s;
-                    dirty = true;
-                }
-            }
-            ImGui.EndCombo();
-        }
-        
-        if (ImGui.BeginCombo("Edit Function", editFunc.ToString())) {
+        // TODO: Localize math operator enum
+        if (ImGui.BeginCombo(msg.editFunction, editFunc.ToString())) {
             foreach (var f in Enum.GetValues<EditFunc>()) {
                 if (ImGui.Selectable(f.ToString())) {
                     editFunc = f;
@@ -139,9 +127,9 @@ public struct Brush {
             ImGui.EndCombo();
         }
         
-        if (ImGui.BeginCombo("Falloff Function", func.ToString())) {
+        if (ImGui.BeginCombo(msg.falloffFunction, Localize(func))) {
             foreach (var f in Enum.GetValues<FalloffFunc>()) {
-                if (ImGui.Selectable(f.ToString())) {
+                if (ImGui.Selectable(Localize(f))) {
                     func = f;
                     dirty = true;
                 }
@@ -149,9 +137,9 @@ public struct Brush {
             ImGui.EndCombo();
         }
         
-        if (ImGui.BeginCombo("Falloff Shape", falloffShape.ToString())) {
+        if (ImGui.BeginCombo(msg.falloffShape, Localize(falloffShape))) {
             foreach (var f in Enum.GetValues<DistanceType>()) {
-                if (ImGui.Selectable(f.ToString())) {
+                if (ImGui.Selectable(Localize(f))) {
                     falloffShape = f;
                     dirty = true;
                 }
@@ -159,12 +147,12 @@ public struct Brush {
             ImGui.EndCombo();
         }
         
-        if (ImGui.BeginCombo("Brush Mode", target.ToString())) {
-            if (ImGui.Selectable(LodComponent.hght.ToString())) {
+        if (ImGui.BeginCombo(msg.brushMode, Localize(target))) {
+            if (ImGui.Selectable(Localize(LodComponent.hght))) {
                 target = LodComponent.hght;
                 dirty = true;
             }
-            if (ImGui.Selectable(LodComponent.mate.ToString())) {
+            if (ImGui.Selectable(Localize(LodComponent.mate))) {
                 target = LodComponent.mate;
                 dirty = true;
             }
@@ -199,7 +187,7 @@ public struct Brush {
     /// <returns>The distance between the 2 points</returns>
     public static float EvalDistance2D(Vector2i a, Vector2i b, DistanceType type) {
         return type switch {
-            DistanceType.EUCLIDEAN => Vector2i.Distance(a, b),
+            DistanceType.EUCLIDEAN => Vector2.Distance(a, b),
             DistanceType.MANHATTAN => Vector2i.ManhattanDistance(a, b),
             _                      => 0,
         };

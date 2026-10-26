@@ -1,23 +1,45 @@
 {
-  "menus": {
-    "file": "File",
-    "camera": "Camera",
-    "brush": "Brush",
-    "render": "Render",
-    "settings": "Settings",
-    "help": "Help"
-  },
-  
-  "camera": {
-    "mode": "Control Mode",
-    "modeOrbit": "Orbit",
-    "modeMinecraft": "Minecraft",
-    "modeFly": "TF2 Freecam",
+    "menus": {
+        "file": "File",
+        "camera": "Camera",
+        "brush": "Brush",
+        "render": "Render",
+        "settings": "Settings",
+        "help": "Help"
+    },
     
-    "moveSpeed": "Move speed",
-    "fov": "FOV",
-    "mouseSens": "Mouse sensitivity",
-    "invertX": "Invert X",
-    "invertY": "Invert Y"
-  }
+    "camera": {
+        "mode": "Control Mode",
+        "modeOrbit": "Orbit",
+        "modeMinecraft": "Minecraft",
+        "modeFly": "TF2 Freecam",
+        
+        "moveSpeed": "Move speed",
+        "fov": "FOV",
+        "mouseSens": "Mouse sensitivity",
+        "invertX": "Invert X",
+        "invertY": "Invert Y"
+    },
+    
+    "brush": {
+        "strength": "Strength",
+        "falloff": "Falloff",
+        "radiusPixels": "Radius (pixels)",
+        "editFunction": "Edit Function",
+        "falloffFunction": "Falloff Function",
+        "falloffShape": "Falloff Shape",
+        "brushMode": "Brush Mode",
+
+        "falloffLinear": "Linear",
+        "falloffInverse": "Reverse Linear",
+        "falloffSquare": "Exponential (square)",
+        "falloffInverseSquare": "Reverse exponential",
+        "shapeSquare": "Square",
+        "shapeCircle": "Circle",
+
+        "tileTypeHGHT": "Heightmap",
+        "tileTypeMATE": "Material",
+        "tileTypeGRASS": "Grass",
+        "tileTypeWATER": "Water"
+    }
 }
