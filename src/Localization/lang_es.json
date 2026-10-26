@@ -1,0 +1,59 @@
+{
+    "std": {
+        "save": "Guardar",
+        "quit": "Salir",
+        "open": "Abrir",
+        "close": "Cerrar",
+        "apply": "Aplicar",
+        "browse": "Explorar"
+    },
+  
+    "menus": {
+        "file": "Archivo",
+        "fileImportHeightmap": "Importar imagen de mapa de altitud",
+        "camera": "Cámara",
+        "brush": "Pincel",
+        "render": "Renderización",
+        "settings": "Ajustes",
+        "help": "Ayuda",
+        "about": "Información",
+        "showDemo": "Mostrar ventana de demo",
+        "ringSettings": "Ajustes de círculo LOD",
+        "wireframeMode": "Modo alambre"
+    },
+    
+    "camera": {
+        "mode": "Modo de control",
+        "modeOrbit": "Órbita",
+        "modeMinecraft": "Minecraft",
+        "modeFly": "Freecam de TF2",
+        
+        "moveSpeed": "Velocidad de movimiento",
+        "fov": "Campo de visión (FOV)",
+        "mouseSens": "Sensibilidad del ratón",
+        "invertX": "Invertir X",
+        "invertY": "Invertir Y"
+    },
+    
+    "brush": {
+        "strength": "Intensidad",
+        "falloff": "Disminuir",
+        "radiusPixels": "Radio (píxeles)",
+        "editFunction": "Función de editar",
+        "falloffFunction": "Función de disminuir",
+        "falloffShape": "Forma de disminuir",
+        "brushMode": "Modo de pincel",
+
+        "falloffLinear": "Lineal",
+        "falloffInverse": "Lineal inverso",
+        "falloffSquare": "Exponencial (cuadrada)",
+        "falloffInverseSquare": "Exponencial inversa",
+        "shapeSquare": "Cuadrado",
+        "shapeCircle": "Círculo",
+
+        "tileTypeHGHT": "Mapa de altitud",
+        "tileTypeMATE": "Material",
+        "tileTypeGRASS": "Hierba",
+        "tileTypeWATER": "Agua"
+    }
+}
