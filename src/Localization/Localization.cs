@@ -12,8 +12,25 @@ public static class GMsg {
 }
 
 public class Localization {
+    public static string getCurrentISOLang() {
+        var cul = Thread.CurrentThread.CurrentUICulture;
+        return cul.TwoLetterISOLanguageName;
+    }
+    
     private static JsonSerializerOptions _jsOpt = new() { WriteIndented = true };
-    static string jsonPath = "Localization/lang_default.json";
+
+    public static string jsonPath {
+        get {
+            var lang = getCurrentISOLang();
+            var dir = "Localization/";
+            var path = Path.Combine(dir, $"lang_{lang}.json");
+            if (!File.Exists(path)) {
+                path = Path.Combine(dir, "lang_en.json");
+            }
+
+            return path;
+        }
+    }
 
     public sealed class StdStrings {
         [JsonInclude] public string save;

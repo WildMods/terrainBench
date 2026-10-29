@@ -62,4 +62,10 @@
         
         <Content Condition="Exists('$(MSBuildProjectDirectory)')" Include="$(MSBuildProjectDirectory)/ProFontIIx.ttf" Link="ProFontIIx.ttf" TargetPath="ProFontIIx.ttf" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="Localization\*.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
 </Project>
