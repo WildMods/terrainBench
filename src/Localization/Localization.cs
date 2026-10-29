@@ -25,6 +25,7 @@ public class Localization {
             var dir = "Localization/";
             var path = Path.Combine(dir, $"lang_{lang}.json");
             if (!File.Exists(path)) {
+                Console.WriteLine("Failed to find localization for '{0}', falling back to English.", lang);
                 path = Path.Combine(dir, "lang_en.json");
             }
 
